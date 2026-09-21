@@ -5,6 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Utilities.Core;
@@ -175,6 +178,36 @@ namespace Test.BuildXL.Processes.Detours
         }
 
         [Fact]
+        public void BulkPathAdderStateIsReleasedAtSeal()
+        {
+#if NETCOREAPP
+            var pathTable = new PathTable();
+            var manifest = new FileAccessManifest(pathTable);
+            var paths = new[]
+            {
+                AbsolutePath.Create(pathTable, @"C:\repo\projectA\one.dll"),
+                AbsolutePath.Create(pathTable, @"C:\repo\projectB\two.dll"),
+                AbsolutePath.Create(pathTable, @"C:\repo\projectA\three.dll"),
+            };
+            manifest.AddPaths(paths, FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+            var stateField = typeof(FileAccessManifest).GetField("m_bulkPathAdderState", BindingFlags.Instance | BindingFlags.NonPublic);
+            XAssert.IsNotNull(stateField);
+            XAssert.IsNotNull(stateField.GetValue(manifest));
+
+            byte[] expected = manifest.GetManifestTreeBytes();
+            XAssert.AreEqual(expected.Length, manifest.MutableManifestSerializedSize);
+            XAssert.AreEqual(manifest.Describe().Count(), manifest.MutableManifestNodeCount);
+
+            using var stream = new MemoryStream();
+            manifest.Serialize(stream);
+
+            XAssert.IsTrue(manifest.IsManifestTreeBlockSealed);
+            XAssert.IsNull(stateField.GetValue(manifest));
+            XAssert.IsTrue(expected.SequenceEqual(manifest.GetManifestTreeBytes()));
+#endif
+        }
+
+        [Fact]
         public void AddPathsMatchesInterleavedFileAndDirectoryPolicies()
         {
             var pathTable = new PathTable();
@@ -229,6 +262,8 @@ namespace Test.BuildXL.Processes.Detours
             }
 
             byte[] expected = manifest.GetManifestTreeBytes();
+            XAssert.AreEqual(expected.Length, manifest.MutableManifestSerializedSize);
+            XAssert.AreEqual(manifest.Describe().Count(), manifest.MutableManifestNodeCount);
 
             using var stream = new MemoryStream();
             manifest.Serialize(stream);
@@ -236,6 +271,39 @@ namespace Test.BuildXL.Processes.Detours
             byte[] actual = manifest.GetManifestTreeBytes();
             XAssert.AreEqual(expected.Length, actual.Length);
             XAssert.IsTrue(expected.SequenceEqual(actual));
+        }
+
+        [Fact]
+        public void SerializationScratchHandlesWideAndDeepTrees()
+        {
+            var pathTable = new PathTable();
+            var manifest = new FileAccessManifest(pathTable);
+
+            for (int i = 0; i < 1_024; i++)
+            {
+                manifest.AddPath(
+                    AbsolutePath.Create(pathTable, $@"C:\wide\child{i}.dll"),
+                    FileAccessPolicy.MaskNothing,
+                    FileAccessPolicy.ReportAccess);
+            }
+
+            string deepPath = @"C:\deep";
+            for (int i = 0; i < 64; i++)
+            {
+                deepPath = Path.Combine(deepPath, $"d{i}");
+            }
+
+            manifest.AddPath(
+                AbsolutePath.Create(pathTable, deepPath),
+                FileAccessPolicy.MaskNothing,
+                FileAccessPolicy.AllowRead);
+
+            byte[] expected = manifest.GetManifestTreeBytes();
+            using var stream = new MemoryStream();
+            manifest.Serialize(stream);
+
+            XAssert.AreEqual(expected.Length, manifest.MutableManifestSerializedSize);
+            XAssert.IsTrue(expected.SequenceEqual(manifest.GetManifestTreeBytes()));
         }
 
         [Theory]
@@ -266,6 +334,10 @@ namespace Test.BuildXL.Processes.Detours
             XAssert.AreEqual(mutablePolicy, sealedPolicy);
             XAssert.AreEqual(path, sealedPath);
             XAssert.AreEqual(FileAccessPolicy.AllowRead | FileAccessPolicy.ReportAccess, sealedPolicy);
+#if NETCOREAPP
+            // With a promotion threshold of 1, the sealed lookup above promotes the index immediately.
+            XAssert.IsTrue(manifest.IsSealedPathIndexAllocated);
+#endif
         }
 
         [Fact]
@@ -291,7 +363,7 @@ namespace Test.BuildXL.Processes.Detours
 #if NETCOREAPP
             XAssert.IsFalse(manifest.IsManifestTreeHydrated);
             XAssert.IsFalse(manifest.IsNormalizedFragmentCacheAllocated);
-            XAssert.IsTrue(manifest.IsSealedPathIndexAllocated);
+            XAssert.IsFalse(manifest.IsSealedPathIndexAllocated);
 #else
             XAssert.IsTrue(manifest.IsManifestTreeHydrated);
             XAssert.IsTrue(manifest.IsNormalizedFragmentCacheAllocated);
@@ -303,6 +375,12 @@ namespace Test.BuildXL.Processes.Detours
             XAssert.AreEqual(path, manifestPath);
             XAssert.AreEqual(FileAccessPolicy.AllowRead | FileAccessPolicy.AllowWrite, policy);
             XAssert.IsTrue(originalTreeBytes.SequenceEqual(manifest.GetManifestTreeBytes()));
+#if NETCOREAPP
+            XAssert.IsFalse(manifest.IsManifestTreeHydrated);
+            XAssert.IsFalse(manifest.IsNormalizedFragmentCacheAllocated);
+            // With a promotion threshold of 1, the lookup above promotes the index immediately.
+            XAssert.IsTrue(manifest.IsSealedPathIndexAllocated);
+#endif
         }
 
         [Fact]
@@ -341,24 +419,10 @@ namespace Test.BuildXL.Processes.Detours
 
             using (var stream = new MemoryStream())
             {
-#if NETCOREAPP
-                long createdCount = SandboxedProcessFactory.Counters.GetCounterValue(
-                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexCreatedCount);
-#endif
                 manifest.Serialize(stream);
-#if NETCOREAPP
-                XAssert.IsTrue(
-                    SandboxedProcessFactory.Counters.GetCounterValue(
-                        SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexCreatedCount)
-                    >= createdCount + 1);
-#endif
             }
 
-#if NETCOREAPP
-            XAssert.IsTrue(manifest.IsSealedPathIndexAllocated);
-#else
             XAssert.IsFalse(manifest.IsSealedPathIndexAllocated);
-#endif
             for (int i = 0; i < queries.Count; i++)
             {
                 bool found = manifest.TryFindManifestPathFor(queries[i], out AbsolutePath manifestPath, out FileAccessPolicy policy);
@@ -371,6 +435,229 @@ namespace Test.BuildXL.Processes.Detours
             XAssert.IsFalse(manifest.IsManifestTreeHydrated);
 #else
             XAssert.IsTrue(manifest.IsManifestTreeHydrated);
+#endif
+        }
+
+        [Fact]
+        public void SealedTreeLookupPromotesAfterThreshold()
+        {
+#if NETCOREAPP
+            var pathTable = new PathTable();
+            var manifest = new FileAccessManifest(pathTable);
+            AbsolutePath scope = AbsolutePath.Create(pathTable, @"C:\repo\source");
+            AbsolutePath path = AbsolutePath.Create(pathTable, @"C:\repo\source\project\obj\output.dll");
+            manifest.AddScope(scope, FileAccessPolicy.Deny, FileAccessPolicy.AllowRead);
+            manifest.AddPath(path, FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+
+            using (var stream = new MemoryStream())
+            {
+                manifest.Serialize(stream);
+            }
+
+            long createdBefore = SandboxedProcessFactory.Counters.GetCounterValue(
+                SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexCreatedCount);
+            long promotedBefore = SandboxedProcessFactory.Counters.GetCounterValue(
+                SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexPromotionCount);
+            long fallbackBefore = SandboxedProcessFactory.Counters.GetCounterValue(
+                SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexFallbackLookupCount);
+            long reached1Before = SandboxedProcessFactory.Counters.GetCounterValue(
+                SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedLookupReached1Count);
+            long smallIndexBefore = SandboxedProcessFactory.Counters.GetCounterValue(
+                SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexSize16384OrLessCount);
+
+            for (int i = 1; i < FileAccessManifest.SealedPathIndexPromotionLookupThreshold; i++)
+            {
+                XAssert.IsTrue(manifest.TryFindManifestPathFor(path, out AbsolutePath manifestPath, out FileAccessPolicy policy));
+                XAssert.AreEqual(path, manifestPath);
+                XAssert.AreEqual(FileAccessPolicy.AllowRead | FileAccessPolicy.ReportAccess, policy);
+            }
+
+            XAssert.IsFalse(manifest.IsSealedPathIndexAllocated);
+            XAssert.IsTrue(manifest.TryFindManifestPathFor(path, out AbsolutePath promotedPath, out FileAccessPolicy promotedPolicy));
+            XAssert.AreEqual(path, promotedPath);
+            XAssert.AreEqual(FileAccessPolicy.AllowRead | FileAccessPolicy.ReportAccess, promotedPolicy);
+            XAssert.IsTrue(manifest.IsSealedPathIndexAllocated);
+            XAssert.AreEqual(FileAccessManifest.SealedPathIndexPromotionLookupThreshold, manifest.SealedPathLookupCount);
+            XAssert.IsTrue(
+                SandboxedProcessFactory.Counters.GetCounterValue(
+                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexCreatedCount) >= createdBefore + 1);
+            XAssert.IsTrue(
+                SandboxedProcessFactory.Counters.GetCounterValue(
+                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexPromotionCount) >= promotedBefore + 1);
+            XAssert.IsTrue(
+                SandboxedProcessFactory.Counters.GetCounterValue(
+                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexFallbackLookupCount)
+                    >= fallbackBefore + FileAccessManifest.SealedPathIndexPromotionLookupThreshold - 1);
+            XAssert.IsTrue(
+                SandboxedProcessFactory.Counters.GetCounterValue(
+                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedLookupReached1Count)
+                    >= reached1Before + 1);
+            XAssert.IsTrue(
+                SandboxedProcessFactory.Counters.GetCounterValue(
+                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexSize16384OrLessCount)
+                    >= smallIndexBefore + 1);
+#endif
+        }
+
+        [Fact]
+        public void SealedLookupMilestonesIncludePostPromotionLookups()
+        {
+#if NETCOREAPP
+            var pathTable = new PathTable();
+            var manifest = new FileAccessManifest(pathTable);
+            AbsolutePath path = AbsolutePath.Create(pathTable, @"C:\repo\source\project\obj\output.dll");
+            manifest.AddPath(path, FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+            long sealedBefore = SandboxedProcessFactory.Counters.GetCounterValue(
+                SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedCount);
+
+            using (var stream = new MemoryStream())
+            {
+                manifest.Serialize(stream);
+            }
+
+            XAssert.IsTrue(
+                SandboxedProcessFactory.Counters.GetCounterValue(
+                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedCount)
+                    >= sealedBefore + 1);
+
+            long reached65536Before = SandboxedProcessFactory.Counters.GetCounterValue(
+                SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedLookupReached65536Count);
+            long reached262144Before = SandboxedProcessFactory.Counters.GetCounterValue(
+                SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedLookupReached262144Count);
+
+            for (int i = 0; i < 1 << 18; i++)
+            {
+                XAssert.IsTrue(manifest.TryFindManifestPathFor(path, out AbsolutePath manifestPath, out FileAccessPolicy policy));
+                XAssert.AreEqual(path, manifestPath);
+                XAssert.AreEqual(FileAccessPolicy.ReportAccess, policy);
+            }
+
+            XAssert.IsTrue(manifest.IsSealedPathIndexAllocated);
+            XAssert.AreEqual(1 << 18, manifest.SealedPathLookupCount);
+            XAssert.IsTrue(
+                SandboxedProcessFactory.Counters.GetCounterValue(
+                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedLookupReached65536Count)
+                    >= reached65536Before + 1);
+            XAssert.IsTrue(
+                SandboxedProcessFactory.Counters.GetCounterValue(
+                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedLookupReached262144Count)
+                    >= reached262144Before + 1);
+#endif
+        }
+
+        [Theory]
+        [InlineData(1 << 14, SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexSize16384OrLessCount)]
+        [InlineData((1 << 14) + 1, SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexSize16385To65536Count)]
+        [InlineData((1 << 16) + 1, SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexSize65537To262144Count)]
+        [InlineData((1 << 18) + 1, SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexSizeGreaterThan262144Count)]
+        public void SealedPathIndexSizeTelemetryUsesExclusiveBuckets(
+            int pathCount,
+            SandboxedProcessFactory.SandboxedProcessCounters expectedCounter)
+        {
+#if NETCOREAPP
+            XAssert.AreEqual(expectedCounter, FileAccessManifest.GetPathIndexSizeCounter(pathCount));
+#endif
+        }
+
+        [Fact]
+        public void ConcurrentSealedTreeLookupsCreateOneIndex()
+        {
+#if NETCOREAPP
+            var pathTable = new PathTable();
+            var manifest = new FileAccessManifest(pathTable);
+            var paths = Enumerable.Range(0, 128)
+                .Select(i => AbsolutePath.Create(pathTable, $@"C:\repo\source\project{i}\obj\output{i}.dll"))
+                .ToArray();
+            manifest.AddPaths(paths, FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+
+            using (var stream = new MemoryStream())
+            {
+                manifest.Serialize(stream);
+            }
+
+            long createdBefore = SandboxedProcessFactory.Counters.GetCounterValue(
+                SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexCreatedCount);
+            long promotedBefore = SandboxedProcessFactory.Counters.GetCounterValue(
+                SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexPromotionCount);
+            int failures = 0;
+
+            Parallel.For(
+                0,
+                FileAccessManifest.SealedPathIndexPromotionLookupThreshold * 2,
+                i =>
+                {
+                    AbsolutePath expected = paths[i % paths.Length];
+                    if (!manifest.TryFindManifestPathFor(expected, out AbsolutePath actual, out FileAccessPolicy policy)
+                        || actual != expected
+                        || policy != FileAccessPolicy.ReportAccess)
+                    {
+                        Interlocked.Increment(ref failures);
+                    }
+                });
+
+            XAssert.AreEqual(0, failures);
+            XAssert.IsTrue(manifest.IsSealedPathIndexAllocated);
+            XAssert.IsTrue(
+                SandboxedProcessFactory.Counters.GetCounterValue(
+                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexCreatedCount) >= createdBefore + 1);
+            XAssert.IsTrue(
+                SandboxedProcessFactory.Counters.GetCounterValue(
+                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexPromotionCount) >= promotedBefore + 1);
+#endif
+        }
+
+        [Fact]
+        public void DeserializedSealedTreeNeverPromotesToThePathIdIndex()
+        {
+#if NETCOREAPP
+            var originalPathTable = new PathTable();
+            var original = new FileAccessManifest(originalPathTable);
+            AbsolutePath originalScope = AbsolutePath.Create(originalPathTable, @"C:\repo\source");
+            AbsolutePath originalPath = AbsolutePath.Create(originalPathTable, @"C:\repo\source\prójéct\日本語\output.dll");
+            original.AddScope(originalScope, FileAccessPolicy.Deny, FileAccessPolicy.AllowRead);
+            original.AddPath(originalPath, FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+
+            using var stream = new MemoryStream();
+            original.Serialize(stream);
+            stream.Position = 0;
+            long sealedBeforeDeserialize = SandboxedProcessFactory.Counters.GetCounterValue(
+                SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedCount);
+            FileAccessManifest deserialized = FileAccessManifest.Deserialize(stream);
+            XAssert.IsTrue(
+                SandboxedProcessFactory.Counters.GetCounterValue(
+                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedCount)
+                    >= sealedBeforeDeserialize + 1);
+
+            // Mint unrelated paths first so that the deserialized path table hands out ids that do not line up with
+            // the ids embedded in the serialized tree. This is what a real out-of-proc execution looks like.
+            _ = AbsolutePath.Create(deserialized.PathTable, @"D:\unrelated\a\b\c\d");
+            _ = AbsolutePath.Create(deserialized.PathTable, @"D:\unrelated\e\f\g\h");
+            AbsolutePath deserializedPath = AbsolutePath.Create(
+                deserialized.PathTable,
+                @"C:\repo\source\prójéct\日本語\output.dll");
+            XAssert.AreNotEqual(originalPath.Value.Value, deserializedPath.Value.Value);
+
+            deserialized.CreateSealedPathIndexForTesting();
+
+            // The embedded path ids belong to the serializing process, so the index must never be built. Promoting it
+            // would silently resolve every lookup to the root policy and report declared inputs as undeclared.
+            XAssert.IsFalse(deserialized.IsSealedPathIndexAllocated);
+            XAssert.IsFalse(deserialized.IsManifestTreeHydrated);
+            XAssert.IsTrue(deserialized.TryFindManifestPathFor(
+                deserializedPath,
+                out AbsolutePath manifestPath,
+                out FileAccessPolicy policy));
+            XAssert.AreEqual(originalPath.Value.Value, manifestPath.Value.Value);
+            XAssert.AreEqual(FileAccessPolicy.AllowRead | FileAccessPolicy.ReportAccess, policy);
+
+            // Repeated lookups must stay on the fragment walk no matter how many times the manifest is queried.
+            for (int i = 0; i < 64; i++)
+            {
+                XAssert.IsTrue(deserialized.TryFindManifestPathFor(deserializedPath, out _, out FileAccessPolicy repeatPolicy));
+                XAssert.AreEqual(FileAccessPolicy.AllowRead | FileAccessPolicy.ReportAccess, repeatPolicy);
+            }
+
+            XAssert.IsFalse(deserialized.IsSealedPathIndexAllocated);
 #endif
         }
 

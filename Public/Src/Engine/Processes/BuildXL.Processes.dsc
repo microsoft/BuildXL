@@ -48,6 +48,7 @@ namespace Processes {
             "BuildXL.Engine",
             "Test.BuildXL.Engine",
             "Test.BuildXL.Processes",
+            "Test.BuildXL.Processes.Benchmarks",
             "Test.BuildXL.Processes.Detours",
             "ExternalToolTest.BuildXL.Scheduler",
             "BuildXL.ProcessPipExecutor",

@@ -254,6 +254,90 @@ namespace BuildXL.Processes
             /// </summary>
             [CounterType(CounterType.Stopwatch)]
             FileAccessManifestPathIndexConstructionDuration,
+
+            /// <summary>
+            /// Number of sealed manifest path lookups performed by traversing serialized path fragments.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestPathIndexFallbackLookupCount,
+
+            /// <summary>
+            /// Number of sealed manifest path index promotions initiated after enough fallback lookups.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestPathIndexPromotionCount,
+
+            /// <summary>
+            /// Number of file access manifest instances created or deserialized in sealed form.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestSealedCount,
+
+            /// <summary>
+            /// Number of sealed file access manifests that reached at least one path lookup.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestSealedLookupReached1Count,
+
+            /// <summary>
+            /// Number of sealed file access manifests that reached at least 1,024 path lookups.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestSealedLookupReached1024Count,
+
+            /// <summary>
+            /// Number of sealed file access manifests that reached at least 4,096 path lookups.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestSealedLookupReached4096Count,
+
+            /// <summary>
+            /// Number of sealed file access manifests that reached at least 16,384 path lookups.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestSealedLookupReached16384Count,
+
+            /// <summary>
+            /// Number of sealed file access manifests that reached at least 65,536 path lookups.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestSealedLookupReached65536Count,
+
+            /// <summary>
+            /// Number of sealed file access manifests that reached at least 262,144 path lookups.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestSealedLookupReached262144Count,
+
+            /// <summary>
+            /// Number of serialized-fragment lookups performed while another thread constructed the path index.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestPathIndexFallbackDuringConstructionCount,
+
+            /// <summary>
+            /// Number of created sealed path indexes containing at most 16,384 paths.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestPathIndexSize16384OrLessCount,
+
+            /// <summary>
+            /// Number of created sealed path indexes containing between 16,385 and 65,536 paths.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestPathIndexSize16385To65536Count,
+
+            /// <summary>
+            /// Number of created sealed path indexes containing between 65,537 and 262,144 paths.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestPathIndexSize65537To262144Count,
+
+            /// <summary>
+            /// Number of created sealed path indexes containing more than 262,144 paths.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestPathIndexSizeGreaterThan262144Count,
         }
 
         /// <summary>

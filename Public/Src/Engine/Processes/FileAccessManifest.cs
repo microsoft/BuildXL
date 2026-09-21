@@ -27,6 +27,21 @@ namespace BuildXL.Processes
     {
         private const uint ManifestHashTableLoadFactorNumerator = 7;
         private const uint ManifestHashTableLoadFactorDenominator = 10;
+        private const int MaxStackAllocatedChildOffsetCount = 64;
+
+#if NETCOREAPP
+        // Promote on the first post-seal lookup. The stress benchmark measures an approximately 9,600 lookup
+        // single-thread break-even for a 1.3 MiB index, which would argue for a much larger threshold, but that
+        // bound is calibrated against manifest sizes we have observed rather than ones we have not. Promoting at 1
+        // keeps the win that motivated this change, which is skipping index construction entirely for the manifests
+        // that are never queried after sealing, while never being worse than the previous unconditional eager build
+        // for the manifests that are.
+        internal const int SealedPathIndexPromotionLookupThreshold = 1;
+
+        private const int SealedPathIndexCreationNotStarted = 0;
+        private const int SealedPathIndexCreationInProgress = 1;
+        private const int SealedPathIndexCreationCompleted = 2;
+#endif
 
         // CODESYNC: DataTypes.h
         [Flags]
@@ -39,6 +54,8 @@ namespace BuildXL.Processes
 
         private Dictionary<StringId, NormalizedPathString>? m_normalizedFragments = new();
         private BulkPathAdderState? m_bulkPathAdderState;
+        private int m_mutableManifestNodeCount;
+        private int m_mutableManifestSerializedSize;
 
         private readonly IEqualityComparer<StringId> m_childComparer;
 
@@ -72,6 +89,23 @@ namespace BuildXL.Processes
         /// </summary>
         private byte[]? m_sealedManifestTreeBlock;
         private int[]? m_sealedPathIndex;
+#if NETCOREAPP
+        private int m_sealedPathCount = -1;
+        private int m_sealedPathIndexCreationState;
+        private int m_sealedPathLookupCount;
+
+        /// <summary>
+        /// Whether the path ids embedded in <see cref="m_sealedManifestTreeBlock"/> were produced by <see cref="PathTable"/>.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Deserialize"/> pairs the serialized tree with a brand new path table, so the embedded path ids
+        /// belong to the path table of the process that serialized the manifest and are meaningless here. Lookups
+        /// still work in that case because <see cref="TryFindManifestPathForSealedTreeByFragment"/> matches normalized
+        /// path fragments rather than path ids, but <see cref="TryFindManifestPathForSealedTree"/> cannot be used
+        /// because it is keyed on path ids.
+        /// </remarks>
+        private bool m_sealedTreePathIdsMatchPathTable = true;
+#endif
 
         /// <summary>
         /// Creates an empty instance.
@@ -84,6 +118,8 @@ namespace BuildXL.Processes
             PathTable = pathTable;
             m_childComparer = new NormalizedStringIdEqualityComparer(this);
             m_rootNode = Node.CreateRootNode();
+            m_mutableManifestNodeCount = 1;
+            m_mutableManifestSerializedSize = Node.GetSerializedNodeSize(default(NormalizedPathString), bucketCount: 0);
             DirectoryTranslator = translateDirectories;
             ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox;
 
@@ -803,12 +839,36 @@ namespace BuildXL.Processes
             if (sealedTree is not null)
             {
 #if NETCOREAPP
+                int sealedPathLookupCount = Interlocked.Increment(ref m_sealedPathLookupCount);
+                RecordSealedPathLookupMilestone(sealedPathLookupCount);
+
                 int[]? sealedPathIndex = Volatile.Read(ref m_sealedPathIndex);
                 if (sealedPathIndex is not null)
                 {
                     return TryFindManifestPathForSealedTree(sealedTree, sealedPathIndex, path, out manifestPath, out nodePolicy);
                 }
 
+                bool indexCreationWasInProgress =
+                    Volatile.Read(ref m_sealedPathIndexCreationState) == SealedPathIndexCreationInProgress;
+                if (m_sealedTreePathIdsMatchPathTable && sealedPathLookupCount >= SealedPathIndexPromotionLookupThreshold)
+                {
+                    TryCreateSealedPathIndex(sealedTree);
+                    sealedPathIndex = Volatile.Read(ref m_sealedPathIndex);
+                    if (sealedPathIndex is not null)
+                    {
+                        return TryFindManifestPathForSealedTree(sealedTree, sealedPathIndex, path, out manifestPath, out nodePolicy);
+                    }
+
+                    if (indexCreationWasInProgress
+                        || Volatile.Read(ref m_sealedPathIndexCreationState) == SealedPathIndexCreationInProgress)
+                    {
+                        SandboxedProcessFactory.Counters.IncrementCounter(
+                            SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexFallbackDuringConstructionCount);
+                    }
+                }
+
+                SandboxedProcessFactory.Counters.IncrementCounter(
+                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexFallbackLookupCount);
                 return TryFindManifestPathForSealedTreeByFragment(sealedTree, path, out manifestPath, out nodePolicy);
 #else
                 HydrateTreeNodeIfNeeded();
@@ -1549,8 +1609,8 @@ namespace BuildXL.Processes
                 return;
             }
 
-            int nodeCount = 0;
-            int serializedSize = m_rootNode.GetSerializedSize(this, default(NormalizedPathString), ref nodeCount);
+            int nodeCount = m_mutableManifestNodeCount;
+            int serializedSize = m_mutableManifestSerializedSize;
             var sealedManifestTreeBlock = new byte[serializedSize];
             using var stream = new MemoryStream(sealedManifestTreeBlock, writable: true);
             using (var writer = new BinaryWriter(stream, Encoding.Unicode, leaveOpen: true))
@@ -1563,39 +1623,13 @@ namespace BuildXL.Processes
             // Process startup completes payload generation before report processing starts, so no managed tree
             // readers can overlap this transition.
 #if NETCOREAPP
-            int pathCount;
-            int[]? sealedPathIndex;
-            using (SandboxedProcessFactory.Counters.StartStopwatch(
-                SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexConstructionDuration))
-            {
-                pathCount = nodeCount - 1;
-                sealedPathIndex = CreateSealedPathIndex(sealedManifestTreeBlock, pathCount);
-            }
-
-            if (sealedPathIndex is null)
-            {
-                SandboxedProcessFactory.Counters.IncrementCounter(
-                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexConstructionFailureCount);
-            }
-            else
-            {
-                Volatile.Write(ref m_sealedPathIndex, sealedPathIndex);
-                SandboxedProcessFactory.Counters.IncrementCounter(
-                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexCreatedCount);
-                SandboxedProcessFactory.Counters.AddToCounter(
-                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexBytes,
-                    checked((long)sealedPathIndex.LongLength * sizeof(int)));
-                SandboxedProcessFactory.Counters.AddToCounter(
-                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexPathCount,
-                    pathCount);
-                SandboxedProcessFactory.Counters.AddToCounter(
-                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexSlotCount,
-                    sealedPathIndex.LongLength);
-            }
+            m_sealedPathCount = nodeCount - 1;
 #endif
 
             Volatile.Write(ref m_sealedManifestTreeBlock, sealedManifestTreeBlock);
 #if NETCOREAPP
+            SandboxedProcessFactory.Counters.IncrementCounter(
+                SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedCount);
             ReleaseNormalizedFragments();
             ReleaseBulkPathAdderState();
             ReleaseMutableTree();
@@ -1603,6 +1637,135 @@ namespace BuildXL.Processes
         }
 
 #if NETCOREAPP
+        private static void RecordSealedPathLookupMilestone(int lookupCount)
+        {
+            SandboxedProcessFactory.SandboxedProcessCounters? counter = lookupCount switch
+            {
+                1 => SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedLookupReached1Count,
+                1 << 10 => SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedLookupReached1024Count,
+                1 << 12 => SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedLookupReached4096Count,
+                1 << 14 => SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedLookupReached16384Count,
+                1 << 16 => SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedLookupReached65536Count,
+                1 << 18 => SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedLookupReached262144Count,
+                _ => null,
+            };
+
+            if (counter.HasValue)
+            {
+                SandboxedProcessFactory.Counters.IncrementCounter(counter.Value);
+            }
+        }
+
+        private void TryCreateSealedPathIndex(byte[] tree)
+        {
+            if (!m_sealedTreePathIdsMatchPathTable)
+            {
+                return;
+            }
+
+            if (Interlocked.CompareExchange(
+                ref m_sealedPathIndexCreationState,
+                SealedPathIndexCreationInProgress,
+                SealedPathIndexCreationNotStarted) != SealedPathIndexCreationNotStarted)
+            {
+                return;
+            }
+
+            SandboxedProcessFactory.Counters.IncrementCounter(
+                SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexPromotionCount);
+
+            try
+            {
+                int[]? sealedPathIndex;
+                int pathCount = Volatile.Read(ref m_sealedPathCount);
+                using (SandboxedProcessFactory.Counters.StartStopwatch(
+                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexConstructionDuration))
+                {
+                    if (pathCount < 0)
+                    {
+                        pathCount = CountSealedPaths(tree);
+                        Volatile.Write(ref m_sealedPathCount, pathCount);
+                    }
+
+                    sealedPathIndex = CreateSealedPathIndex(tree, pathCount);
+                }
+
+                if (sealedPathIndex is null)
+                {
+                    SandboxedProcessFactory.Counters.IncrementCounter(
+                        SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexConstructionFailureCount);
+                }
+                else
+                {
+                    Volatile.Write(ref m_sealedPathIndex, sealedPathIndex);
+                    SandboxedProcessFactory.Counters.IncrementCounter(
+                        SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexCreatedCount);
+                    SandboxedProcessFactory.Counters.AddToCounter(
+                        SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexBytes,
+                        checked((long)sealedPathIndex.LongLength * sizeof(int)));
+                    SandboxedProcessFactory.Counters.AddToCounter(
+                        SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexPathCount,
+                        pathCount);
+                    SandboxedProcessFactory.Counters.AddToCounter(
+                        SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexSlotCount,
+                        sealedPathIndex.LongLength);
+                    SandboxedProcessFactory.Counters.IncrementCounter(GetPathIndexSizeCounter(pathCount));
+                }
+            }
+            finally
+            {
+                Volatile.Write(ref m_sealedPathIndexCreationState, SealedPathIndexCreationCompleted);
+            }
+        }
+
+        internal static SandboxedProcessFactory.SandboxedProcessCounters GetPathIndexSizeCounter(int pathCount)
+        {
+            if (pathCount <= 1 << 14)
+            {
+                return SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexSize16384OrLessCount;
+            }
+
+            if (pathCount <= 1 << 16)
+            {
+                return SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexSize16385To65536Count;
+            }
+
+            if (pathCount <= 1 << 18)
+            {
+                return SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexSize65537To262144Count;
+            }
+
+            return SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexSizeGreaterThan262144Count;
+        }
+
+        private static int CountSealedPaths(byte[] tree)
+        {
+            var pendingNodes = new Stack<int>();
+            pendingNodes.Push(0);
+            int pathCount = 0;
+
+            while (pendingNodes.Count != 0)
+            {
+                int nodeOffset = pendingNodes.Pop();
+                ReadSealedNode(tree, nodeOffset, out _, out AbsolutePath nodePath, out uint childBucketCount, out int childrenOffset);
+                if (nodePath.IsValid)
+                {
+                    pathCount++;
+                }
+
+                for (int i = 0; i < childBucketCount; i++)
+                {
+                    uint childEntry = BitConverter.ToUInt32(tree, checked(childrenOffset + (i * sizeof(uint))));
+                    if (childEntry != 0)
+                    {
+                        pendingNodes.Push(checked(nodeOffset + (int)(childEntry & ~(uint)FileAccessBucketOffsetFlag.ChainMask)));
+                    }
+                }
+            }
+
+            return pathCount;
+        }
+
         private static int[]? CreateSealedPathIndex(byte[] tree, int pathCount)
         {
             Contract.Requires(pathCount >= 0);
@@ -1717,7 +1880,7 @@ namespace BuildXL.Processes
                 sealedManifestTreeBlock = ms.ToArray();
             }
 
-            return new FileAccessManifest(new PathTable(), directoryTranslator, childProcessesToBreakAwayFromSandbox)
+            var manifest = new FileAccessManifest(new PathTable(), directoryTranslator, childProcessesToBreakAwayFromSandbox)
             {
                 InternalDetoursErrorNotificationFile = internalDetoursErrorNotificationFile,
                 PipId = pipId,
@@ -1727,6 +1890,19 @@ namespace BuildXL.Processes
                 m_messageCountSemaphoreName = messageCountSemaphoreName,
                 m_messageSentCountSemaphoreName = messageSentCountSemaphoreName,
             };
+
+#if NETCOREAPP
+            // The serialized tree embeds path ids minted by the path table of the process that serialized it, and the
+            // manifest above was given a brand new path table, so those ids cannot be compared against ids from this
+            // process. Lookups fall back to matching normalized path fragments instead.
+            manifest.m_sealedTreePathIdsMatchPathTable = false;
+#endif
+#if NETCOREAPP
+            SandboxedProcessFactory.Counters.IncrementCounter(
+                SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestSealedCount);
+#endif
+
+            return manifest;
         }
 
         private void HydrateTreeNodeIfNeeded()
@@ -1810,7 +1986,54 @@ namespace BuildXL.Processes
 
         internal bool IsNormalizedFragmentCacheAllocated => Volatile.Read(ref m_normalizedFragments) is not null;
 
+        internal int MutableManifestNodeCount => m_mutableManifestNodeCount;
+
+        internal int MutableManifestSerializedSize => m_mutableManifestSerializedSize;
+
         internal bool IsSealedPathIndexAllocated => Volatile.Read(ref m_sealedPathIndex) is not null;
+
+        private void RecordNodeCreated(StringId fragment, uint previousParentBucketCount, uint currentParentBucketCount)
+        {
+            Contract.Assert(currentParentBucketCount >= previousParentBucketCount);
+
+            m_mutableManifestNodeCount = checked(m_mutableManifestNodeCount + 1);
+            int childSize = Node.GetSerializedNodeSize(GetNormalizedFragment(fragment), bucketCount: 0);
+            int parentBucketGrowth = checked((int)(currentParentBucketCount - previousParentBucketCount) * sizeof(uint));
+            m_mutableManifestSerializedSize = checked(m_mutableManifestSerializedSize + childSize + parentBucketGrowth);
+        }
+
+#if NETCOREAPP
+        internal int SealedPathLookupCount => Volatile.Read(ref m_sealedPathLookupCount);
+
+        internal void CreateSealedPathIndexForTesting()
+        {
+            byte[]? sealedTree = Volatile.Read(ref m_sealedManifestTreeBlock);
+            Contract.Assert(sealedTree is not null);
+            TryCreateSealedPathIndex(sealedTree);
+        }
+
+        internal bool TryFindManifestPathForSealedTreeByFragmentForTesting(
+            AbsolutePath path,
+            out AbsolutePath manifestPath,
+            out FileAccessPolicy nodePolicy)
+        {
+            byte[]? sealedTree = Volatile.Read(ref m_sealedManifestTreeBlock);
+            Contract.Assert(sealedTree is not null);
+            return TryFindManifestPathForSealedTreeByFragment(sealedTree, path, out manifestPath, out nodePolicy);
+        }
+
+        internal bool TryFindManifestPathForSealedTreeByIndexForTesting(
+            AbsolutePath path,
+            out AbsolutePath manifestPath,
+            out FileAccessPolicy nodePolicy)
+        {
+            byte[]? sealedTree = Volatile.Read(ref m_sealedManifestTreeBlock);
+            int[]? sealedPathIndex = Volatile.Read(ref m_sealedPathIndex);
+            Contract.Assert(sealedTree is not null);
+            Contract.Assert(sealedPathIndex is not null);
+            return TryFindManifestPathForSealedTree(sealedTree, sealedPathIndex, path, out manifestPath, out nodePolicy);
+        }
+#endif
 
         // CODESYNC: DataTypes.h
         [Flags]
@@ -2236,8 +2459,10 @@ namespace BuildXL.Processes
                 m_children ??= new Dictionary<StringId, Node>(owner.m_childComparer);
 
                 StringId fragment = path.GetName(owner.PathTable).StringId;
+                uint previousBucketCount = GetBucketCount();
                 child = new Node(path);
                 m_children.Add(fragment, child);
+                owner.RecordNodeCreated(fragment, previousBucketCount, GetBucketCount());
 
                 return child;
             }
@@ -2266,8 +2491,8 @@ namespace BuildXL.Processes
                 uint childCount = (uint)(m_children?.Count ?? 0);
 
                 // The serialized child table targets a 70% load factor. Integer division deliberately rounds down
-                // to preserve the existing wire format; GetSerializedSize and InternalSerialize both call this
-                // helper, so the predicted table size exactly matches the table that is written.
+                // to preserve the existing wire format. Incremental size accounting and InternalSerialize both use
+                // this helper, so the tracked table size exactly matches the table that is written.
                 uint bucketCount = childCount == 0
                     ? 0
                     : checked((uint)(((ulong)childCount * ManifestHashTableLoadFactorDenominator) / ManifestHashTableLoadFactorNumerator));
@@ -2275,13 +2500,8 @@ namespace BuildXL.Processes
                 return bucketCount;
             }
 
-            /// <summary>
-            /// Returns the exact number of bytes that <see cref="InternalSerialize"/> will write for this subtree.
-            /// </summary>
-            internal int GetSerializedSize(FileAccessManifest owner, NormalizedPathString normalizedFragment, ref int nodeCount)
+            internal static int GetSerializedNodeSize(NormalizedPathString normalizedFragment, uint bucketCount)
             {
-                nodeCount = checked(nodeCount + 1);
-
                 // Fixed node header: optional debug marker, normalized-fragment hash, cone policy, node policy,
                 // path ID, expected USN, and child-bucket count.
                 int size =
@@ -2290,7 +2510,6 @@ namespace BuildXL.Processes
 #endif
                     (5 * sizeof(uint)) + sizeof(ulong);
 
-                uint bucketCount = GetBucketCount();
                 // Each serialized hash-table bucket is one uint containing a child offset and chain flags.
                 size = checked(size + ((int)bucketCount * sizeof(uint)));
 
@@ -2300,14 +2519,6 @@ namespace BuildXL.Processes
                 size = checked(size + (normalizedFragment.IsValid
                     ? (normalizedFragment.Bytes.Length + 3) & ~3
                     : sizeof(uint)));
-
-                if (m_children is not null)
-                {
-                    foreach (var child in m_children)
-                    {
-                        size = checked(size + child.Value.GetSerializedSize(owner, owner.GetNormalizedFragment(child.Key), ref nodeCount));
-                    }
-                }
 
                 return size;
             }
@@ -2338,7 +2549,7 @@ namespace BuildXL.Processes
             }
 
             /// <summary>
-            /// Adds a path by finding its nearest cached ancestor and creating only the missing descendants.
+            /// Adds a path iteratively, reusing nodes already found for previous paths in the same manifest.
             /// </summary>
             /// <remarks>
             /// Newly resolved nodes are added to <paramref name="nodesByPath"/> so subsequent paths can reuse
@@ -2511,43 +2722,67 @@ namespace BuildXL.Processes
 
                     if (m_children is not null)
                     {
-                        // We are now building a simple hash-table with linear chaining for collisions.
-                        // The lowest two bits of each record may encoding information about whether a collision chain starts at that point, or continues.
-                        uint[] offsets = new uint[bucketCount];
-                        foreach (var child in m_children)
+#if NETCOREAPP
+                        uint[]? rentedOffsets = null;
+#endif
+                        try
                         {
-                            var childNormalizedFragment = owner.GetNormalizedFragment(child.Key);
-                            var hash = unchecked((uint)childNormalizedFragment.HashCode);
-                            var index = hash % bucketCount;
+                            int offsetCount = checked((int)bucketCount);
+                            Span<uint> offsets = offsetCount <= MaxStackAllocatedChildOffsetCount
+                                ? stackalloc uint[offsetCount]
+#if NETCOREAPP
+                                : (rentedOffsets = System.Buffers.ArrayPool<uint>.Shared.Rent(offsetCount)).AsSpan(0, offsetCount);
+#else
+                                : new uint[offsetCount];
+#endif
+                            offsets.Clear();
 
-                            // collision?
-                            if (offsets[index] != 0)
+                            // We are now building a simple hash-table with linear chaining for collisions.
+                            // The lowest two bits of each record may encode whether a collision chain starts or continues.
+                            foreach (var child in m_children)
                             {
-                                offsets[index] |= (uint)FileAccessBucketOffsetFlag.ChainStart;
-                                index = (index + 1) % bucketCount;
+                                var childNormalizedFragment = owner.GetNormalizedFragment(child.Key);
+                                var hash = unchecked((uint)childNormalizedFragment.HashCode);
+                                var index = checked((int)(hash % bucketCount));
 
                                 // collision?
-                                while (offsets[index] != 0)
+                                if (offsets[index] != 0)
                                 {
-                                    offsets[index] |= (uint)FileAccessBucketOffsetFlag.ChainContinuation;
-                                    index = (index + 1) % bucketCount;
+                                    offsets[index] |= (uint)FileAccessBucketOffsetFlag.ChainStart;
+                                    index = (index + 1) % offsetCount;
+
+                                    // collision?
+                                    while (offsets[index] != 0)
+                                    {
+                                        offsets[index] |= (uint)FileAccessBucketOffsetFlag.ChainContinuation;
+                                        index = (index + 1) % offsetCount;
+                                    }
                                 }
+
+                                var offset = checked((uint)(writer.BaseStream.Position - start));
+                                Contract.Assume((offset & (uint)FileAccessBucketOffsetFlag.ChainMask) == 0);
+                                offsets[index] = offset;
+                                child.Value.InternalSerialize(owner, childNormalizedFragment, writer, ConePolicy);
                             }
 
-                            var offset = checked((uint)(writer.BaseStream.Position - start));
-                            Contract.Assume((offset & (uint)FileAccessBucketOffsetFlag.ChainMask) == 0);
-                            offsets[index] = offset;
-                            child.Value.InternalSerialize(owner, childNormalizedFragment, writer, ConePolicy);
-                        }
+                            long endPosition = writer.BaseStream.Position;
+                            writer.BaseStream.Seek(offsetsStart, SeekOrigin.Begin);
+                            for (var i = 0; i < offsets.Length; i++)
+                            {
+                                writer.Write(offsets[i]);
+                            }
 
-                        long endPosition = writer.BaseStream.Position;
-                        writer.BaseStream.Seek(offsetsStart, SeekOrigin.Begin);
-                        for (var i = 0; i < offsets.Length; i++)
+                            writer.BaseStream.Seek(endPosition, SeekOrigin.Begin);
+                        }
+                        finally
                         {
-                            writer.Write(offsets[i]);
+#if NETCOREAPP
+                            if (rentedOffsets is not null)
+                            {
+                                System.Buffers.ArrayPool<uint>.Shared.Return(rentedOffsets);
+                            }
+#endif
                         }
-
-                        writer.BaseStream.Seek(endPosition, SeekOrigin.Begin);
                     }
                 }
             }

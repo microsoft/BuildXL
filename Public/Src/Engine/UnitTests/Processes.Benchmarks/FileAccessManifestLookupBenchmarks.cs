@@ -15,7 +15,7 @@ using Xunit;
 namespace Test.BuildXL.Processes.Benchmarks
 {
     /// <summary>
-    /// Compares production FAM lookup paths before and after the mutable tree is replaced by its serialized form.
+    /// Measures the serialized FAM fragment and indexed lookup paths, including the cost to build the index.
     /// Run with: bxl Test.BuildXL.Processes.Benchmarks.dsc /p:[Sdk.BuildXL]runBenchmarks=1 /q:ReleaseNet8 /server-
     /// </summary>
     public sealed class FileAccessManifestLookupBenchmarks
@@ -34,7 +34,7 @@ namespace Test.BuildXL.Processes.Benchmarks
         }
 
         [Fact]
-        public void CompareMutableAndSealedTreeLookups()
+        public void MeasureSealedTreeLookupCrossover()
         {
             var pathTable = new PathTable();
             BenchmarkData data = CreateData(pathTable);
@@ -44,78 +44,94 @@ namespace Test.BuildXL.Processes.Benchmarks
 
             Assert.False(mutable.Manifest.IsManifestTreeBlockSealed);
             Assert.True(sealedManifest.Manifest.IsManifestTreeBlockSealed);
+            Assert.False(sealedManifest.Manifest.IsSealedPathIndexAllocated);
             Assert.Equal(mutable.TreeSize, sealedManifest.TreeSize);
-            ValidateEquivalent(mutable.Manifest, sealedManifest.Manifest, data.Queries);
+            ValidateFallbackEquivalent(mutable.Manifest, sealedManifest.Manifest, data.Queries);
 
             m_output.WriteLine(
                 $"FAM lookup benchmark: {ProjectCount:N0} projects, {data.ManifestPaths.Length:N0} declared paths, " +
                 $"{data.Queries.Length:N0} mixed queries/pass, {MeasurementPasses:N0} passes/round, " +
                 $"{MeasurementRounds:N0} rounds, {Environment.ProcessorCount:N0} logical processors.");
             PrintPreparation("control mutable tree", mutable);
-            PrintPreparation("proposed sealed tree", sealedManifest);
+            PrintPreparation("lazy sealed tree", sealedManifest);
 
             int maximumConcurrency = Math.Min(16, Math.Max(1, Environment.ProcessorCount));
             int[] concurrencyLevels = maximumConcurrency == 1 ? new[] { 1 } : new[] { 1, maximumConcurrency };
+            var fallbackByConcurrency = new Dictionary<int, Measurement>();
             foreach (int concurrency in concurrencyLevels)
             {
-                RunQueries(mutable.Manifest, data.Queries, Math.Max(2, concurrency), concurrency);
-                RunQueries(sealedManifest.Manifest, data.Queries, Math.Max(2, concurrency), concurrency);
-                MeasureComparison(mutable.Manifest, sealedManifest.Manifest, data.Queries, concurrency);
+                RunQueries(sealedManifest.Manifest, data.Queries, Math.Max(2, concurrency), concurrency, LookupMode.Fragment);
+                fallbackByConcurrency.Add(
+                    concurrency,
+                    MeasureRounds("fragment fallback", sealedManifest.Manifest, data.Queries, concurrency, LookupMode.Fragment));
             }
+
+            PreparationMeasurement promotion = MeasurePromotion(sealedManifest.Manifest);
+            Assert.True(sealedManifest.Manifest.IsSealedPathIndexAllocated);
+            m_output.WriteLine(
+                $"lazy index promotion  : {promotion.Elapsed.TotalMilliseconds:N1} ms, " +
+                $"{promotion.AllocatedBytes / (1024.0 * 1024.0):N1} MiB allocated.");
+
+            foreach (int concurrency in concurrencyLevels)
+            {
+                RunQueries(sealedManifest.Manifest, data.Queries, Math.Max(2, concurrency), concurrency, LookupMode.Index);
+                Measurement indexed = MeasureRounds(
+                    "indexed lookup",
+                    sealedManifest.Manifest,
+                    data.Queries,
+                    concurrency,
+                    LookupMode.Index);
+                Measurement fallback = fallbackByConcurrency[concurrency];
+                Assert.Equal(fallback.Checksum, indexed.Checksum);
+                double savedNanoseconds = fallback.NanosecondsPerQuery - indexed.NanosecondsPerQuery;
+                double breakEvenLookups = savedNanoseconds > 0
+                    ? promotion.Elapsed.TotalSeconds * 1_000_000_000.0 / savedNanoseconds
+                    : double.PositiveInfinity;
+
+                m_output.WriteLine(
+                    $"CROSSOVER c={concurrency,2}: fallback={fallback.NanosecondsPerQuery:F1} ns/query, " +
+                    $"indexed={indexed.NanosecondsPerQuery:F1} ns/query, saved={savedNanoseconds:F1} ns/query, " +
+                    $"promotion break-even={breakEvenLookups:N0} lookups.");
+            }
+
+            m_output.WriteLine(
+                $"POLICY: promote after {FileAccessManifest.SealedPathIndexPromotionLookupThreshold:N0} sealed lookups; " +
+                "the threshold is chosen above the measured single-thread break-even to avoid allocating indexes for short-lived manifests.");
 
             GC.KeepAlive(mutable.Manifest);
             GC.KeepAlive(sealedManifest.Manifest);
         }
 
-        private void MeasureComparison(
-            FileAccessManifest mutable,
-            FileAccessManifest sealedManifest,
+        private Measurement MeasureRounds(
+            string name,
+            FileAccessManifest manifest,
             AbsolutePath[] queries,
-            int concurrency)
+            int concurrency,
+            LookupMode lookupMode)
         {
-            var mutableMeasurements = new List<Measurement>(MeasurementRounds);
-            var sealedMeasurements = new List<Measurement>(MeasurementRounds);
+            var measurements = new List<Measurement>(MeasurementRounds);
 
             for (int round = 0; round < MeasurementRounds; round++)
             {
-                if ((round & 1) == 0)
-                {
-                    mutableMeasurements.Add(Measure(mutable, queries, concurrency));
-                    sealedMeasurements.Add(Measure(sealedManifest, queries, concurrency));
-                }
-                else
-                {
-                    sealedMeasurements.Add(Measure(sealedManifest, queries, concurrency));
-                    mutableMeasurements.Add(Measure(mutable, queries, concurrency));
-                }
-
-                Measurement mutableMeasurement = mutableMeasurements[round];
-                Measurement sealedMeasurement = sealedMeasurements[round];
-                Assert.Equal(mutableMeasurement.Checksum, sealedMeasurement.Checksum);
-                PrintMeasurement("control mutable", concurrency, round + 1, mutableMeasurement);
-                PrintMeasurement("proposed sealed", concurrency, round + 1, sealedMeasurement);
+                Measurement measurement = Measure(manifest, queries, concurrency, lookupMode);
+                measurements.Add(measurement);
+                PrintMeasurement(name, concurrency, round + 1, measurement);
             }
 
-            Measurement mutableAggregate = Aggregate(mutableMeasurements);
-            Measurement sealedAggregate = Aggregate(sealedMeasurements);
-            double throughputRatio = sealedAggregate.QueriesPerSecond / mutableAggregate.QueriesPerSecond;
-            double latencyRatio = sealedAggregate.NanosecondsPerQuery / mutableAggregate.NanosecondsPerQuery;
-            double allocationDelta = sealedAggregate.BytesPerQuery - mutableAggregate.BytesPerQuery;
-
-            m_output.WriteLine(
-                $"SUMMARY c={concurrency,2}: sealed throughput={throughputRatio:P1} of control, " +
-                $"latency={latencyRatio:F2}x control, allocation delta={allocationDelta:F1} B/query.");
+            return Aggregate(measurements);
         }
 
-        private static Measurement Measure(FileAccessManifest manifest, AbsolutePath[] queries, int concurrency)
+        private static Measurement Measure(
+            FileAccessManifest manifest,
+            AbsolutePath[] queries,
+            int concurrency,
+            LookupMode lookupMode)
         {
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
+            ForceCollection();
 
             long allocatedBefore = GC.GetTotalAllocatedBytes(precise: true);
             var stopwatch = Stopwatch.StartNew();
-            long checksum = RunQueries(manifest, queries, MeasurementPasses, concurrency);
+            long checksum = RunQueries(manifest, queries, MeasurementPasses, concurrency, lookupMode);
             stopwatch.Stop();
             long allocated = GC.GetTotalAllocatedBytes(precise: true) - allocatedBefore;
 
@@ -130,14 +146,15 @@ namespace Test.BuildXL.Processes.Benchmarks
             FileAccessManifest manifest,
             AbsolutePath[] queries,
             int passes,
-            int concurrency)
+            int concurrency,
+            LookupMode lookupMode)
         {
             if (concurrency == 1)
             {
                 long checksum = 0;
                 for (int pass = 0; pass < passes; pass++)
                 {
-                    checksum = unchecked(checksum + RunQueryPass(manifest, queries));
+                    checksum = unchecked(checksum + RunQueryPass(manifest, queries, lookupMode));
                 }
 
                 return checksum;
@@ -149,28 +166,33 @@ namespace Test.BuildXL.Processes.Benchmarks
                 passes,
                 new ParallelOptions { MaxDegreeOfParallelism = concurrency },
                 () => 0L,
-                (_, _, localChecksum) => unchecked(localChecksum + RunQueryPass(manifest, queries)),
+                (_, _, localChecksum) => unchecked(localChecksum + RunQueryPass(manifest, queries, lookupMode)),
                 localChecksum => Interlocked.Add(ref parallelChecksum, localChecksum));
 
             return parallelChecksum;
         }
 
-        private static long RunQueryPass(FileAccessManifest manifest, AbsolutePath[] queries)
+        private static long RunQueryPass(FileAccessManifest manifest, AbsolutePath[] queries, LookupMode lookupMode)
         {
             long checksum = 0;
             for (int i = 0; i < queries.Length; i++)
             {
-                bool found = manifest.TryFindManifestPathFor(
-                    queries[i],
-                    out AbsolutePath manifestPath,
-                    out FileAccessPolicy policy);
+                bool found = lookupMode == LookupMode.Fragment
+                    ? manifest.TryFindManifestPathForSealedTreeByFragmentForTesting(
+                        queries[i],
+                        out AbsolutePath manifestPath,
+                        out FileAccessPolicy policy)
+                    : manifest.TryFindManifestPathForSealedTreeByIndexForTesting(
+                        queries[i],
+                        out manifestPath,
+                        out policy);
                 checksum = unchecked(checksum + (found ? 17 : 31) + manifestPath.GetHashCode() + (int)policy);
             }
 
             return checksum;
         }
 
-        private static void ValidateEquivalent(
+        private static void ValidateFallbackEquivalent(
             FileAccessManifest mutable,
             FileAccessManifest sealedManifest,
             AbsolutePath[] queries)
@@ -181,7 +203,7 @@ namespace Test.BuildXL.Processes.Benchmarks
                     queries[i],
                     out AbsolutePath mutablePath,
                     out FileAccessPolicy mutablePolicy);
-                bool sealedFound = sealedManifest.TryFindManifestPathFor(
+                bool sealedFound = sealedManifest.TryFindManifestPathForSealedTreeByFragmentForTesting(
                     queries[i],
                     out AbsolutePath sealedPath,
                     out FileAccessPolicy sealedPolicy);
@@ -223,6 +245,17 @@ namespace Test.BuildXL.Processes.Benchmarks
             stopwatch.Stop();
             long allocated = GC.GetTotalAllocatedBytes(precise: true) - allocatedBefore;
             return new PreparedManifest(manifest, treeSize, stopwatch.Elapsed, allocated);
+        }
+
+        private static PreparationMeasurement MeasurePromotion(FileAccessManifest manifest)
+        {
+            ForceCollection();
+            long allocatedBefore = GC.GetTotalAllocatedBytes(precise: true);
+            var stopwatch = Stopwatch.StartNew();
+            manifest.CreateSealedPathIndexForTesting();
+            stopwatch.Stop();
+            long allocated = GC.GetTotalAllocatedBytes(precise: true) - allocatedBefore;
+            return new PreparationMeasurement(stopwatch.Elapsed, allocated);
         }
 
         private static BenchmarkData CreateData(PathTable pathTable)
@@ -303,6 +336,19 @@ namespace Test.BuildXL.Processes.Benchmarks
                 checksum: measurements.Sum(measurement => measurement.Checksum));
         }
 
+        private static void ForceCollection()
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+        }
+
+        private enum LookupMode
+        {
+            Fragment,
+            Index,
+        }
+
         private readonly struct BenchmarkData
         {
             public AbsolutePath Root { get; }
@@ -328,6 +374,18 @@ namespace Test.BuildXL.Processes.Benchmarks
             {
                 Manifest = manifest;
                 TreeSize = treeSize;
+                Elapsed = elapsed;
+                AllocatedBytes = allocatedBytes;
+            }
+        }
+
+        private readonly struct PreparationMeasurement
+        {
+            public TimeSpan Elapsed { get; }
+            public long AllocatedBytes { get; }
+
+            public PreparationMeasurement(TimeSpan elapsed, long allocatedBytes)
+            {
                 Elapsed = elapsed;
                 AllocatedBytes = allocatedBytes;
             }

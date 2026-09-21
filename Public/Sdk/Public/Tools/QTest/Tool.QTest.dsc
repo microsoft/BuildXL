@@ -4,7 +4,7 @@
 import {Transformer} from "Sdk.Transformers";
 import * as Deployment from "Sdk.Deployment";
 
-export declare const qualifier: {targetRuntime: "win-x64" | "linux-x64"};
+export declare const qualifier: {targetRuntime: "win-x64" | "osx-x64" | "osx-arm64" | "linux-x64"};
 
 // Copy tools sub-directory of QTest package into BuildXL Bin directory
 const qTestToolsStaticDirectory = (() => {

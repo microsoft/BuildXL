@@ -7,7 +7,7 @@ namespace SBOMUtilities {
     export declare const qualifier: {
         configuration: "debug" | "release";
         targetFramework: "net8.0" | "net9.0" | "net10.0";
-        targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
+        targetRuntime: "win-x64" | "osx-x64" | "osx-arm64" | "linux-x64";
     };
 
     @@public

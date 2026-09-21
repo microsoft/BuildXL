@@ -33,7 +33,8 @@ function createDeployment(isServerDeployment: boolean, isMinimal: boolean) : Dep
                 RunInSubst.withQualifier({platform: "x86"}).deployment,
             ]),
 
-            ...addIfLazy(qualifier.targetRuntime === "osx-x64" || 
+            ...addIfLazy(qualifier.targetRuntime === "osx-x64" ||
+                         qualifier.targetRuntime === "osx-arm64" ||
                          qualifier.targetRuntime === "linux-x64", () => [
                 f`Bxl/Unix/env.sh`,
             ]),

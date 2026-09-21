@@ -38,7 +38,18 @@ namespace TestProcess {
                     }
                 ];
             case "osx-x64":
-                return [];
+            case "osx-arm64":
+                return [
+                    {
+                        subfolder: r`TestProcess/MacOS`,
+                        contents: [
+                            $.withQualifier({
+                                targetFramework: "net9.0",
+                                targetRuntime: qualifier.targetRuntime
+                            }).testProcessExe
+                        ]
+                    }
+                ];
             case "linux-x64":
                 return [
                     {

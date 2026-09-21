@@ -109,7 +109,7 @@ namespace Context {
         /** The current Os type */
         os: OsType;
         /** The current cpu architecture  */
-        cpuArchitecture: "x64" | "x86";
+        cpuArchitecture: "x64" | "x86" | "arm64";
         /** Wheter the current build is run with elevated permissions (admin/sudo) */
         isElevated: boolean;
         /** If os is `unix` then this contains information about the OS. Else it is undefined. */

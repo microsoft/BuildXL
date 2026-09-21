@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Runtime.InteropServices;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {
@@ -19,8 +20,13 @@ namespace BuildXL.Utilities.Configuration.Mutable
         {
             CurrentOS = BuildXL.Interop.Dispatch.CurrentOS();
 
-            // $Future we don't handle Arm or other Cpu's yet
-            CpuArchitecture = Environment.Is64BitOperatingSystem ? HostCpuArchitecture.X64 : HostCpuArchitecture.X86;
+            CpuArchitecture = RuntimeInformation.OSArchitecture switch
+            {
+                Architecture.X64 => HostCpuArchitecture.X64,
+                Architecture.X86 => HostCpuArchitecture.X86,
+                Architecture.Arm64 => HostCpuArchitecture.Arm64,
+                _ => throw new PlatformNotSupportedException($"Unsupported OS architecture '{RuntimeInformation.OSArchitecture}'."),
+            };
         }
 
         /// <nodoc />

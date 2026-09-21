@@ -8,7 +8,7 @@ module({
         f`Tool.SymbolDaemon.dsc`,
         f`Tool.SymbolDaemonInterfaces.dsc`,
         f`Tool.SymbolDaemonRunner.dsc`,
-        ...addIf(Environment.getFlag("[Sdk.BuildXL]microsoftInternal"), f`Tool.SymbolDaemon.Tool.dsc`),
-        ...addIf(!Environment.getFlag("[Sdk.BuildXL]microsoftInternal"), f`Tool.SymbolDaemon.Tool.Public.dsc`)
+        ...addIf(Environment.getFlag("[Sdk.BuildXL]microsoftInternal") && Context.getCurrentHost().os !== "macOS", f`Tool.SymbolDaemon.Tool.dsc`),
+        ...addIf(!Environment.getFlag("[Sdk.BuildXL]microsoftInternal") || Context.getCurrentHost().os === "macOS", f`Tool.SymbolDaemon.Tool.Public.dsc`)
     ]
 });

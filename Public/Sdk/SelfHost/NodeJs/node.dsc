@@ -67,12 +67,13 @@ namespace Node {
     const nodeVersion = "v22.15.0";
     const nodeWinDir = `node-${nodeVersion}-win-x64`;
     const nodeOsxDir = `node-${nodeVersion}-darwin-x64`;
+    const nodeOsxArm64Dir = `node-${nodeVersion}-darwin-arm64`;
     const nodeLinuxDir = `node-${nodeVersion}-linux-x64`;
 
     function getNodePackage(): OpaqueDirectory {
         const host = Context.getCurrentHost();
     
-        Contract.assert(host.cpuArchitecture === "x64", "Only 64bit versions supported.");
+        Contract.assert(host.cpuArchitecture === "x64" || (host.os === "macOS" && host.cpuArchitecture === "arm64"), "Only x64 and macOS arm64 versions are supported.");
     
         let pkgContents : OpaqueDirectory = undefined;
         
@@ -81,7 +82,9 @@ namespace Node {
                 pkgContents = <OpaqueDirectory>importFrom("NodeJs.win-x64").extracted;
                 break;
             case "macOS": 
-                pkgContents = <OpaqueDirectory>importFrom("NodeJs.osx-x64").extracted;
+                pkgContents = host.cpuArchitecture === "arm64"
+                    ? <OpaqueDirectory>importFrom("NodeJs.osx-arm64").extracted
+                    : <OpaqueDirectory>importFrom("NodeJs.osx-x64").extracted;
                 break;
             case "unix": 
                 pkgContents = <OpaqueDirectory>importFrom("NodeJs.linux-x64").extracted;
@@ -105,6 +108,7 @@ namespace Node {
         // The npm file does come with the linux package in the form of a symlink, but our current
         // targz expander doesn't handle it well
 
+        const nodeExe = p`${outDir}/bin/node`;
         const npmExe = p`${outDir}/bin/npm`;
 
         const result = Transformer.execute({
@@ -125,7 +129,7 @@ namespace Node {
                 Cmd.args([ "echo", "\"require(\'../lib/node_modules/npm/lib/cli.js\')(process)\"", ">>", Artifact.none(npmExe) ]),
                 Cmd.rawArgument(" && "),
                 // Set the right permissions
-                Cmd.args([ "chmod", "u+x", Artifact.none(npmExe) ]),
+                Cmd.args([ "chmod", "u+x", Artifact.none(nodeExe), Artifact.none(npmExe) ]),
                 Cmd.rawArgument('"')
             ],
             dependencies: [pkgContents],
@@ -138,7 +142,7 @@ namespace Node {
     function getNodeTool() : Transformer.ToolDefinition {
         const host = Context.getCurrentHost();
     
-        Contract.assert(host.cpuArchitecture === "x64", "Only 64bit versions supported.");
+        Contract.assert(host.cpuArchitecture === "x64" || (host.os === "macOS" && host.cpuArchitecture === "arm64"), "Only x64 and macOS arm64 versions are supported.");
     
         let executable : RelativePath = undefined;
         let pkgContents : OpaqueDirectory = nodePackage;
@@ -169,7 +173,7 @@ namespace Node {
     function getNpmCli() : File {
         const host = Context.getCurrentHost();
     
-        Contract.assert(host.cpuArchitecture === "x64", "Only 64bit versions supported.");
+        Contract.assert(host.cpuArchitecture === "x64" || (host.os === "macOS" && host.cpuArchitecture === "arm64"), "Only x64 and macOS arm64 versions are supported.");
     
         let executable : RelativePath = undefined;
         let pkgContents : StaticDirectory = nodePackage;
@@ -228,7 +232,7 @@ namespace Node {
                 relativePath = r`${nodeWinDir}`;
                 break;
             case "macOS": 
-                relativePath = r`${nodeOsxDir}`;
+                relativePath = r`${host.cpuArchitecture === "arm64" ? nodeOsxArm64Dir : nodeOsxDir}`;
                 break;
             case "unix": 
                 relativePath = r`${nodeLinuxDir}`;

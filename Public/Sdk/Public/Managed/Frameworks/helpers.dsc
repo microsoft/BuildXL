@@ -51,7 +51,7 @@ namespace Helpers {
     export function getDotNetCoreToolTemplate(version: DotNetCoreVersion) : Transformer.ExecuteArgumentsComposible {
         const host = Context.getCurrentHost();
         
-        Contract.assert(host.cpuArchitecture === "x64", "The current DotNetCore Runtime package only has x64 version of Node. Ensure this runs on a 64-bit OS -or- update PowerShell.Core package to have other architectures embedded and fix this logic");
+        Contract.assert(host.cpuArchitecture === "x64" || (host.os === "macOS" && host.cpuArchitecture === "arm64"), "Only x64 and macOS arm64 .NET tool runtimes are supported.");
 
         const executable = host.os === 'win' ? r`dotnet.exe` : r`dotnet`;
         const pkgContents  = getRuntimePackagesContent(version, host);
@@ -83,7 +83,9 @@ namespace Helpers {
                 case "win":
                     return importFrom("DotNet-Runtime-8.win-x64").extracted;
                 case "macOS":
-                    return importFrom("DotNet-Runtime-8.osx-x64").extracted;
+                    return host.cpuArchitecture === "arm64"
+                        ? importFrom("DotNet-Runtime-8.osx-arm64").extracted
+                        : importFrom("DotNet-Runtime-8.osx-x64").extracted;
                 case "unix":
                     return importFrom("DotNet-Runtime-8.linux-x64").extracted;
                 default:
@@ -96,7 +98,9 @@ namespace Helpers {
                 case "win":
                     return importFrom("DotNet-Runtime-9.win-x64").extracted;
                 case "macOS":
-                    return importFrom("DotNet-Runtime-9.osx-x64").extracted;
+                    return host.cpuArchitecture === "arm64"
+                        ? importFrom("DotNet-Runtime-9.osx-arm64").extracted
+                        : importFrom("DotNet-Runtime-9.osx-x64").extracted;
                 case "unix":
                     return importFrom("DotNet-Runtime-9.linux-x64").extracted;
                 default:
@@ -109,7 +113,9 @@ namespace Helpers {
                 case "win":
                     return importFrom("DotNet-Runtime-10.win-x64").extracted;
                 case "macOS":
-                    return importFrom("DotNet-Runtime-10.osx-x64").extracted;
+                    return host.cpuArchitecture === "arm64"
+                        ? importFrom("DotNet-Runtime-10.osx-arm64").extracted
+                        : importFrom("DotNet-Runtime-10.osx-x64").extracted;
                 case "unix":
                     return importFrom("DotNet-Runtime-10.linux-x64").extracted;
                 default:

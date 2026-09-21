@@ -101,6 +101,16 @@ jobs:
       sbomEnabled: false
 
     - output: nuget
+      displayName: '📦 Push ${{ parameters.packagePrefix }}.osx-arm64 to 1essharedassets/BuildXL feed'
+      condition: and(or(succeeded(), eq(variables['IsRetryRun'], true)), ne(variables['ServicingOnlyBuild'], 'true'))
+      useVstsNugetPush: true
+      packageParentPath: $(LargePackagesStagingDir)
+      package: $(LargePackagesStagingDir)/${{ parameters.packagePrefix }}.osx-arm64.$(Build.BuildNumber).nupkg
+      feed: https://1essharedassets.pkgs.visualstudio.com/_packaging/BuildXL/nuget/v3/index.json
+      serviceConnection: mseng-Domino-BuildXL-Pipelines
+      sbomEnabled: false
+
+    - output: nuget
       displayName: '📦 Push public ${{ parameters.packagePrefix }}.linux-x64 to 1essharedassets/BuildXL feed'
       condition: and(or(succeeded(), eq(variables['IsRetryRun'], true)), ne(variables['ServicingOnlyBuild'], 'true'))
       useVstsNugetPush: true
@@ -199,11 +209,12 @@ jobs:
       script: |
         $windowsPkg = "$(Agent.TempDirectory)\DownloadedDrop\release\pkgs\${{ parameters.packagePrefix }}.win-x64.$(Build.BuildNumber).nupkg"
         $macOsPkg = "$(Agent.TempDirectory)\DownloadedDrop\release\pkgs\${{ parameters.packagePrefix }}.osx-x64.$(Build.BuildNumber).nupkg"
+        $macOsArm64Pkg = "$(Agent.TempDirectory)\DownloadedDrop\release\pkgs\${{ parameters.packagePrefix }}.osx-arm64.$(Build.BuildNumber).nupkg"
         $linuxPkg = "$(Agent.TempDirectory)\DownloadedDrop\release\pkgs\${{ parameters.packagePrefix }}.linux-x64.$(Build.BuildNumber).nupkg"
         $destinationDir = "$(LargePackagesStagingDir)"
 
         New-Item -ItemType Directory -Path $destinationDir -Force
-        $pkgs = @($windowsPkg, $macOsPkg, $linuxPkg)
+        $pkgs = @($windowsPkg, $macOsPkg, $macOsArm64Pkg, $linuxPkg)
         foreach ($pkg in $pkgs) {
           if (Test-Path -Path $pkg) {
             Move-Item -Path $pkg -Destination $destinationDir -Force

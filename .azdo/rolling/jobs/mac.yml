@@ -1,7 +1,6 @@
 jobs:
-# There is no private version of the mac interop library - only build the public one
-- job: Mac_Public_Interop
-  displayName: Mac Public Interop Library Package Build
+- job: Mac_Packages
+  displayName: macOS Package Build
   timeoutInMinutes: 180  
   pool:
     name: Azure Pipelines
@@ -15,7 +14,7 @@ jobs:
     outputParentDirectory: $(Agent.TempDirectory)/BuildXLMacOS
     outputs:
     - output: artifactsDrop
-      displayName: Publish Microsoft.BuildXL.Interop.Runtime.osx-x64 package to drop
+      displayName: Publish macOS packages to drop
       dropServiceURI: https://mseng.artifacts.visualstudio.com/DefaultCollection
       buildNumber: BuildXL/MacOS/Internal/Intermediate/$(Build.BuildNumber)/$(Build.BuildId)
       sourcePath: $(Agent.TempDirectory)/BuildXLMacOS/Out
@@ -23,9 +22,10 @@ jobs:
       dropMetadataContainerName: DropMetadata-MacOS-Intermediate
 
     - output: pipelineArtifact
-      displayName: '[OnFailure] Publish Logs'
-      condition: failed()
-      path: $(Agent.TempDirectory)/BuildXLMacOS
+      displayName: Publish macOS BuildXL logs
+      condition: always()
+      continueOnError: true
+      path: $(Build.SourcesDirectory)/Out/Logs/Build
       artifact: MacOSBuildLogs.$(Build.BuildNumber)
       sbomEnabled: false
 
@@ -33,6 +33,30 @@ jobs:
   - checkout: self
     fetchDepth: 1
     fetchTags: false
+
+  - template: /.azdo/common/set-variable-pats.yml
+
+  - task: Bash@3
+    displayName: Build native macOS ARM64 BuildXL package
+    inputs:
+      targetType: inline
+      # Stateless macOS agents have no historical data, so cold RAM projections unnecessarily limit concurrency.
+      script: >-
+        set -eu
+
+        bash bxl.sh --internal
+        /q:ReleaseDotNetCoreMacArm64
+        "/f:output='$(Build.SourcesDirectory)/Out/Bin/release/pkgs/BuildXL.osx-arm64.$(Build.BuildNumber).nupkg'"
+        /p:Build.BuildId=$(Build.BuildNumber)
+        /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
+        /sandboxKind:None
+        /useHistoricalRamUsageInfo-
+        /logOutput:FullOutputOnError
+        /logsDirectory:"Out/Logs/Build"
+      workingDirectory: $(Build.SourcesDirectory)
+    env:
+      PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)
+      PATCloudBuild: $(BuildXL-Pipeline-AccessToken)
 
   - task: Bash@3
     displayName: Create Intermediate Build Directory
@@ -70,4 +94,5 @@ jobs:
 
       # Copy nuget package with file extension .nupkg from $(Agent.TempDirectory)/BuildXLMacOS/nugetpkg/ to $(Agent.TempDirectory)/BuildXLMacOS/Out/release/pkgs
       Get-ChildItem -Path "$(Agent.TempDirectory)/BuildXLMacOS/nugetpkg/" -Filter *.nupkg | Copy-Item -Destination "$(Agent.TempDirectory)/BuildXLMacOS/Out/release/pkgs" -Force
+      Get-ChildItem -Path "$(Build.SourcesDirectory)/Out/Bin/release/pkgs/" -Filter BuildXL.osx-arm64.*.nupkg | Copy-Item -Destination "$(Agent.TempDirectory)/BuildXLMacOS/Out/release/pkgs" -Force
     displayName: 'Prepare macOS nuget package for drop'

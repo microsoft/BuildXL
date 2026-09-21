@@ -78,6 +78,9 @@ namespace BuildXL.FrontEnd.Script.Ambients
                 case HostCpuArchitecture.X64:
                     cpuValue = "x64";
                     break;
+                case HostCpuArchitecture.Arm64:
+                    cpuValue = "arm64";
+                    break;
                 default:
                     throw Contract.AssertFailure("Unhandled CpuArchitecture Type");
             }

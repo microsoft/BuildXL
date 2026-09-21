@@ -72,6 +72,7 @@ namespace NugetPackages {
     };
 
     const canBuildAllPackagesOnThisHost = Context.getCurrentHost().os === "win";
+    const canBuildMacOSArm64PackageOnThisHost = Context.getCurrentHost().os === "macOS";
 
     const packageNamePrefix = 
         BuildXLSdk.Flags.isExperimentalDeployment
@@ -146,6 +147,15 @@ namespace NugetPackages {
         deployment: BuildXL.withQualifier({
             targetFramework: defaultTargetFramework,
             targetRuntime: "osx-x64"
+        }).deployment,
+        deploymentOptions: reducedDeploymentOptions
+    });
+
+    const osxArm64 = !canBuildMacOSArm64PackageOnThisHost ? undefined : pack({
+        id: `${packageNamePrefix}.osx-arm64`,
+        deployment: BuildXL.withQualifier({
+            targetFramework: defaultTargetFramework,
+            targetRuntime: "osx-arm64"
         }).deployment,
         deploymentOptions: reducedDeploymentOptions
     });
@@ -682,6 +692,9 @@ namespace NugetPackages {
                 sdks,
                 osxX64,
                 toolsAdoBuildRunner,
+            ]),
+            ...addIfLazy(canBuildMacOSArm64PackageOnThisHost, () => [
+                osxArm64,
             ]),
             ...addIfLazy(!BuildXLSdk.Flags.genVSSolution && Context.getCurrentHost().os === "unix", () => [
                 linuxX64,

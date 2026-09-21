@@ -18,8 +18,8 @@ function logScriptExitCode {
 }
 trap logScriptExitCode EXIT
 
-# Capture the distribution release number (e.g. 24.04)
-DISTRIB_RELEASE=$(cat /etc/*-release | sed -n -e 's/^DISTRIB_RELEASE=//p')
+# Capture the Linux distribution release number (e.g. 24.04). This is empty on macOS.
+DISTRIB_RELEASE=$(cat /etc/*-release 2>/dev/null | sed -n -e 's/^DISTRIB_RELEASE=//p')
 
 declare DEFAULT_CACHE_CONFIG_FILE_NAME=DefaultCacheConfig.json
 
@@ -46,6 +46,9 @@ declare g_adoBuildRunnerCmdArgs=()
 if [[ "${OSTYPE}" == "linux-gnu" ]]; then
     readonly HostQualifier=Linux
     readonly DeploymentFolder=linux-x64
+elif [[ "${OSTYPE}" == darwin* ]]; then
+    readonly HostQualifier=DotNetCoreMac
+    readonly DeploymentFolder=osx-x64
 else
     print_error "Operating system not supported: ${OSTYPE}"
     exit 1
@@ -173,9 +176,8 @@ function installLkg() {
 
     local csproj="<Project Sdk=\"Microsoft.NET.Sdk\">
     <PropertyGroup>
-        <OutputType>Exe</OutputType>
         <TargetFramework>net9.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
+        <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include=\"$lkgName\" Version=\"$lkgVersion\" />
@@ -231,7 +233,10 @@ function setInternal() {
     arg_Positional+=("/p:[Sdk.BuildXL]microsoftInternal=1")
     arg_Positional+=("/remoteTelemetry+")
     arg_Positional+=("/generateCgManifestForNugets:cg/nuget/cgmanifest.json")
-    arg_Positional+=("/p:[Sdk.BuildXL]useQTest=true")
+
+    if [[ "${OSTYPE}" == "linux-gnu" ]]; then
+        arg_Positional+=("/p:[Sdk.BuildXL]useQTest=true")
+    fi
 
     for arg in "$@"
     do

@@ -4,7 +4,7 @@
 import * as SdkDeployment from "Sdk.Deployment";
 
 namespace Deployment {
-    export declare const qualifier: {configuration: "debug" | "release", targetRuntime: "osx-x64"};
+    export declare const qualifier: {configuration: "debug" | "release", targetRuntime: "osx-x64" | "osx-arm64"};
 
     /**
      * The macOS native interop library.

@@ -7,7 +7,7 @@ import {TargetFrameworks} from "Sdk.Managed.Shared";
 export declare const qualifier: {
     configuration: "debug" | "release";
     targetFramework: TargetFrameworks.AllFrameworks;
-    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
+    targetRuntime: "win-x64" | "osx-x64" | "osx-arm64" | "linux-x64";
 };
 
 /** Configures which asserts should be checked at runtime. */

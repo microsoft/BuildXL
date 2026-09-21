@@ -7,7 +7,7 @@ import * as Managed from "Sdk.Managed.Shared";
 const pkgContents = importFrom("Grpc.Core").Contents.all;
 
 namespace Deployment {
-    export declare const qualifier : {targetRuntime: "win-x64" | "osx-x64" | "linux-x64"};
+    export declare const qualifier : {targetRuntime: "win-x64" | "osx-x64" | "osx-arm64" | "linux-x64"};
     @@public
     export const runtimeContent: Deployment.Definition = qualifier.targetRuntime === "win-x64"  
         ? {
@@ -31,7 +31,8 @@ namespace Deployment {
                 },
             ]
         }
-        : { 
+        : qualifier.targetRuntime === "linux-x64"
+        ? {
             contents: [
                 {
                     subfolder: r`runtimes/linux-x64/native`,
@@ -40,5 +41,6 @@ namespace Deployment {
                     ],
                 },
             ],
-        };
+            }
+            : { contents: [] };
 }

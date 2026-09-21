@@ -57,6 +57,9 @@ export function patchBinary(args: Arguments) : Result {
             :
         args.targetRuntimeVersion === "osx-x64"
             ? importFrom("Microsoft.NETCore.App.Host.osx-x64.8.0").Contents.all
+            :
+        args.targetRuntimeVersion === "osx-arm64"
+            ? importFrom("Microsoft.NETCore.App.Host.osx-arm64.8.0").Contents.all
             : Contract.fail("Unknown target runtime: " + args.targetRuntimeVersion);
 
     // Pick the apphost based on the target OS, not the current OS
@@ -85,11 +88,38 @@ export function patchBinary(args: Arguments) : Result {
         ]
     });
 
+    let patchOutputFile = result.getOutputFile(outputPath);
+    if (args.targetRuntimeVersion === "osx-arm64") {
+        // Patching changes the Mach-O contents and invalidates the apphost's original signature.
+        // Apple Silicon requires the resulting executable to have a valid signature, so apply an
+        // ad-hoc signature with the macOS codesign tool before including it in the deployment.
+        Contract.assert(isMacOS, "osx-arm64 apphosts must be ad-hoc signed on a macOS host.");
+
+        const signedOutputPath = p`${wd}/SignedOutput/${outputFileName}`;
+        const signResult = Transformer.execute({
+            tool: {
+                exe: f`/bin/bash`,
+                dependsOnCurrentHostOSDirectories: true,
+            },
+            arguments: [
+                Cmd.argument("-c"),
+                Cmd.rawArgument('"'),
+                Cmd.args(["cp", Artifact.input(patchOutputFile), Artifact.output(signedOutputPath)]),
+                Cmd.rawArgument(" && "),
+                Cmd.args(["/usr/bin/codesign", "--force", "--sign", "-", Artifact.none(signedOutputPath)]),
+                Cmd.rawArgument('"'),
+            ],
+            workingDirectory: wd,
+        });
+
+        patchOutputFile = signResult.getOutputFile(signedOutputPath);
+    }
+
     return {
         contents: [
             ...contents.getContent().filter(f => contentFilter(f)),
         ],
-        patchOutputFile: result.getOutputFile(outputPath)
+        patchOutputFile: patchOutputFile
     };
 }
 

@@ -31,6 +31,11 @@ namespace WebFramework {
                     () => importFrom("Microsoft.AspNetCore.App.Runtime.osx-x64.8.0.0").pkg,
                     () => importFrom("Microsoft.AspNetCore.App.Runtime.osx-x64.9.0.0").pkg,
                     () => importFrom("Microsoft.AspNetCore.App.Runtime.osx-x64.10.0.0").pkg);
+            case "osx-arm64":
+                return importPackage(
+                    () => importFrom("Microsoft.AspNetCore.App.Runtime.osx-arm64.8.0.0").pkg,
+                    () => importFrom("Microsoft.AspNetCore.App.Runtime.osx-arm64.9.0.0").pkg,
+                    () => importFrom("Microsoft.AspNetCore.App.Runtime.osx-arm64.10.0.0").pkg);
             case "linux-x64":
                 return importPackage(
                     () => importFrom("Microsoft.AspNetCore.App.Runtime.linux-x64.8.0.0").pkg,

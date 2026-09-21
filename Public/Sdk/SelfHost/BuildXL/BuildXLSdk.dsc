@@ -160,7 +160,7 @@ export const isDotNetCore : boolean = qualifier.targetFramework === "net8.0" || 
 export const isFullFramework : boolean = qualifier.targetFramework === "net472";
 
 @@public
-export const isTargetRuntimeOsx : boolean = qualifier.targetRuntime === "osx-x64";
+export const isTargetRuntimeOsx : boolean = qualifier.targetRuntime === "osx-x64" || qualifier.targetRuntime === "osx-arm64";
 
 @@public
 export const isTargetRuntimeWin : boolean = qualifier.targetRuntime === "win-x64";
@@ -180,7 +180,7 @@ export const isHostOsLinux : boolean = Context.getCurrentHost().os === "unix";
 @@public
 export const targetFrameworkMatchesCurrentHost = 
     (qualifier.targetRuntime === "win-x64" && isHostOsWin)
-    || (qualifier.targetRuntime === "osx-x64" && isHostOsOsx)
+    || (isTargetRuntimeOsx && isHostOsOsx)
     || (qualifier.targetRuntime === "linux-x64" && isHostOsLinux);
 
 /** Only run unit tests for one qualifier and also don't run tests which target macOS on Windows */

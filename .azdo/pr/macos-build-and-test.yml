@@ -1,0 +1,75 @@
+# Copyright (c) Microsoft. All rights reserved.
+# Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+trigger: none # Explicitly scheduled for PRs
+
+jobs:
+- job: buildMinimal
+  displayName: BuildXL minimal self-host validation on macOS
+  timeoutInMinutes: 120
+  pool:
+    vmImage: macos-latest
+  steps:
+  - checkout: self
+    fetchDepth: 1
+    fetchTags: false
+
+  - template: /.azdo/common/set-variable-pats.yml
+
+  - task: Cache@2
+    displayName: Restore BuildXL cache
+    inputs:
+      key: '"buildxl-local-v1" | "$(Agent.OS)" | "ReleaseDotNetCoreMacArm64" | "$(Build.SourceVersion)"'
+      restoreKeys: |
+        "buildxl-local-v1" | "$(Agent.OS)" | "ReleaseDotNetCoreMacArm64"
+      path: '$(Build.SourcesDirectory)/Out/Cache.noindex'
+      cacheHitVar: BUILDXL_CACHE_RESTORED
+
+  - task: Bash@3
+    displayName: Build and deploy minimal BuildXL
+    inputs:
+      targetType: inline
+      script: |
+        set -eu
+
+        bash bxl.sh --internal \
+          /q:ReleaseDotNetCoreMacArm64 \
+          "/f:output='$(Build.SourcesDirectory)/Out/Bin/release/osx-arm64/*'" \
+          /sandboxKind:None \
+          /useHistoricalRamUsageInfo- \
+          /logsDirectory:"Out/Logs/Bootstrap" \
+          /server-
+
+        mkdir -p Out/Selfhost/Dev
+        rsync -arhq Out/Bin/release/osx-arm64/ Out/Selfhost/Dev/ --delete
+        file Out/Selfhost/Dev/bxl | grep -q arm64
+        codesign --verify --verbose=2 Out/Selfhost/Dev/bxl
+      workingDirectory: $(Build.SourcesDirectory)
+    env:
+      PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)
+      PATCloudBuild: $(BuildXL-Pipeline-AccessToken)
+
+  - task: Bash@3
+    displayName: Validate minimal BuildXL with deployed bits
+    inputs:
+      targetType: inline
+      script: >-
+        bash bxl.sh --internal --use-dev
+        /q:ReleaseDotNetCoreMacArm64
+        "/f:output='$(Build.SourcesDirectory)/Out/Bin/release/osx-arm64/*'"
+        /sandboxKind:None
+        /useHistoricalRamUsageInfo-
+        /logsDirectory:"Out/Logs/Selfhost"
+        /server-
+      workingDirectory: $(Build.SourcesDirectory)
+    env:
+      PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)
+      PATCloudBuild: $(BuildXL-Pipeline-AccessToken)
+
+  - task: PublishBuildArtifacts@1
+    displayName: Publish BuildXL logs
+    condition: always()
+    inputs:
+      PathtoPublish: $(Build.SourcesDirectory)/Out/Logs
+      ArtifactName: macos-minimal-build-logs-$(Build.BuildId)
+      publishLocation: Container

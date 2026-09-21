@@ -24,6 +24,12 @@ const osxRuntimeFiles = [
     ...importFrom("runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy.8.0").Contents.all.getContent().filter(f => Helpers.macOSRuntimeExtensions(f)),
 ];
 
+const osxArm64RuntimeFiles = [
+    ...importFrom("Microsoft.NETCore.App.Runtime.osx-arm64.8.0").Contents.all.getContent().filter(f => Helpers.macOSRuntimeExtensions(f)),
+    ...importFrom("runtime.osx-arm64.Microsoft.NETCore.DotNetHostResolver.8.0").Contents.all.getContent().filter(f => Helpers.macOSRuntimeExtensions(f)),
+    ...importFrom("runtime.osx-arm64.Microsoft.NETCore.DotNetHostPolicy.8.0").Contents.all.getContent().filter(f => Helpers.macOSRuntimeExtensions(f)),
+];
+
 const linuxRuntimeFiles = [
     ...importFrom("Microsoft.NETCore.App.Runtime.linux-x64.8.0").Contents.all.getContent().filter(f => Helpers.linuxRuntimeExtensions(f)),
     ...importFrom("runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver.8.0").Contents.all.getContent().filter(f => Helpers.linuxRuntimeExtensions(f)),
@@ -37,6 +43,8 @@ export function runtimeContentProvider(runtimeVersion: Shared.RuntimeVersion): F
     {
         case "osx-x64":
             return osxRuntimeFiles;
+        case "osx-arm64":
+            return osxArm64RuntimeFiles;
         case "win-x64":
             return windowsRuntimeFiles;
         case "linux-x64":
@@ -54,6 +62,12 @@ export function crossgenProvider(runtimeVersion: Shared.RuntimeVersion): Shared.
             return { 
                 crossgenExe: osxFiles.getFile(r`tools/crossgen`),
                 JITPath: osxFiles.getFile(r`runtimes/osx-x64/native/libclrjit.dylib`)
+            };
+        case "osx-arm64":
+            const osxArm64Files = importFrom("Microsoft.NETCore.App.Runtime.osx-arm64.8.0").Contents.all;
+            return {
+                crossgenExe: osxArm64Files.getFile(r`tools/crossgen`),
+                JITPath: osxArm64Files.getFile(r`runtimes/osx-arm64/native/libclrjit.dylib`)
             };
         case "win-x64":
             const winFiles = importFrom("Microsoft.NETCore.App.Runtime.win-x64.8.0").Contents.all;

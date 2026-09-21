@@ -8,7 +8,7 @@ import * as Deployment from "Sdk.Deployment";
 
 export declare const qualifier: {
     targetFramework: TargetFrameworks.AllFrameworks;
-    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
+    targetRuntime: "win-x64" | "osx-x64" | "osx-arm64" | "linux-x64";
     configuration: "debug" | "release";
 };
 
@@ -59,7 +59,9 @@ function getRocksDbNativeDeployablesForTargetRuntime() : File[] {
         case "win-x64":
             nativeFilesToDeploy = nativeFilesToDeploy.push(nativePackage.contents.getFile(r`build/native/amd64/rocksdb.dll`));
             break;
+        // Despite the amd64 path, this package contains a universal x86_64/arm64 dylib.
         case "osx-x64":
+        case "osx-arm64":
             nativeFilesToDeploy = nativeFilesToDeploy.push(nativePackage.contents.getFile(r`build/native/amd64/librocksdb.dylib`));
             break;
         case "linux-x64":

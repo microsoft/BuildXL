@@ -355,8 +355,11 @@ function processDeploymentStyle(args: Arguments, targetType: Csc.TargetType, fra
 
         const patchResult = AppPatcher.withQualifier(Shared.TargetFrameworks.MachineQualifier.current).patchBinary({
             binary: cscResult.binary.binary,
-            // Workaround an evaluation issue that is happening for mac builds when qualifier.targetRuntime is passed.
-            targetRuntimeVersion: Context.getCurrentHost().os === "win" ? qualifier.targetRuntime : Shared.TargetFrameworks.MachineQualifier.current.targetRuntime
+            // Work around cross-target evaluation on non-Windows hosts while allowing an x64 macOS
+            // bootstrap to produce native ARM64 apphosts.
+            targetRuntimeVersion: qualifier.targetRuntime === "osx-arm64" || Context.getCurrentHost().os === "win"
+                ? qualifier.targetRuntime
+                : Shared.TargetFrameworks.MachineQualifier.current.targetRuntime
         });
 
         // When ESRP is enabled, get the patched .exe file and sign it.
@@ -674,6 +677,8 @@ function getTargetRuntimeDefines() : string[] {
             return ["PLATFORM_WIN", "PLATFORM_X64"];
         case "osx-x64":
             return ["PLATFORM_OSX", "PLATFORM_X64"];
+        case "osx-arm64":
+            return ["PLATFORM_OSX", "PLATFORM_ARM64"];
         case "linux-x64":
             return ["PLATFORM_LINUX", "PLATFORM_X64"];
         default:

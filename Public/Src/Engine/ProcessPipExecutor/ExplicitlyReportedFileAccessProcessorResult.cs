@@ -21,12 +21,9 @@ namespace BuildXL.ProcessPipExecutor
         private readonly PooledObjectWrapper<Dictionary<AbsolutePath, HashSet<AbsolutePath>>> m_dynamicWriteAccessWrapper = ProcessPools.DynamicWriteAccesses.GetInstance();
         private readonly PooledObjectWrapper<HashSet<AbsolutePath>> m_maybeUnresolvedAbsentAccessessWrapper = Pools.GetAbsolutePathSet();
         private readonly PooledObjectWrapper<HashSet<AbsolutePath>> m_fileExistenceDenialsWrapper = Pools.GetAbsolutePathSet();
-        private readonly PooledObjectWrapper<SortedDictionary<AbsolutePath, ReportedFileAccessesAndFlagsMutable>> m_sortedObservationsByPathWrapper;
 
         /// <nodoc/>
         public Dictionary<AbsolutePath, ReportedFileAccessesAndFlagsMutable> AccessesByPath { get; }
-        /// <nodoc/>
-        public SortedDictionary<AbsolutePath, ReportedFileAccessesAndFlagsMutable> SortedObservationsByPath { get; }
         /// <nodoc/>
         public HashSet<AbsolutePath> CreatedDirectories { get; }
         /// <nodoc/>
@@ -40,8 +37,6 @@ namespace BuildXL.ProcessPipExecutor
         public ExplicitlyReportedFileAccessProcessorResult(PathTable pathTable)
         {
             AccessesByPath = m_accessesAndFlagsByPathWrapper.Instance;
-            m_sortedObservationsByPathWrapper = ProcessPools.GetSortedObservationsByPath(pathTable.ExpandedPathComparer).GetInstance();
-            SortedObservationsByPath = m_sortedObservationsByPathWrapper.Instance;
             CreatedDirectories = m_createdDirectoriesMutableWrapper.Instance;
             DynamicWriteAccesses = m_dynamicWriteAccessWrapper.Instance;
             FileExistenceDenials = m_fileExistenceDenialsWrapper.Instance;
@@ -56,7 +51,6 @@ namespace BuildXL.ProcessPipExecutor
             m_dynamicWriteAccessWrapper.Dispose();
             m_maybeUnresolvedAbsentAccessessWrapper.Dispose();
             m_fileExistenceDenialsWrapper.Dispose();
-            m_sortedObservationsByPathWrapper.Dispose();
         }
     }
 }

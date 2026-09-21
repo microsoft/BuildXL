@@ -196,7 +196,6 @@ namespace BuildXL.ProcessPipExecutor
 
             // Now we compute the flags associated with the access. The final flags will be the union of all flags for all accesses on the same path.
             // Check if we have already seen accesses on this path, and create an entry if not.
-            bool isNewPath = false;
             if (!accessesAndFlagsByPath.TryGetValue(absolutePath, out ReportedFileAccessesAndFlagsMutable reportedFileAccessesAndFlags))
             {
                 reportedFileAccessesAndFlags = new ReportedFileAccessesAndFlagsMutable() {
@@ -204,7 +203,6 @@ namespace BuildXL.ProcessPipExecutor
                     ObservationFlags = ObservationFlags.FileProbe, // Probe until proven otherwise
                     HasDirectoryReparsePointTreatedAsFile = false}; 
                 accessesAndFlagsByPath[absolutePath] = reportedFileAccessesAndFlags;
-                isNewPath = true;
             }
             // If an access on this path was already identified as a shared opaque output, then we can skip further processing
             else if (reportedFileAccessesAndFlags.IsSharedOpaqueOutput)
@@ -267,6 +265,10 @@ namespace BuildXL.ProcessPipExecutor
             if (isPathCandidateToBeOwnedByASharedOpaque &&
                 IsAccessUnderASharedOpaque(access, dynamicWriteAccesses, out AbsolutePath sharedDynamicDirectoryRoot))
             {
+                // This path represents an output, even when an allowlist entry intentionally omits it from the
+                // shared opaque's reported contents. Keep later accesses on the path out of observed inputs as well.
+                reportedFileAccessesAndFlags.ExcludeFromObservedFileAccesses = true;
+
                 bool shouldBeConsideredAsOutput = ShouldBeConsideredSharedOpaqueOutput(m_fileaccessReportingContext, access, out FileAccessAllowlist.MatchType matchType);
 
                 if (matchType != FileAccessAllowlist.MatchType.NoMatch)
@@ -279,12 +281,6 @@ namespace BuildXL.ProcessPipExecutor
                 {
                     dynamicWriteAccesses[sharedDynamicDirectoryRoot].Add(absolutePath);
                     reportedFileAccessesAndFlags.IsSharedOpaqueOutput = true;
-                }
-
-                // This is a known output, so don't store it. If it is not a new path, we may have already added it to the sorted observations, so we need to remove it from there as well.
-                if (!isNewPath)
-                {
-                    m_result.SortedObservationsByPath.Remove(absolutePath);
                 }
 
                 return;
@@ -345,12 +341,6 @@ namespace BuildXL.ProcessPipExecutor
                     reportedFileAccessesAndFlags.IsAbsentAccess = false;
                     m_result.MaybeUnresolvedAbsentAccesses.Remove(absolutePath);
                 }
-            }
-
-            // If this is the first time we see this path, add it to the sorted dictionary as well. Otherwise, it is already there and we just updated its value.
-            if (isNewPath)
-            {
-                m_result.SortedObservationsByPath.Add(absolutePath, reportedFileAccessesAndFlags);
             }
         }
 

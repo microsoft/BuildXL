@@ -45,6 +45,15 @@ namespace BuildXL.ProcessPipExecutor
         public bool IsSharedOpaqueOutput { get; set; } = false;
 
         /// <summary>
+        /// Whether the path must be excluded from observed file accesses.
+        /// </summary>
+        /// <remarks>
+        /// Writes under shared opaque directories are outputs rather than observed inputs, including allowlisted writes
+        /// that are intentionally omitted from the shared opaque's reported contents.
+        /// </remarks>
+        public bool ExcludeFromObservedFileAccesses { get; set; } = false;
+
+        /// <summary>
         /// Whether the path was determined to be an absent access (path/file not found)
         /// </summary>
         /// <remarks>

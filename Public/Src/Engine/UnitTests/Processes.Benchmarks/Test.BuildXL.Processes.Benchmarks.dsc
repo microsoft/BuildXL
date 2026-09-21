@@ -16,6 +16,7 @@ namespace Processes.Benchmarks {
         testFramework: XUnitV3.framework,
         skipTestRun: !runBenchmarks,
         references: [
+            importFrom("BuildXL.Engine").ProcessPipExecutor.dll,
             importFrom("BuildXL.Engine").Processes.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,

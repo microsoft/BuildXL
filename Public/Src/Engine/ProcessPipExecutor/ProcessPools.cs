@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Processes;
-using System.Collections.Concurrent;
 
 namespace BuildXL.ProcessPipExecutor
 {
@@ -38,19 +37,12 @@ namespace BuildXL.ProcessPipExecutor
             s => s.Clear(),
             sizeProvider: s => s.Capacity);
 
-        private static readonly ConcurrentDictionary<PathTable.ExpandedAbsolutePathComparer, ObjectPool<SortedDictionary<AbsolutePath, ReportedFileAccessesAndFlagsMutable>>> s_sortedObservationsByPathPools = 
-            new ConcurrentDictionary<PathTable.ExpandedAbsolutePathComparer, ObjectPool<SortedDictionary<AbsolutePath, ReportedFileAccessesAndFlagsMutable>>>();
-
         /// <summary>
-        /// Global pool of sorted dictionaries for grouping reported accesses by path
+        /// Global pool of lists for collecting the observed file accesses that survive filtering.
         /// </summary>
-        public static ObjectPool<SortedDictionary<AbsolutePath, ReportedFileAccessesAndFlagsMutable>> GetSortedObservationsByPath(PathTable.ExpandedAbsolutePathComparer expandedAbsolutePathComparer)
-        {
-            return s_sortedObservationsByPathPools.GetOrAdd(expandedAbsolutePathComparer,
-                _ => new ObjectPool<SortedDictionary<AbsolutePath, ReportedFileAccessesAndFlagsMutable>>(
-                    () => new SortedDictionary<AbsolutePath, ReportedFileAccessesAndFlagsMutable>(expandedAbsolutePathComparer),
-                    s => s.Clear(),
-                    sizeProvider: s => s.Count));
-        }
+        public static ObjectPool<List<ObservedFileAccess>> ObservedFileAccessList { get; } = new ObjectPool<List<ObservedFileAccess>>(
+            () => new List<ObservedFileAccess>(),
+            s => s.Clear(),
+            sizeProvider: s => s.Capacity);
     }
 }

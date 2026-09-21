@@ -3881,7 +3881,6 @@ namespace BuildXL.ProcessPipExecutor
             var accessesByPath = explicitAccessResult.AccessesByPath;
             var createdDirectoriesMutable = explicitAccessResult.CreatedDirectories;
             var dynamicWriteAccesses = explicitAccessResult.DynamicWriteAccesses;
-            var sortedObservationsByPath = explicitAccessResult.SortedObservationsByPath;
             var fileExistenceDenials = explicitAccessResult.FileExistenceDenials;
             var maybeUnresolvedAbsentAccesses = explicitAccessResult.MaybeUnresolvedAbsentAccesses;
 
@@ -4041,18 +4040,6 @@ namespace BuildXL.ProcessPipExecutor
             LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedProcessOutputs, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
             stopwatch.Restart();
 
-            // Build the final observed accesses list
-            var sortedObservedFileAccesses = new ObservedFileAccess[sortedObservationsByPath.Count];
-            int index = 0;
-            foreach (var kvp in sortedObservationsByPath)
-            {
-                sortedObservedFileAccesses[index] = new ObservedFileAccess(
-                    kvp.Key,
-                    kvp.Value.ObservationFlags,
-                    kvp.Value.ReportedFileAccesses);
-                index++;
-            }
-
             // Consider the scenario where path/dir/file gets probed but at probing time the path is absent. Afterwards, a dir junction path/dir gets created, pointing
             // to path/target, and then path/target/file is created. Since path/dir/file was absent at probing time, detours doesn't resolve it because there is nothing
             // to resolve. However, the creation of the dir junction and file makes path/dir/file existing but unresolved. However, path/dir/file won't be there on cache lookup, the probe will
@@ -4103,7 +4090,7 @@ namespace BuildXL.ProcessPipExecutor
                             }
                             else
                             {
-                                sortedObservationsByPath.Add(resolvedPath, new ReportedFileAccessesAndFlagsMutable()
+                                accessesByPath.Add(resolvedPath, new ReportedFileAccessesAndFlagsMutable()
                                 {
                                     ObservationFlags = ObservationFlags.FileProbe,
                                     ReportedFileAccesses = new CompactSet<ReportedFileAccess>().Add(syntheticAccess)
@@ -4117,36 +4104,76 @@ namespace BuildXL.ProcessPipExecutor
             LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseResolveAbsentAccesses, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
             stopwatch.Restart();
 
-            // We have a sorted list already. Just traverse it in order and construct the final sorted collection of
-            // observed file accesses
-            var filteredAccessesSorted = sortedObservationsByPath
-                .Where(kvp => shouldIncludeAccess(kvp.Key, kvp.Value.ReportedFileAccesses, kvp.Value.ObservationFlags))
-                .Select(kvp => new ObservedFileAccess(kvp.Key, kvp.Value.ObservationFlags, kvp.Value.ReportedFileAccesses))
-                .ToArray();
-
-            observedAccesses = SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>.FromSortedArrayUnsafe(filteredAccessesSorted, new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
+            var comparer = new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer);
+            var filteredAccessesSorted = CreateSortedObservedFileAccesses(accessesByPath, excludedPaths, comparer);
+            observedAccesses = SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>.FromSortedArrayUnsafe(filteredAccessesSorted, comparer);
 
             fileAccessesBeforeFirstUndeclaredReWrite = fileAccessesBeforeFirstUndeclaredReWriteMutable;
 
             LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseBuildObservedFileAccesses, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
 
             return true;
+        }
 
-            bool shouldIncludeAccess(AbsolutePath path, CompactSet<ReportedFileAccess> accesses, ObservationFlags flags)
+        /// <summary>
+        /// Filters and sorts the accumulated accesses without maintaining a second sorted dictionary while reports arrive.
+        /// </summary>
+        /// <remarks>
+        /// The eligible accesses are collected in a single pass into a pooled list and copied into the exact-sized
+        /// result. Sizing the result exactly with a counting pass first was measurably slower, because it walks the
+        /// dictionary and evaluates the inclusion rule twice.
+        /// </remarks>
+        internal static ObservedFileAccess[] CreateSortedObservedFileAccesses(
+            Dictionary<AbsolutePath, ReportedFileAccessesAndFlagsMutable> accessesByPath,
+            HashSet<AbsolutePath> excludedPaths,
+            ObservedFileAccessExpandedPathComparer comparer)
+        {
+            ObservedFileAccess[] sortedAccesses;
+            using (var wrapper = ProcessPools.ObservedFileAccessList.GetInstance())
             {
-                // if not in the excludedPaths set --> include
-                if (!excludedPaths.Contains(path))
+                List<ObservedFileAccess> includedAccesses = wrapper.Instance;
+                foreach (var access in accessesByPath)
                 {
-                    return true;
+                    if (ShouldIncludeObservedFileAccess(access.Key, access.Value, excludedPaths))
+                    {
+                        includedAccesses.Add(new ObservedFileAccess(
+                            access.Key,
+                            access.Value.ObservationFlags,
+                            access.Value.ReportedFileAccesses));
+                    }
                 }
 
-                // else, include IFF:
-                //   (1) access is a directory enumeration, AND
-                //   (2) the directory was not created by this pip
-                return
-                    flags.HasFlag(ObservationFlags.Enumeration)
-                    && !accesses.Any(rfa => rfa.IsDirectoryCreation());
+                sortedAccesses = includedAccesses.ToArray();
             }
+
+            Array.Sort(sortedAccesses, comparer);
+            return sortedAccesses;
+        }
+
+        /// <summary>
+        /// Determines whether an accumulated access belongs in the final observed file accesses.
+        /// </summary>
+        /// <remarks>
+        /// Explicitly excluded paths are omitted unless they represent a directory enumeration that did not create the
+        /// directory.
+        /// </remarks>
+        internal static bool ShouldIncludeObservedFileAccess(
+            AbsolutePath path,
+            ReportedFileAccessesAndFlagsMutable access,
+            HashSet<AbsolutePath> excludedPaths)
+        {
+            if (access.ExcludeFromObservedFileAccesses || access.IsSharedOpaqueOutput)
+            {
+                return false;
+            }
+
+            if (!excludedPaths.Contains(path))
+            {
+                return true;
+            }
+
+            return access.ObservationFlags.HasFlag(ObservationFlags.Enumeration)
+                && !access.ReportedFileAccesses.Any(reportedAccess => reportedAccess.IsDirectoryCreation());
         }
 
         /// <summary>

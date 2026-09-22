@@ -75,17 +75,17 @@ namespace Helpers {
         let allReferences = [
             ...(references || []),
         ];
+        const referencesToSkipSet = Set.empty<Deployment.DeployableItem>().add(...(referencesToSkip || []));
 
         for (let ref of allReferences)
         {
-            const referencesToSkipSet = Set.empty<Deployment.DeployableItem>().add(...(referencesToSkip ? referencesToSkip : []));
             computeTransitiveReferenceClosureHelper(ref, referencesToSkipSet, results, visitedReferences, compile);
         }
 
         return results.toArray();
     }
 
-    function computeTransitiveReferenceClosureHelper(ref: Shared.Reference, referencesToSkip: Set<Deployment.DeployableItem>,results: MutableSet<Shared.Binary>, visitedReferences: MutableSet<Shared.Reference>, compile?: boolean) : Shared.Binary[] {
+    function computeTransitiveReferenceClosureHelper(ref: Shared.Reference, referencesToSkip: Set<Deployment.DeployableItem>,results: MutableSet<Shared.Binary>, visitedReferences: MutableSet<Shared.Reference>, compile?: boolean) : void {
         if (visitedReferences.contains(ref) || referencesToSkip.contains(ref))
         {
             return;
@@ -137,7 +137,5 @@ namespace Helpers {
         {
             Contract.fail("Unexpected reference added to this project:" + ref);
         }
-
-        return results.toArray();
     };
 }

@@ -3848,8 +3848,7 @@ namespace BuildXL.Scheduler.Artifacts
                 return false;
             }
 
-            var associatedPipDescription = GetAssociatedPipDescription(fileArtifact);
-            throw Contract.AssertFailure(I($"Content hash of file artifact '{fileArtifact.Path.ToString(Context.PathTable)}:{fileArtifact.RewriteCount}' can be set multiple times, but only with the same content hash (old hash: {existingInfo.Hash.ToHex()}, origin: {existingOrigin}; new hash: {fileMaterializationInfo.Hash.ToHex()}, origin: {origin}). Conflicting report: Pip{pipSemiStableHash:X16}; associated pip: '{associatedPipDescription}'"));
+            throw Contract.AssertFailure(I($"Content hash of file artifact '{fileArtifact.Path.ToString(Context.PathTable)}:{fileArtifact.RewriteCount}' can be set multiple times, but only with the same content hash (old hash: {existingInfo.Hash.ToHex()}, origin: {existingOrigin}; new hash: {fileMaterializationInfo.Hash.ToHex()}, origin: {origin}). Conflicting report: Pip{pipSemiStableHash:X16}"));
         }
 
         private enum VirtualizationState

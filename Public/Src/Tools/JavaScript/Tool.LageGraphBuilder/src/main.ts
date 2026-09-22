@@ -77,6 +77,32 @@ export interface PackageTaskInfo {
     sourceDependencies: string[];
 }
 
+function parseLageReport(lageJson: string): Report {
+    let reports: Report[];
+    try {
+        // Preserve support for a single report, including pretty-printed JSON.
+        reports = [JSON.parse(lageJson)];
+    } catch (error) {
+        if (!(error instanceof SyntaxError)) {
+            throw error;
+        }
+
+        // Lage's JSON reporter can emit diagnostics alongside the graph as newline-delimited JSON.
+        reports = lageJson.split(/\r?\n/)
+            .filter(line => line.trim().length > 0)
+            .map(line => JSON.parse(line));
+    }
+
+    const graphReports = reports.filter(report =>
+        report && report.data && Array.isArray(report.data.packageTasks));
+
+    if (graphReports.length !== 1) {
+        throw new Error(`Expected exactly one Lage graph report with data.packageTasks, but found ${graphReports.length}.`);
+    }
+
+    return graphReports[0];
+}
+
 function lageToBuildXL(lage: Report): JavaScriptGraph {
     const projects = lage.data.packageTasks.map(task => {
       let commands : ScriptCommands = {}
@@ -133,7 +159,7 @@ function lageToBuildXL(lage: Report): JavaScriptGraph {
  
     const lageJson = fs.readFileSync(outputGraphFile, "utf8");
 
-    const lageReport = JSON.parse(lageJson) as Report;
+    const lageReport = parseLageReport(lageJson);
     console.log('Finished lage export');
 
     const graph = lageToBuildXL(lageReport);

@@ -29,6 +29,7 @@ namespace Test.BuildXL.FrontEnd.Lage.Mock
         /// LAGE_BUILD_GRAPH_MOCK_SOURCE_DIRECTORIES can be set to a comma-separated list of nodes to source directories to include in the graph.
         /// E.g.
         /// A -> path/to/foo, A -> path/to/bar, B -> path/to/baz
+        /// LAGE_BUILD_GRAPH_MOCK_OUTPUT_FILE can specify a file whose contents are emitted verbatim instead of a generated graph.
         /// </remarks>
         public static int Main(string[] args)
         {
@@ -49,6 +50,13 @@ namespace Test.BuildXL.FrontEnd.Lage.Mock
             {
                 Console.Error.WriteLine("Expected arguments are: info [targets]");
                 return 1;
+            }
+
+            var outputFile = Environment.GetEnvironmentVariable("LAGE_BUILD_GRAPH_MOCK_OUTPUT_FILE");
+            if (outputFile != null)
+            {
+                Console.Write(File.ReadAllText(outputFile));
+                return 0;
             }
 
             var nodes = Environment.GetEnvironmentVariable("LAGE_BUILD_GRAPH_MOCK_NODES");

@@ -33,6 +33,9 @@ config({
 
 Here we are specifying `build` and `test` as a way to define the build extent, but there is no implicit dependency between these commands and the order is not important: the dependency information will be provided by Lage.
 
+## Graph output
+BuildXL accepts `lage info --reporter json` output as either a single JSON report (including pretty-printed JSON) or newline-delimited JSON reports. Exactly one report must contain a `data.packageTasks` array. Other well-formed reports do not prevent graph construction; malformed JSON, missing graphs, and multiple graph reports are rejected.
+
 ## Improving perf with yarn strict awaress tracking
 When doing package install via [Yarn strict](https://classic.yarnpkg.com/en/package/yarn-strict), the Lage resolver can be made aware of it with a resolver option:
 

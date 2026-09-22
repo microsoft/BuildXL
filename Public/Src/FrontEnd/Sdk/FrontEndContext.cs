@@ -121,7 +121,7 @@ namespace BuildXL.FrontEnd.Sdk
         private IBuildXLCredentialScanner CreateCredScanInstance(IFrontEndConfiguration frontEndConfig, PathTable pathTable, LoggingContext loggingContext)
         {
 #if MICROSOFT_INTERNAL
-            return (frontEndConfig.EnableCredScan == true) ? new CredentialScanner(pathTable, loggingContext, frontEndConfig.CredScanEnvironmentVariablesAllowList) : new NoOpCredentialScanner();
+            return (frontEndConfig.EnableCredScan == true) ? new CredentialScanner(pathTable, loggingContext, frontEndConfig.CredScanEnvironmentVariablesAllowList, CancellationToken) : new NoOpCredentialScanner();
 #else
             return new NoOpCredentialScanner();
 #endif

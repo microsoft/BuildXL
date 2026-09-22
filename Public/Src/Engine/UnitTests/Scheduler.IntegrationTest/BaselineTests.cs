@@ -1821,6 +1821,20 @@ namespace IntegrationTest.BuildXL.Scheduler
             TestCredScan(isPassThrough: true, envVarValue: GetExampleCredentialForTest(), envVarKey: "id", expectCredentialDetected: false, setValueOnPip: false);
         }
 
+        [Fact]
+        public void TestCredScanCompletionHandlesBuildCancellation()
+        {
+            using var cancellationTokenSource = new CancellationTokenSource();
+            cancellationTokenSource.Cancel();
+            var canceledContext = BuildXLContext.CreateInstanceForTestingWithCancellationToken(Context, cancellationTokenSource.Token);
+            var scanner = new CredentialScanner(Context.PathTable, LoggingContext, cancellationToken: cancellationTokenSource.Token);
+
+            var result = scanner.Complete(canceledContext);
+
+            // No crash
+            Assert.False(result.CredentialDetected);
+        }
+
         /// <summary>
         /// /credScanEnvironmentVariablesAllowList flag allows the user to pass envVars which needs to be skipped by the CredScan library.
         /// This test used to test if that functionality is working or not.

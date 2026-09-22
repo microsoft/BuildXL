@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -47,15 +48,22 @@ namespace BuildXL.Pips.Builders
         private readonly IReadOnlyList<string> m_credScanEnvironmentVariablesAllowList;
 
         private readonly SecretMasker m_secretMasker;
+        private readonly CancellationToken m_cancellationToken;
 
         /// <nodoc/>
-        public CredentialScanner(PathTable pathTable, LoggingContext loggingContext, IReadOnlyList<string> credScanEnvironmentVariablesAllowList = null)
+        public CredentialScanner(
+            PathTable pathTable,
+            LoggingContext loggingContext,
+            IReadOnlyList<string> credScanEnvironmentVariablesAllowList = null,
+            CancellationToken cancellationToken = default)
         {
             m_loggingContext = loggingContext;
             m_credScanEnvironmentVariablesAllowList = credScanEnvironmentVariablesAllowList;
+            m_cancellationToken = cancellationToken;
             m_credScanActionBlock = ActionBlockSlim.Create<(string, string, Process)>(
                       degreeOfParallelism: Environment.ProcessorCount,
-                      processItemAction: ScanForCredentials);
+                      processItemAction: ScanForCredentials,
+                      cancellationToken: cancellationToken);
             m_renderer = new PipFragmentRenderer(pathTable);
             m_secretMasker = new SecretMasker(WellKnownRegexPatterns.PreciselyClassifiedSecurityKeys,
                               generateCorrelatingIds: true);
@@ -131,9 +139,18 @@ namespace BuildXL.Pips.Builders
             {
                 m_credScanActionBlock.Complete();
                 int credScanCompletionWaitTimeInMs = 60000;
-                if (!m_credScanActionBlock.Completion.Wait(credScanCompletionWaitTimeInMs, context.CancellationToken))
+                try
                 {
-                    Logger.Log.CredScanFailedToCompleteInfo(m_loggingContext, credScanCompletionWaitTimeInMs);
+                    if (!m_credScanActionBlock.Completion.Wait(credScanCompletionWaitTimeInMs))
+                    {
+                        Logger.Log.CredScanFailedToCompleteInfo(m_loggingContext, credScanCompletionWaitTimeInMs);
+                    }
+                }
+                catch (AggregateException exception) when (
+                    m_cancellationToken.IsCancellationRequested &&
+                    exception.InnerExceptions.All(innerException => innerException is OperationCanceledException))
+                {
+                    // Cancellation is an expected completion state during build teardown.
                 }
             }
 

@@ -18,6 +18,7 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -207,10 +208,67 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
+        public async Task RestoreContentInCacheForManyCopiedWriteFileOutputs()
+        {
+            // Materializing a copy of a write file output takes the content recovery path, which runs concurrently for
+            // every input of a pip and registers the originating write file output as an additional file to materialize.
+            // Use enough inputs that the shared per-pip materialization state grows while it is being updated.
+            // Exceed the number of materialization slots (EngineEnvironmentSettings.MaterializationConcurrency) so that
+            // the copies cannot occupy every slot while waiting for their producers, which each need a slot of their own.
+            // Derived from the setting rather than ProcessorCount so that overriding the setting cannot silently drop
+            // this coverage.
+            int copiedWriteFileCount = Math.Max(64, 2 * EngineEnvironmentSettings.MaterializationConcurrency.Value);
+
+            var harness = CreateDefaultHarness();
+            harness.Seal();
+
+            var copiedWriteFileOutputs = new FileArtifact[copiedWriteFileCount];
+            var expectedContents = new string[copiedWriteFileCount];
+
+            for (int i = 0; i < copiedWriteFileCount; i++)
+            {
+                string contents = "writeFileOutput" + i;
+                FileArtifact writeFileOutput = CreateOutputFile(fileName: "writeFileOutput" + i);
+                FileArtifact copiedWriteFileOutput = CreateOutputFile(fileName: "copiedWriteFileOutput" + i);
+
+                harness.Environment.CopyFileSources[copiedWriteFileOutput] = writeFileOutput;
+
+                // Ensure host can materialize the write file output
+                harness.Environment.HostMaterializedFileContents[writeFileOutput] = contents;
+
+                // Report only the hash of the copied write file output, so its content has to be recovered
+                harness.HashAndReportStringContent(contents, copiedWriteFileOutput);
+
+                copiedWriteFileOutputs[i] = copiedWriteFileOutput;
+                expectedContents[i] = contents;
+            }
+
+            var consumer = CreateCmdProcess(
+                dependencies: copiedWriteFileOutputs,
+                outputs: new[] { CreateOutputFile() });
+
+            var hashResult = await harness.FileContentManager.TryHashDependenciesAsync(consumer, harness.UntrackedOpContext);
+            Assert.True(hashResult.Succeeded);
+
+            // Bound the wait: a regression here deadlocks rather than fails, and a hung test is much less useful than a
+            // failing one. A TimeoutException here means the copies are holding every materialization slot while waiting
+            // for their producers, which each need a slot of their own.
+            bool materializationResult = await harness.FileContentManager
+                .TryMaterializeDependenciesAsync(consumer, harness.UntrackedOpContext)
+                .WithTimeoutAsync(TimeSpan.FromMinutes(2));
+
+            Assert.True(materializationResult);
+
+            for (int i = 0; i < copiedWriteFileCount; i++)
+            {
+                harness.VerifyContent(copiedWriteFileOutputs[i], expectedContents[i]);
+            }
+        }
+
+        [Fact]
         public async Task HostFileMaterialization()
         {
             var harness = CreateDefaultHarness();
-
             harness.Seal();
 
             FileArtifact hostFileOutput = CreateOutputFile(fileName: "hostFileOutput.txt");

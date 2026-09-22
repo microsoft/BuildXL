@@ -1887,7 +1887,7 @@ namespace BuildXL.Scheduler.Artifacts
                 MarkDirectoryMaterializations(state);
             }
 
-            Contract.Assert(state.MaterializationFiles.All(file => file.MaterializationCompletion.Task.IsCompleted), "All stared materializations must have finished.");
+            Contract.Assert(state.AllMaterializationsCompleted(), "All started materializations must have finished.");
 
             return firstFailure ?? ArtifactMaterializationResult.Succeeded;
         }
@@ -1910,7 +1910,7 @@ namespace BuildXL.Scheduler.Artifacts
             else
             {
                 // Hydrate all outputs when materializing outputs
-                pathsToHydrate = state.MaterializationFiles.Select(f => f.Artifact.Path);
+                pathsToHydrate = state.GetMaterializationPaths();
             }
 
             foreach (var readPath in pathsToHydrate)
@@ -2116,7 +2116,7 @@ namespace BuildXL.Scheduler.Artifacts
                 if (alreadyMaterializingTask.Status != TaskStatus.RanToCompletion ||
                     alreadyMaterializingTask.Result == PipOutputOrigin.NotMaterialized)
                 {
-                    state.PendingPlacementTasks.Add((file, alreadyMaterializingTask));
+                    state.AddPendingPlacement(file, alreadyMaterializingTask);
                 }
                 else
                 {
@@ -2168,12 +2168,15 @@ namespace BuildXL.Scheduler.Artifacts
             // Don't do anything for materialization that are already completed by prior states
             state.RemoveCompletedMaterializations();
 
+            // Read the count once to avoid extra lock acquisitions during the loop.
+            int materializationFileCount = state.MaterializationFileCount;
+
             bool deletionSuccess = await Task.Run(() =>
             {
                 bool success = true;
-                for (int i = 0; i < state.MaterializationFiles.Count; i++)
+                for (int i = 0; i < materializationFileCount; i++)
                 {
-                    MaterializationFile materializationFile = state.MaterializationFiles[i];
+                    MaterializationFile materializationFile = state.GetMaterializationFile(i);
 
                     if (materializationFile.MaterializationInfo.Hash == WellKnownContentHashes.AbsentFile)
                     {
@@ -2330,7 +2333,7 @@ namespace BuildXL.Scheduler.Artifacts
 
             using (operationContext.StartOperation(counter))
             {
-                if (state.MaterializationFiles.Count != 0)
+                if (state.MaterializationFileCount != 0)
                 {
                     var pathTable = Context.PathTable;
 
@@ -2357,9 +2360,11 @@ namespace BuildXL.Scheduler.Artifacts
                     // Maybe we didn't manage to fetch all of the remote content. However, for the content that was fetched,
                     // we still are mandated to finish materializing if possible and eventually complete the materialization task.
 
-                    for (int i = 0; i < state.MaterializationFiles.Count; i++)
+                    // Read the count once to avoid extra lock acquisitions during the loop.
+                    int materializationFileCount = state.MaterializationFileCount;
+                    for (int i = 0; i < materializationFileCount; i++)
                     {
-                        MaterializationFile materializationFile = state.MaterializationFiles[i];
+                        MaterializationFile materializationFile = state.GetMaterializationFile(i);
                         FileArtifact file = materializationFile.Artifact;
                         FileMaterializationInfo materializationInfo = materializationFile.MaterializationInfo;
                         ContentHash hash = materializationInfo.Hash;
@@ -2369,43 +2374,53 @@ namespace BuildXL.Scheduler.Artifacts
                         state.PlacementTasks.Add(Task.Run(
                             async () =>
                             {
-                                if (Context.CancellationToken.IsCancellationRequested)
+                                try
                                 {
-                                    state.SetMaterializationFailure(fileIndex: materializationFileIndex);
-                                    success = false;
-                                    return;
-                                }
-
-                                Possible<ContentMaterializationResult> possiblyPlaced = await PlaceSingleFileAsync(operationContext, state, materializationFileIndex, materializationFile, throttleMaterialization);
-
-                                Possible<Unit> finalResult = possiblyPlaced
-                                                                .Then(_ => m_host.ReportFileArtifactPlaced(file, materializationInfo))
-                                                                .Then(_ =>
-                                                                {
-                                                                    state.SetMaterializationSuccess(
-                                                                        fileIndex: materializationFileIndex,
-                                                                        origin: possiblyPlaced.Result.Origin,
-                                                                        operationContext: operationContext);
-                                                                    return Unit.Void;
-                                                                });
-                                if (!finalResult.Succeeded)
-                                {
-                                    Logger.Log.StorageCacheGetContentWarning(
-                                        operationContext,
-                                        pipDescription: pipInfo.Description,
-                                        contentHash: hash.ToHex(),
-                                        destinationPath: file.Path.ToString(pathTable),
-                                        errorMessage: finalResult.Failure.DescribeIncludingInnerFailures());
-
-                                    state.SetMaterializationFailure(fileIndex: materializationFileIndex);
-
-                                    if (finalResult.Failure is FailToDeleteForMaterializationFailure)
+                                    if (Context.CancellationToken.IsCancellationRequested)
                                     {
-                                        userError = true;
+                                        state.SetMaterializationFailure(fileIndex: materializationFileIndex);
+                                        success = false;
+                                        return;
                                     }
 
-                                    // Latch overall success (across all placements) to false.
-                                    success = false;
+                                    Possible<ContentMaterializationResult> possiblyPlaced = await PlaceSingleFileAsync(operationContext, state, materializationFileIndex, materializationFile, throttleMaterialization);
+
+                                    Possible<Unit> finalResult = possiblyPlaced
+                                                                    .Then(_ => m_host.ReportFileArtifactPlaced(file, materializationInfo))
+                                                                    .Then(_ =>
+                                                                    {
+                                                                        state.SetMaterializationSuccess(
+                                                                            fileIndex: materializationFileIndex,
+                                                                            origin: possiblyPlaced.Result.Origin,
+                                                                            operationContext: operationContext);
+                                                                        return Unit.Void;
+                                                                    });
+                                    if (!finalResult.Succeeded)
+                                    {
+                                        Logger.Log.StorageCacheGetContentWarning(
+                                            operationContext,
+                                            pipDescription: pipInfo.Description,
+                                            contentHash: hash.ToHex(),
+                                            destinationPath: file.Path.ToString(pathTable),
+                                            errorMessage: finalResult.Failure.DescribeIncludingInnerFailures());
+
+                                        state.SetMaterializationFailure(fileIndex: materializationFileIndex);
+
+                                        if (finalResult.Failure is FailToDeleteForMaterializationFailure)
+                                        {
+                                            userError = true;
+                                        }
+
+                                        // Latch overall success (across all placements) to false.
+                                        success = false;
+                                    }
+                                }
+                                finally
+                                {
+                                    // Signal the completion even if placement threw. Placements awaiting it run inside
+                                    // the same SafeWhenAll, so leaving it unsignaled deadlocks that wait, which in turn
+                                    // means the exception is never observed and never fails the build.
+                                    state.EnsureMaterializationCompleted(materializationFileIndex);
                                 }
                             }));
                     }
@@ -2423,17 +2438,18 @@ namespace BuildXL.Scheduler.Artifacts
                 }
 
                 // Wait on any placements for files already in progress by other pips
+                var pendingPlacements = state.GetPendingPlacements();
                 state.PlacementTasks.Clear();
-                foreach (var pendingPlacementTask in state.PendingPlacementTasks)
+                foreach (var pendingPlacementTask in pendingPlacements)
                 {
-                    state.PlacementTasks.Add(pendingPlacementTask.tasks);
+                    state.PlacementTasks.Add(pendingPlacementTask.task);
                 }
 
                 await TaskUtilities.SafeWhenAll(state.PlacementTasks);
 
-                foreach (var pendingPlacement in state.PendingPlacementTasks)
+                foreach (var pendingPlacement in pendingPlacements)
                 {
-                    var result = await pendingPlacement.tasks;
+                    var result = await pendingPlacement.task;
                     if (result == PipOutputOrigin.NotMaterialized)
                     {
                         var file = pendingPlacement.fileArtifact;
@@ -2523,7 +2539,6 @@ namespace BuildXL.Scheduler.Artifacts
             bool allowReadOnly = materializationFile.AllowReadOnly && !materializationFile.MaterializationInfo.IsUndeclaredFileRewrite;
 
             using (var outerContext = operationContext.StartAsyncOperation(PipExecutorCounter.FileContentManagerTryMaterializeOuterDuration, file))
-            using (throttleMaterialization ? await m_materializationSemaphore.AcquireAsync() : (TaskUtilities.SemaphoreReleaser?) null)
             {
                 // Quickly fail pending placements when cancellation is requested
                 if (Context.CancellationToken.IsCancellationRequested)
@@ -2532,132 +2547,152 @@ namespace BuildXL.Scheduler.Artifacts
                     return WithLineInfo(possiblyPlaced);
                 }
 
-                // Wait for the prior version of the file artifact to finish materialization
-                await materializationFile.PriorArtifactVersionCompletion;
-
-                if (m_host.CanMaterializeFile(file))
+                // Wait for the prior version of the file artifact -- or for an artifact this materialization depends on
+                // (see PipArtifactsState.SetDependencyArtifactCompletion) -- to finish materializing, and do it BEFORE
+                // taking a materialization slot. The awaited artifact needs a slot of its own, so holding one while
+                // waiting lets a pip with more such inputs than there are slots occupy all of them waiting on producers
+                // that can never acquire one.
+                Task dependencyCompletion = materializationFile.PriorArtifactVersionCompletion;
+                using (dependencyCompletion.IsCompleted
+                    ? (OperationContext?)null
+                    : outerContext.StartOperation(PipExecutorCounter.FileContentManagerWaitForDependencyMaterializationDuration, file))
                 {
-                    using (outerContext.StartOperation(PipExecutorCounter.FileContentManagerHostTryMaterializeDuration, file))
-                    {
-                        var possiblyMaterialized = await m_host.TryMaterializeFileAsync(file, outerContext);
-                        return possiblyMaterialized.Then(origin =>
-                            new ContentMaterializationResult(
-                                origin,
-                                TrackedFileContentInfo.CreateUntracked(materializationInfo.FileContentInfo)));
-                    }
+                    await dependencyCompletion;
                 }
-                else
+
+                using (throttleMaterialization ? await m_materializationSemaphore.AcquireAsync() : (TaskUtilities.SemaphoreReleaser?) null)
                 {
-                    using (var op = outerContext.StartOperation(
-                        materializationFile.CreateReparsePoint
-                            ? PipExecutorCounter.TryMaterializeReparsePointDuration
-                            : PipExecutorCounter.FileContentManagerTryMaterializeDuration,
-                        file))
+                    // Cancellation may have been requested while waiting above
+                    if (Context.CancellationToken.IsCancellationRequested)
                     {
-                        if (state.VerifyMaterializationOnly)
+                        var cancelledResult = new Possible<ContentMaterializationResult>(new CtrlCCancellationFailure());
+                        return WithLineInfo(cancelledResult);
+                    }
+
+                    if (m_host.CanMaterializeFile(file))
+                    {
+                        using (outerContext.StartOperation(PipExecutorCounter.FileContentManagerHostTryMaterializeDuration, file))
                         {
-                            // Ensure local existence by opening content stream.
-                            var possiblyStream = await ArtifactContentCache.TryOpenContentStreamAsync(hash);
-
-                            if (possiblyStream.Succeeded)
-                            {
-                                possiblyStream.Result.Dispose();
-
-                                var possiblyPlaced =
-                                    new Possible<ContentMaterializationResult>(
-                                        new ContentMaterializationResult(
-                                            ContentMaterializationOrigin.DeployedFromCache,
-                                            TrackedFileContentInfo.CreateUntracked(materializationInfo.FileContentInfo, fileName, materializationInfo.OpaqueDirectoryRoot, dynamicOutputCaseSensitiveRelativeDirectory)));
-                                return WithLineInfo(possiblyPlaced);
-                            }
-                            else
-                            {
-                                var possiblyPlaced = new Possible<ContentMaterializationResult>(possiblyStream.Failure);
-                                return WithLineInfo(possiblyPlaced);
-                            }
+                            var possiblyMaterialized = await m_host.TryMaterializeFileAsync(file, outerContext);
+                            return possiblyMaterialized.Then(origin =>
+                                new ContentMaterializationResult(
+                                    origin,
+                                    TrackedFileContentInfo.CreateUntracked(materializationInfo.FileContentInfo)));
                         }
-                        else
+                    }
+                    else
+                    {
+                        using (var op = outerContext.StartOperation(
+                            materializationFile.CreateReparsePoint
+                                ? PipExecutorCounter.TryMaterializeReparsePointDuration
+                                : PipExecutorCounter.FileContentManagerTryMaterializeDuration,
+                            file))
                         {
-                            var (checkExistsOnDisk, _, contentOnDiskInfo) = await CheckExistsContentOnDiskIfNeededAsync(
-                                outerContext,
-                                materializationFile.Artifact,
-                                state.PipInfo,
-                                state.MaterializingOutputs,
-                                materializationInfo.OpaqueDirectoryRoot);
-
-                            if (checkExistsOnDisk
-                                && contentOnDiskInfo.HasValue
-                                && contentOnDiskInfo.Value.Hash == materializationFile.MaterializationInfo.Hash)
+                            if (state.VerifyMaterializationOnly)
                             {
-                                return WithLineInfo(
-                                    new Possible<ContentMaterializationResult>(new ContentMaterializationResult(ContentMaterializationOrigin.UpToDate, contentOnDiskInfo.Value)));
-                            }
+                                // Ensure local existence by opening content stream.
+                                var possiblyStream = await ArtifactContentCache.TryOpenContentStreamAsync(hash);
 
-                            // Don't virtualize outputs
-                            bool canVirtualize = ShouldVirtualize(state, materializationFile, out var virtualizationInfo);
-                            state.SetVirtualizationInfo(fileIndex, virtualizationInfo);
-
-                            // Try materialize content.
-                            Possible<ContentMaterializationResult> possiblyPlaced = await LocalDiskContentStore.TryMaterializeAsync(
-                                ArtifactContentCache,
-                                fileRealizationModes: GetFileRealizationMode(allowReadOnly: allowReadOnly)
-                                    .WithAllowVirtualization(allowVirtualization: canVirtualize),
-                                path: file.Path,
-                                fileName: fileName,
-                                caseSensitiveRelativeDirectory: dynamicOutputCaseSensitiveRelativeDirectory,
-                                contentHash: hash,
-                                reparsePointInfo: materializationInfo.ReparsePointInfo,
-                                // Don't track or record hashes of virtual files since they should be replaced if encountered
-                                // in subsequent builds. Due to the volatility of the VFS provider.
-                                trackPath: !canVirtualize,
-                                recordPathInFileContentTable: !canVirtualize,
-                                cancellationToken: Context.CancellationToken);
-
-                            if (possiblyPlaced.Succeeded)
-                            {
-                                // Materialization will fail after 30m due to timeout limit. At the same time,
-                                // we'd like to find out for how many operations the materialization takes more than 5 min.
-                                // We hard-coded this limit as we do not want to get it used by somewhere else in this class.
-                                bool longOperation = op.Duration.HasValue && op.Duration.Value.TotalMinutes > 5;
-
-                                if (state.MaterializingOutputs)
+                                if (possiblyStream.Succeeded)
                                 {
-                                    // Count output materialization requested by API Server (i.e., an external call to the MaterializeFile API)
-                                    // separately from output materialization done by the engine.
-                                    if (state.IsApiServerRequest)
-                                    {
-                                        Interlocked.Add(ref m_stats.TotalApiServerMaterializedOutputsSize, materializationInfo.Length);
-                                        Interlocked.Increment(ref m_stats.TotalApiServerMaterializedOutputsCount);
-                                    }
-                                    else
-                                    {
-                                        Interlocked.Add(ref m_stats.TotalMaterializedOutputsSize, materializationInfo.Length);
-                                        Interlocked.Increment(ref m_stats.TotalMaterializedOutputsCount);
-                                    }
+                                    possiblyStream.Result.Dispose();
 
-                                    if (longOperation)
-                                    {
-                                        Interlocked.Increment(ref m_stats.TotalMaterializedOutputsExpensiveCount);
-                                    }
+                                    var possiblyPlaced =
+                                        new Possible<ContentMaterializationResult>(
+                                            new ContentMaterializationResult(
+                                                ContentMaterializationOrigin.DeployedFromCache,
+                                                TrackedFileContentInfo.CreateUntracked(materializationInfo.FileContentInfo, fileName, materializationInfo.OpaqueDirectoryRoot, dynamicOutputCaseSensitiveRelativeDirectory)));
+                                    return WithLineInfo(possiblyPlaced);
                                 }
                                 else
                                 {
-                                    Interlocked.Add(ref m_stats.TotalMaterializedInputsSize, materializationInfo.Length);
-                                    Interlocked.Increment(ref m_stats.TotalMaterializedInputsCount);
-                                    if (longOperation)
-                                    {
-                                        Interlocked.Increment(ref m_stats.TotalMaterializedInputsExpensiveCount);
-                                    }
+                                    var possiblyPlaced = new Possible<ContentMaterializationResult>(possiblyStream.Failure);
+                                    return WithLineInfo(possiblyPlaced);
                                 }
                             }
-                            else if (Context.CancellationToken.IsCancellationRequested)
+                            else
                             {
-                                // If the materialization was unsuccessful and a cancellation was requested, we can skip logging this message to the console.
-                                // Return CtrlCCancellationFailure instead of possiblyPlaced to indicate that it does not need to be logged.
-                                return WithLineInfo(new Possible<ContentMaterializationResult>(new CtrlCCancellationFailure()));
-                            }
+                                var (checkExistsOnDisk, _, contentOnDiskInfo) = await CheckExistsContentOnDiskIfNeededAsync(
+                                    outerContext,
+                                    materializationFile.Artifact,
+                                    state.PipInfo,
+                                    state.MaterializingOutputs,
+                                    materializationInfo.OpaqueDirectoryRoot);
 
-                            return WithLineInfo(possiblyPlaced);
+                                if (checkExistsOnDisk
+                                    && contentOnDiskInfo.HasValue
+                                    && contentOnDiskInfo.Value.Hash == materializationFile.MaterializationInfo.Hash)
+                                {
+                                    return WithLineInfo(
+                                        new Possible<ContentMaterializationResult>(new ContentMaterializationResult(ContentMaterializationOrigin.UpToDate, contentOnDiskInfo.Value)));
+                                }
+
+                                // Don't virtualize outputs
+                                bool canVirtualize = ShouldVirtualize(state, materializationFile, out var virtualizationInfo);
+                                state.SetVirtualizationInfo(fileIndex, virtualizationInfo);
+
+                                // Try materialize content.
+                                Possible<ContentMaterializationResult> possiblyPlaced = await LocalDiskContentStore.TryMaterializeAsync(
+                                    ArtifactContentCache,
+                                    fileRealizationModes: GetFileRealizationMode(allowReadOnly: allowReadOnly)
+                                        .WithAllowVirtualization(allowVirtualization: canVirtualize),
+                                    path: file.Path,
+                                    fileName: fileName,
+                                    caseSensitiveRelativeDirectory: dynamicOutputCaseSensitiveRelativeDirectory,
+                                    contentHash: hash,
+                                    reparsePointInfo: materializationInfo.ReparsePointInfo,
+                                    // Don't track or record hashes of virtual files since they should be replaced if encountered
+                                    // in subsequent builds. Due to the volatility of the VFS provider.
+                                    trackPath: !canVirtualize,
+                                    recordPathInFileContentTable: !canVirtualize,
+                                    cancellationToken: Context.CancellationToken);
+
+                                if (possiblyPlaced.Succeeded)
+                                {
+                                    // Materialization will fail after 30m due to timeout limit. At the same time,
+                                    // we'd like to find out for how many operations the materialization takes more than 5 min.
+                                    // We hard-coded this limit as we do not want to get it used by somewhere else in this class.
+                                    bool longOperation = op.Duration.HasValue && op.Duration.Value.TotalMinutes > 5;
+
+                                    if (state.MaterializingOutputs)
+                                    {
+                                        // Count output materialization requested by API Server (i.e., an external call to the MaterializeFile API)
+                                        // separately from output materialization done by the engine.
+                                        if (state.IsApiServerRequest)
+                                        {
+                                            Interlocked.Add(ref m_stats.TotalApiServerMaterializedOutputsSize, materializationInfo.Length);
+                                            Interlocked.Increment(ref m_stats.TotalApiServerMaterializedOutputsCount);
+                                        }
+                                        else
+                                        {
+                                            Interlocked.Add(ref m_stats.TotalMaterializedOutputsSize, materializationInfo.Length);
+                                            Interlocked.Increment(ref m_stats.TotalMaterializedOutputsCount);
+                                        }
+
+                                        if (longOperation)
+                                        {
+                                            Interlocked.Increment(ref m_stats.TotalMaterializedOutputsExpensiveCount);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        Interlocked.Add(ref m_stats.TotalMaterializedInputsSize, materializationInfo.Length);
+                                        Interlocked.Increment(ref m_stats.TotalMaterializedInputsCount);
+                                        if (longOperation)
+                                        {
+                                            Interlocked.Increment(ref m_stats.TotalMaterializedInputsExpensiveCount);
+                                        }
+                                    }
+                                }
+                                else if (Context.CancellationToken.IsCancellationRequested)
+                                {
+                                    // If the materialization was unsuccessful and a cancellation was requested, we can skip logging this message to the console.
+                                    // Return CtrlCCancellationFailure instead of possiblyPlaced to indicate that it does not need to be logged.
+                                    return WithLineInfo(new Possible<ContentMaterializationResult>(new CtrlCCancellationFailure()));
+                                }
+
+                                return WithLineInfo(possiblyPlaced);
+                            }
                         }
                     }
                 }
@@ -2765,7 +2800,7 @@ namespace BuildXL.Scheduler.Artifacts
                 state.GetCacheMaterializationFiles().SelectList(i => (i.materializationFile.Artifact, i.materializationFile.MaterializationInfo.Hash, i.index, i.materializationFile.MaterializationInfo.OpaqueDirectoryRoot, i.materializationFile.MaterializationInfo.IsExecutable)),
                 onFailure: failure =>
                 {
-                    for (int index = 0; index < state.MaterializationFiles.Count; index++)
+                    for (int index = 0; index < state.MaterializationFileCount; index++)
                     {
                         state.SetMaterializationFailure(index);
                     }
@@ -2775,7 +2810,7 @@ namespace BuildXL.Scheduler.Artifacts
                 onContentUnavailable: (index, expectedHash, hashOnDiskIfAvailableOrNull, failure) =>
                 {
                     state.SetMaterializationFailure(index);
-                    FileArtifact file = state.MaterializationFiles[index].Artifact;
+                    FileArtifact file = state.GetMaterializationFile(index).Artifact;
 
                     // Log the eventual path on failure for sake of correlating the file within the build
                     if (Configuration.Schedule.StoreOutputsToCache)
@@ -3100,7 +3135,7 @@ namespace BuildXL.Scheduler.Artifacts
                                     // This can happen with copied write file outputs. Since the hash of the write file output will not be transferred to worker
                                     // but instead the copied output consumed by the pip will be transferred. We use the hash from the copied file since it is
                                     // the same. We recreate without the file name because copied files can have different names that the originating file.
-                                    otherFileMaterializationInfo = FileMaterializationInfo.CreateWithUnknownName(state.MaterializationFiles[currentFileIndex].MaterializationInfo.FileContentInfo);
+                                    otherFileMaterializationInfo = FileMaterializationInfo.CreateWithUnknownName(state.GetMaterializationFile(currentFileIndex).MaterializationInfo.FileContentInfo);
                                     ReportInputContent(otherFile, otherFileMaterializationInfo);
                                 }
 
@@ -3326,14 +3361,16 @@ namespace BuildXL.Scheduler.Artifacts
             var pathTable = Context.PathTable;
             bool success = true;
 
-            for (int i = 0; i < state.MaterializationFiles.Count; i++)
+            // Read the count once to avoid extra lock acquisitions during the loop.
+            int materializationFileCount = state.MaterializationFileCount;
+            for (int i = 0; i < materializationFileCount; i++)
             {
                 if (Context.CancellationToken.IsCancellationRequested)
                 {
                     return false;
                 }
 
-                MaterializationFile materializationFile = state.MaterializationFiles[i];
+                MaterializationFile materializationFile = state.GetMaterializationFile(i);
                 FileArtifact file = materializationFile.Artifact;
                 bool createReparsePoint = materializationFile.CreateReparsePoint;
 
@@ -3354,9 +3391,9 @@ namespace BuildXL.Scheduler.Artifacts
                 }
             }
 
-            for (int i = 0; i < state.MaterializationFiles.Count; i++)
+            for (int i = 0; i < materializationFileCount; i++)
             {
-                MaterializationFile materializationFile = state.MaterializationFiles[i];
+                MaterializationFile materializationFile = state.GetMaterializationFile(i);
                 FileArtifact file = materializationFile.Artifact;
                 var materializationInfo = materializationFile.MaterializationInfo;
                 var expectedHash = materializationInfo.Hash;
@@ -4392,7 +4429,97 @@ namespace BuildXL.Scheduler.Artifacts
             /// <summary>
             /// The set of files to materialize
             /// </summary>
-            public readonly List<MaterializationFile> MaterializationFiles = new();
+            /// <remarks>
+            /// Private on purpose: reach it only through the synchronized members below. Content recovery fans out over
+            /// <see cref="FileContentManager.m_recoverContentActionBlock"/>, so entries are appended and updated
+            /// concurrently. <see cref="MaterializationFile"/> is a struct, so unsynchronized access can lose an append
+            /// or observe a torn element, which leaves a reserved materialization completion unsignaled and blocks every
+            /// pip waiting on it for the rest of the build.
+            /// </remarks>
+            private readonly List<MaterializationFile> m_materializationFiles = new();
+
+            /// <summary>
+            /// Materialization tasks initiated by other pips which must be awaited.
+            /// </summary>
+            /// <remarks>
+            /// Private for the same reason as <see cref="m_materializationFiles"/>: it is appended from the concurrent
+            /// recovery fan-out.
+            /// </remarks>
+            private readonly List<(FileArtifact fileArtifact, Task<PipOutputOrigin> task)> m_pendingPlacementTasks = new();
+
+            /// <summary>
+            /// Guards <see cref="m_materializationFiles"/> and <see cref="m_pendingPlacementTasks"/>.
+            /// </summary>
+            private readonly object m_stateLock = new object();
+
+            /// <summary>
+            /// Number of files to materialize
+            /// </summary>
+            public int MaterializationFileCount
+            {
+                get
+                {
+                    lock (m_stateLock)
+                    {
+                        return m_materializationFiles.Count;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Gets the file to materialize at the given index
+            /// </summary>
+            public MaterializationFile GetMaterializationFile(int index)
+            {
+                lock (m_stateLock)
+                {
+                    return m_materializationFiles[index];
+                }
+            }
+
+            /// <summary>
+            /// Gets the paths of all files to materialize
+            /// </summary>
+            public IReadOnlyList<AbsolutePath> GetMaterializationPaths()
+            {
+                lock (m_stateLock)
+                {
+                    return m_materializationFiles.SelectList(file => file.Artifact.Path);
+                }
+            }
+
+            /// <summary>
+            /// Whether every materialization tracked by this state has been signaled
+            /// </summary>
+            public bool AllMaterializationsCompleted()
+            {
+                lock (m_stateLock)
+                {
+                    return m_materializationFiles.All(file => file.MaterializationCompletion.Task.IsCompleted);
+                }
+            }
+
+            /// <summary>
+            /// Records a materialization started by another pip which must be awaited
+            /// </summary>
+            public void AddPendingPlacement(FileArtifact fileArtifact, Task<PipOutputOrigin> task)
+            {
+                lock (m_stateLock)
+                {
+                    m_pendingPlacementTasks.Add((fileArtifact, task));
+                }
+            }
+
+            /// <summary>
+            /// Gets a snapshot of the materializations started by other pips which must be awaited
+            /// </summary>
+            public IReadOnlyList<(FileArtifact fileArtifact, Task<PipOutputOrigin> task)> GetPendingPlacements()
+            {
+                lock (m_stateLock)
+                {
+                    return m_pendingPlacementTasks.ToArray();
+                }
+            }
 
             /// <summary>
             /// The set of virtual files to hydrate
@@ -4400,7 +4527,7 @@ namespace BuildXL.Scheduler.Artifacts
             public readonly List<AbsolutePath> HydrationFiles = new();
 
             /// <summary>
-            /// The paths and content hashes for files in <see cref="MaterializationFiles"/>
+            /// The paths and content hashes for files in <see cref="m_materializationFiles"/>
             /// </summary>
             private readonly List<(MaterializationFile, int)> m_filesAndContentHashes = new();
 
@@ -4408,11 +4535,6 @@ namespace BuildXL.Scheduler.Artifacts
             /// The tasks for hashing files
             /// </summary>
             public readonly List<Task<FileMaterializationInfo?>> HashTasks = new();
-
-            /// <summary>
-            /// Materialization tasks initiated by other pips which must be awaited
-            /// </summary>
-            public readonly List<(FileArtifact fileArtifact, Task<PipOutputOrigin> tasks)> PendingPlacementTasks = new();
 
             /// <summary>
             /// Materialization tasks initiated by the current pip
@@ -4433,17 +4555,21 @@ namespace BuildXL.Scheduler.Artifacts
             public Failure InnerFailure = null;
 
             /// <summary>
-            /// Get the content hashes for <see cref="MaterializationFiles"/>
+            /// Get the content hashes for <see cref="m_materializationFiles"/>
             /// </summary>
             public IReadOnlyList<(MaterializationFile materializationFile, int index)> GetCacheMaterializationFiles()
             {
                 m_filesAndContentHashes.Clear();
-                for (int i = 0; i < MaterializationFiles.Count; i++)
+
+                lock (m_stateLock)
                 {
-                    var file = MaterializationFiles[i];
-                    if (!(file.CreateReparsePoint || file.MaterializationInfo.IsReparsePointActionable) && !m_manager.m_host.CanMaterializeFile(file.Artifact))
+                    for (int i = 0; i < m_materializationFiles.Count; i++)
                     {
-                        m_filesAndContentHashes.Add((file, i));
+                        var file = m_materializationFiles[i];
+                        if (!(file.CreateReparsePoint || file.MaterializationInfo.IsReparsePointActionable) && !m_manager.m_host.CanMaterializeFile(file.Artifact))
+                        {
+                            m_filesAndContentHashes.Add((file, i));
+                        }
                     }
                 }
 
@@ -4466,11 +4592,11 @@ namespace BuildXL.Scheduler.Artifacts
                 ClearAndTrimIfOversized(PipArtifacts);
                 ClearAndTrimIfOversized(DirectoryDeletionCompletions);
                 ClearAndTrimIfOversized(PendingDirectoryDeletions);
-                ClearAndTrimIfOversized(MaterializationFiles);
+                ClearAndTrimIfOversized(m_materializationFiles);
                 ClearAndTrimIfOversized(HydrationFiles);
                 ClearAndTrimIfOversized(m_filesAndContentHashes);
                 ClearAndTrimIfOversized(HashTasks);
-                ClearAndTrimIfOversized(PendingPlacementTasks);
+                ClearAndTrimIfOversized(m_pendingPlacementTasks);
                 ClearAndTrimIfOversized(PlacementTasks);
                 ClearAndTrimIfOversized(FailedFiles);
                 ClearAndTrimIfOversized(m_failedDirectories);
@@ -4539,7 +4665,7 @@ namespace BuildXL.Scheduler.Artifacts
             /// </summary>
             public void SetMaterializationFailure(int fileIndex)
             {
-                var failedFile = MaterializationFiles[fileIndex];
+                var failedFile = GetMaterializationFile(fileIndex);
                 AddFailedFile(failedFile.Artifact, failedFile.MaterializationInfo.FileContentInfo.Hash);
 
                 SetMaterializationResult(fileIndex, success: false);
@@ -4572,9 +4698,12 @@ namespace BuildXL.Scheduler.Artifacts
             /// </summary>
             public void SetVirtualizationInfo(int fileIndex, string virtualizationInfo)
             {
-                var materializationFile = MaterializationFiles[fileIndex];
-                materializationFile.VirtualizationInfo = virtualizationInfo;
-                MaterializationFiles[fileIndex] = materializationFile;
+                lock (m_stateLock)
+                {
+                    var materializationFile = m_materializationFiles[fileIndex];
+                    materializationFile.VirtualizationInfo = virtualizationInfo;
+                    m_materializationFiles[fileIndex] = materializationFile;
+                }
             }
 
             /// <summary>
@@ -4583,21 +4712,24 @@ namespace BuildXL.Scheduler.Artifacts
             /// </summary>
             public void SetDependencyArtifactCompletion(int fileIndex, Task dependencyArtifactCompletion)
             {
-                var materializationFile = MaterializationFiles[fileIndex];
-                var priorArtifactCompletion = materializationFile.PriorArtifactVersionCompletion;
-                if (priorArtifactCompletion != null && !priorArtifactCompletion.IsCompleted)
+                lock (m_stateLock)
                 {
-                    // Wait for prior artifact and the dependency artifact before attempting materialization
-                    priorArtifactCompletion = Task.WhenAll(dependencyArtifactCompletion, priorArtifactCompletion);
-                }
-                else
-                {
-                    // No outstanding prior artifact, just wait for the dependency artifact before attempting materialization
-                    priorArtifactCompletion = dependencyArtifactCompletion;
-                }
+                    var materializationFile = m_materializationFiles[fileIndex];
+                    var priorArtifactCompletion = materializationFile.PriorArtifactVersionCompletion;
+                    if (priorArtifactCompletion != null && !priorArtifactCompletion.IsCompleted)
+                    {
+                        // Wait for prior artifact and the dependency artifact before attempting materialization
+                        priorArtifactCompletion = Task.WhenAll(dependencyArtifactCompletion, priorArtifactCompletion);
+                    }
+                    else
+                    {
+                        // No outstanding prior artifact, just wait for the dependency artifact before attempting materialization
+                        priorArtifactCompletion = dependencyArtifactCompletion;
+                    }
 
-                materializationFile.PriorArtifactVersionCompletion = priorArtifactCompletion;
-                MaterializationFiles[fileIndex] = materializationFile;
+                    materializationFile.PriorArtifactVersionCompletion = priorArtifactCompletion;
+                    m_materializationFiles[fileIndex] = materializationFile;
+                }
             }
 
             /// <summary>
@@ -4609,7 +4741,7 @@ namespace BuildXL.Scheduler.Artifacts
 
                 if (!VerifyMaterializationOnly)
                 {
-                    MaterializationFile materializationFile = MaterializationFiles[fileIndex];
+                    MaterializationFile materializationFile = GetMaterializationFile(fileIndex);
                     var file = materializationFile.Artifact;
                     if (file.IsOutputFile &&
                         (IsDeclaredProducer || m_manager.TryGetDeclaredProducerId(file).IsValid))
@@ -4643,8 +4775,15 @@ namespace BuildXL.Scheduler.Artifacts
             private void SetMaterializationResult(int materializationFileIndex, bool success, PipOutputOrigin result = PipOutputOrigin.NotMaterialized)
             {
                 Contract.Requires(result != PipOutputOrigin.NotMaterialized || !success, "Successfully materialization cannot have NotMaterialized result");
-                MaterializationFile file = MaterializationFiles[materializationFileIndex];
-                file.MaterializationCompletion.SetResult(result);
+                MaterializationFile file = GetMaterializationFile(materializationFileIndex);
+
+                // TrySetResult rather than SetResult: EnsureMaterializationCompleted may race this call when a
+                // placement throws after reporting a result. Only the winner publishes, so the map and the task
+                // cannot disagree.
+                if (!file.MaterializationCompletion.TrySetResult(result))
+                {
+                    return;
+                }
 
                 if (!VerifyMaterializationOnly)
                 {
@@ -4725,12 +4864,15 @@ namespace BuildXL.Scheduler.Artifacts
                     }
 
                     // Populate collections with corresponding information for files
-                    MaterializationFiles.Add(new MaterializationFile(
-                        fileToMaterialize,
-                        materializationInfo,
-                        allowReadOnly,
-                        materializationCompletion,
-                        priorArtifactCompletion));
+                    lock (m_stateLock)
+                    {
+                        m_materializationFiles.Add(new MaterializationFile(
+                            fileToMaterialize,
+                            materializationInfo,
+                            allowReadOnly,
+                            materializationCompletion,
+                            priorArtifactCompletion));
+                    }
                 }
                 else
                 {
@@ -4744,7 +4886,30 @@ namespace BuildXL.Scheduler.Artifacts
             /// </summary>
             public void RemoveCompletedMaterializations()
             {
-                MaterializationFiles.RemoveAll(file => file.MaterializationCompletion.Task.IsCompleted);
+                lock (m_stateLock)
+                {
+                    m_materializationFiles.RemoveAll(file => file.MaterializationCompletion.Task.IsCompleted);
+                }
+            }
+
+            /// <summary>
+            /// Signals the materialization completion for the given file if nothing has signaled it yet.
+            /// </summary>
+            public void EnsureMaterializationCompleted(int materializationFileIndex)
+            {
+                MaterializationFile file = GetMaterializationFile(materializationFileIndex);
+
+                if (!file.MaterializationCompletion.TrySetResult(PipOutputOrigin.NotMaterialized))
+                {
+                    return;
+                }
+
+                if (!VerifyMaterializationOnly)
+                {
+                    m_manager.m_materializationTasks[file.Artifact] = m_manager.ToTask(PipOutputOrigin.NotMaterialized);
+                }
+
+                m_manager.m_currentlyMaterializingFilesByPath.CompareRemove(file.Artifact.Path, file.Artifact);
             }
         }
 

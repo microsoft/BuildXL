@@ -618,6 +618,13 @@ namespace BuildXL.Scheduler
         FileContentManagerTryMaterializeOuterDuration,
 
         /// <summary>
+        /// The amount of time FileContentManager spent waiting for a materialization owned by another caller
+        /// (another pip, or an earlier version of the same artifact) to complete
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        FileContentManagerWaitForDependencyMaterializationDuration,
+
+        /// <summary>
         /// The amount of time FileContentManager spent querying sealed input content
         /// </summary>
         [CounterType(CounterType.Stopwatch)]

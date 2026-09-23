@@ -36,6 +36,8 @@ Here we are specifying `build` and `test` as a way to define the build extent, b
 ## Graph output
 BuildXL accepts `lage info --reporter json` output as either a single JSON report (including pretty-printed JSON) or newline-delimited JSON reports. Exactly one report must contain a `data.packageTasks` array. Other well-formed reports do not prevent graph construction; malformed JSON, missing graphs, and multiple graph reports are rejected.
 
+When Lage exits successfully and provides a valid graph, its `error` (`level: 10`) and `warn` (`level: 20`) records are surfaced through BuildXL warning DX11907, with the original Lage severity included in each message. These are log levels, not process exit codes: an error-level record alone does not fail graph construction. Informational (`30`), verbose (`40`), and silly (`50`) records are not promoted to warnings. A nonzero Lage exit code or an invalid graph still causes failure. For a concrete example, [Lage's CLI error handler](https://github.com/microsoft/lage/blob/e1cfae7beaf573fba1010480290363cbecd92480/packages/cli/src/cli.ts#L23-L36) reports command failures by setting `process.exitCode = 1`.
+
 ## Improving perf with yarn strict awaress tracking
 When doing package install via [Yarn strict](https://classic.yarnpkg.com/en/package/yarn-strict), the Lage resolver can be made aware of it with a resolver option:
 

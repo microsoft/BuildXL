@@ -97,6 +97,9 @@ namespace Test.BuildXL.FrontEnd.Lage
 
             Assert.Contains($"{since}", graphConstructionToolArgs);
 
+            // Lage can fall back to all packages with a warning when the Git reference cannot be resolved.
+            AllowWarningEventMaybeLogged(global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.GraphConstructionFinishedSuccessfullyButWithWarnings);
+
             // Lage sometimes fails with an obscure error because the underlying git operation fails (depending on the environment where it runs)
             AllowErrorEventMaybeLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
             AllowErrorEventMaybeLogged(global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.ProjectGraphConstructionError);

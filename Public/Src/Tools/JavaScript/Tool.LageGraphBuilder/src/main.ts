@@ -35,13 +35,23 @@ if (process.argv.length == 9) {
   produceErrFile = process.argv[8] === "true";
 }
 
+// Lage's numeric log levels increase with verbosity, not severity.
+// https://github.com/microsoft/lage/blob/e1cfae7beaf573fba1010480290363cbecd92480/packages/logger/src/interfaces/LogLevel.ts#L1-L11
+enum LogLevel {
+    Error = 10,
+    Warn = 20,
+    Info = 30,
+    Verbose = 40,
+    Silly = 50,
+}
+
 /**
  * Result output of `lage info`
  */
 
 export interface Report {
     timestamp: number;
-    level: "error" | "warn" | "info" | "verbose" | "silly";
+    level: LogLevel;
     msg: string;
     data?: InfoData;
   }
@@ -77,7 +87,7 @@ export interface PackageTaskInfo {
     sourceDependencies: string[];
 }
 
-function parseLageReport(lageJson: string): Report {
+function parseLageReport(lageJson: string): { graph: Report; diagnostics: Report[] } {
     let reports: Report[];
     try {
         // Preserve support for a single report, including pretty-printed JSON.
@@ -100,7 +110,11 @@ function parseLageReport(lageJson: string): Report {
         throw new Error(`Expected exactly one Lage graph report with data.packageTasks, but found ${graphReports.length}.`);
     }
 
-    return graphReports[0];
+    return {
+        graph: graphReports[0],
+        diagnostics: reports.filter(report =>
+            report && (report.level === LogLevel.Error || report.level === LogLevel.Warn)),
+    };
 }
 
 function lageToBuildXL(lage: Report): JavaScriptGraph {
@@ -137,7 +151,7 @@ function lageToBuildXL(lage: Report): JavaScriptGraph {
   }
 
 
-  let errorFd = 0;
+  let errorFd: number | undefined;
   try {
     let script  = lageLocation === undefined ? `"${npmLocation}" run lage --silent --` : `"${lageLocation}"`;
     script  = `${script} info ${targets} --reporter json ${since}> "${outputGraphFile}"`;
@@ -159,7 +173,18 @@ function lageToBuildXL(lage: Report): JavaScriptGraph {
  
     const lageJson = fs.readFileSync(outputGraphFile, "utf8");
 
-    const lageReport = parseLageReport(lageJson);
+    const { graph: lageReport, diagnostics } = parseLageReport(lageJson);
+    if (diagnostics.length > 0) {
+        const diagnosticText = diagnostics.map(report =>
+            `[Lage ${report.level === LogLevel.Error ? "error" : "warn"}] ${report.msg}`).join("\n");
+
+        if (errorFd !== undefined) {
+            // Continue after Lage's stderr, which may not end with a newline.
+            fs.writeSync(errorFd, `\n${diagnosticText}\n`);
+        } else {
+            console.error(diagnosticText);
+        }
+    }
     console.log('Finished lage export');
 
     const graph = lageToBuildXL(lageReport);
@@ -172,5 +197,7 @@ function lageToBuildXL(lage: Report): JavaScriptGraph {
     process.exit(1);
 }
 finally {
-    fs.closeSync(errorFd);
+    if (errorFd !== undefined) {
+        fs.closeSync(errorFd);
+    }
 }

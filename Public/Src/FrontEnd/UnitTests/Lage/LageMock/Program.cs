@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -30,6 +31,8 @@ namespace Test.BuildXL.FrontEnd.Lage.Mock
         /// E.g.
         /// A -> path/to/foo, A -> path/to/bar, B -> path/to/baz
         /// LAGE_BUILD_GRAPH_MOCK_OUTPUT_FILE can specify a file whose contents are emitted verbatim instead of a generated graph.
+        /// LAGE_BUILD_GRAPH_MOCK_ERROR_FILE can specify a file whose contents are emitted to stderr.
+        /// LAGE_BUILD_GRAPH_MOCK_EXIT_CODE controls the exit code, defaulting to zero.
         /// </remarks>
         public static int Main(string[] args)
         {
@@ -52,11 +55,20 @@ namespace Test.BuildXL.FrontEnd.Lage.Mock
                 return 1;
             }
 
+            var errorFile = Environment.GetEnvironmentVariable("LAGE_BUILD_GRAPH_MOCK_ERROR_FILE");
+            if (errorFile != null)
+            {
+                Console.Error.Write(File.ReadAllText(errorFile));
+            }
+
+            var exitCodeValue = Environment.GetEnvironmentVariable("LAGE_BUILD_GRAPH_MOCK_EXIT_CODE");
+            int exitCode = exitCodeValue == null ? 0 : int.Parse(exitCodeValue, CultureInfo.InvariantCulture);
+
             var outputFile = Environment.GetEnvironmentVariable("LAGE_BUILD_GRAPH_MOCK_OUTPUT_FILE");
             if (outputFile != null)
             {
                 Console.Write(File.ReadAllText(outputFile));
-                return 0;
+                return exitCode;
             }
 
             var nodes = Environment.GetEnvironmentVariable("LAGE_BUILD_GRAPH_MOCK_NODES");
@@ -66,7 +78,7 @@ namespace Test.BuildXL.FrontEnd.Lage.Mock
 
             Console.Write(graph);
 
-            return 0;
+            return exitCode;
         }
 
         private static string SerializeGraph(string nodes, string sourceDirectories)

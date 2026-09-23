@@ -250,6 +250,11 @@ namespace BuildXL.Utilities.Configuration
         bool? UnsafeAllowOutOfMountWrites { get; }
 
         /// <summary>
+        /// Enables the experimental dynamic graph execution mode.
+        /// </summary>
+        bool UnsafeEnableDynamicGraph { get; }
+
+        /// <summary>
         /// Whether to check that a file on disk has expected content before computing build manifest hash.
         /// </summary>
         /// <remarks>

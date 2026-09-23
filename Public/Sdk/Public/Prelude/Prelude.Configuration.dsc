@@ -335,6 +335,12 @@ interface EngineConfiguration {
      * Defaults to false.
      */
     unsafeAllowOutOfMountWrites?: boolean;
+
+    /**
+     * Enables the experimental dynamic graph execution mode.
+     * Defaults to false.
+     */
+    unsafeEnableDynamicGraph?: boolean;
 }
 
 interface SandboxConfiguration {

@@ -1150,6 +1150,10 @@ namespace BuildXL
                             sign => schedulingConfiguration.UnsafeDisableGraphPostValidation = sign,
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_EnableDynamicGraph",
+                            sign => engineConfiguration.UnsafeEnableDynamicGraph = sign,
+                            isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
                             "unsafe_DisableSharedOpaqueEmptyDirectoryScrubbing",
                             sign => schedulingConfiguration.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = sign,
                             isUnsafe: true),

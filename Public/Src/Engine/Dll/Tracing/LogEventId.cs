@@ -121,7 +121,6 @@ namespace BuildXL.Engine.Tracing
         ConfigAssumeCleanOutputs = 947,
         ConfigIgnoreUntrackedPathsInFullReparsePointResolving = 948,
         ConfigUnsafeMonitorCreateProcessAsUser = 949,
-
         StartInitializingCache = 1502,
         EndInitializingCache = 1503,
         SynchronouslyWaitedForCache = 1504,
@@ -444,6 +443,11 @@ namespace BuildXL.Engine.Tracing
         FailedToWriteBuildSentinel = 7157,
         DistributionExecutePipForcedLocalDueToLargeBuildRequestWarning = 7158,
         InputTrackerUnableToHashFrontEndFile = 7159,
+
+        DynamicGraphModeEnabled = 7160,
+        DynamicGraphConfigurationIncompatible = 7161,
+        DynamicGraphConfigurationOptionDisabled = 7162,
+
         // max 7200
     }
 }

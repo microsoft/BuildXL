@@ -82,13 +82,15 @@ namespace BuildXL.Scheduler
     using DirectoryMemberEntry = ValueTuple<AbsolutePath, string>;
 
     /// <summary>
-    /// Class implementing the scheduler.
+    /// Class implementing a dynamic scheduler.
     /// </summary>
     /// <remarks>
     /// All public methods are thread-safe.
+     /// DYNAMIC-GRAPH: This is a clone of the Scheduler. Other deviations retain the original
+    /// code in comments marked DYNAMIC-GRAPH to facilitate review.
     /// </remarks>
     [SuppressMessage("Microsoft.Maintainability", "CA1506")]
-    public partial class Scheduler : IPipScheduler, IEngineScheduler, IPipExecutionEnvironment, IFileContentManagerHost, IOperationTrackerHost, IDisposable
+    public partial class DynamicScheduler : IPipScheduler, IEngineScheduler, IPipExecutionEnvironment, IFileContentManagerHost, IOperationTrackerHost, IDisposable
     {
         #region Constants
 
@@ -1399,7 +1401,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Constructs a scheduler for an immutable pip graph.
         /// </summary>
-        public Scheduler(
+        public DynamicScheduler(
             PipGraph graph,
             IPipQueue pipQueue,
             PipExecutionContext context,
@@ -1701,14 +1703,17 @@ namespace BuildXL.Scheduler
 
             if (!IsDistributedWorker)
             {
-                m_orchestratorTarget = new OchestratorSpecificExecutionLogTarget(loggingContext, this, m_pipTwoPhaseCache);
+                // DYNAMIC-GRAPH: Distribution is unsupported, so leave the production target visibly disabled.
+                // m_orchestratorTarget = new OchestratorSpecificExecutionLogTarget(loggingContext, this, m_pipTwoPhaseCache);
+                m_orchestratorTarget = null;
 
                 // Fingerprint augmentation monitoring must be running only on the orchestrator (it's the only worker that will observe
                 // both ProcessFingerprintComputed events for the same pip).
-                if (configuration.Cache.MonitorAugmentedPathSets > 0)
-                {
-                    fingerprintAugmentationTarget = new WeakFingerprintAugmentationExecutionLogTarget(loggingContext, this, configuration.Cache.MonitorAugmentedPathSets);
-                }
+                // DYNAMIC-GRAPH: This target is coupled to the production Scheduler type.
+                // if (configuration.Cache.MonitorAugmentedPathSets > 0)
+                // {
+                //     fingerprintAugmentationTarget = new WeakFingerprintAugmentationExecutionLogTarget(loggingContext, this, configuration.Cache.MonitorAugmentedPathSets);
+                // }
 
                 m_buildManifestGenerator = new BuildManifestGenerator(loggingContext, Context.StringTable);
                 m_manifestExecutionLog = new BuildManifestStoreTarget(m_buildManifestGenerator, m_pipTwoPhaseCache);
@@ -1943,8 +1948,11 @@ namespace BuildXL.Scheduler
             // Before we start the scheduler, we should inquiry the memory
             if (m_scheduleConfiguration.UseHistoricalRamUsageInfo)
             {
+                // DYNAMIC-GRAPH: Scheduler test hooks are typed against the production Scheduler.
+                // m_perfInfo = PerformanceAggregator?.ComputeMachinePerfInfo() ??
+                //     (m_testHooks?.GenerateSyntheticMachinePerfInfo != null ? m_testHooks?.GenerateSyntheticMachinePerfInfo(m_executePhaseLoggingContext, this) : null) ??
+                //     default(PerformanceCollector.MachinePerfInfo);
                 m_perfInfo = PerformanceAggregator?.ComputeMachinePerfInfo() ??
-                    (m_testHooks?.GenerateSyntheticMachinePerfInfo != null ? m_testHooks?.GenerateSyntheticMachinePerfInfo(m_executePhaseLoggingContext, this) : null) ??
                     default(PerformanceCollector.MachinePerfInfo);
 
                 int? totalRamMb = m_perfInfo.TotalRamMb;
@@ -2919,8 +2927,11 @@ namespace BuildXL.Scheduler
                         pipsWaitingOnSemaphore: semaphoreQueued);
                 }
 
+                // DYNAMIC-GRAPH: Scheduler test hooks are typed against the production Scheduler.
+                // m_perfInfo = PerformanceAggregator?.ComputeMachinePerfInfo(ensureSample: m_testHooks != null) ??
+                //     (m_testHooks?.GenerateSyntheticMachinePerfInfo != null ? m_testHooks?.GenerateSyntheticMachinePerfInfo(m_executePhaseLoggingContext, this) : null) ??
+                //     default(PerformanceCollector.MachinePerfInfo);
                 m_perfInfo = PerformanceAggregator?.ComputeMachinePerfInfo(ensureSample: m_testHooks != null) ??
-                    (m_testHooks?.GenerateSyntheticMachinePerfInfo != null ? m_testHooks?.GenerateSyntheticMachinePerfInfo(m_executePhaseLoggingContext, this) : null) ??
                     default(PerformanceCollector.MachinePerfInfo);
 
                 if (!IsDistributedWorker)
@@ -8023,9 +8034,9 @@ namespace BuildXL.Scheduler
         /// </summary>
         internal sealed class SchedulerBuildSetCalculator : BuildSetCalculator<Process, AbsolutePath, FileArtifact, DirectoryArtifact>
         {
-            private readonly Scheduler m_scheduler;
+            private readonly DynamicScheduler m_scheduler;
 
-            public SchedulerBuildSetCalculator(LoggingContext loggingContext, Scheduler scheduler)
+            public SchedulerBuildSetCalculator(LoggingContext loggingContext, DynamicScheduler scheduler)
                 : base(
                     loggingContext,
                     scheduler.PipGraph.DirectedGraph,

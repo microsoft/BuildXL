@@ -50,9 +50,11 @@ using SchedulerLogger = BuildXL.Scheduler.Tracing.Logger;
 namespace BuildXL.Engine
 {
     /// <summary>
-    /// Class EngineSchedule.
+    /// Class DynamicEngineSchedule.
+    /// DYNAMIC-GRAPH: This is a clone of EngineSchedule using DynamicScheduler. Other deviations retain the original
+    /// code in comments marked DYNAMIC-GRAPH to facilitate review.
     /// </summary>
-    public sealed class EngineSchedule : IEngineSchedule
+    public sealed class DynamicEngineSchedule : IEngineSchedule
     {
         private const string PreserveOutputsFileName = "PreserveOutputsInfo.txt";
 
@@ -67,7 +69,7 @@ namespace BuildXL.Engine
         /// <remarks>
         /// This BuildXLScheduler may be null if the specified <see cref="EnginePhases" /> exclude scheduling / execution.
         /// </remarks>
-        public readonly Scheduler.Scheduler Scheduler;
+        public readonly Scheduler.DynamicScheduler Scheduler;
 
         IEngineScheduler IEngineSchedule.Scheduler => Scheduler;
 
@@ -135,10 +137,10 @@ namespace BuildXL.Engine
         /// </summary>
         public const int UpdateStatusIntervalMs = 2_000;
 
-        private EngineSchedule(
+        private DynamicEngineSchedule(
             EngineContext context,
             FileContentTable fileContentTable,
-            Scheduler.Scheduler scheduler,
+            Scheduler.DynamicScheduler scheduler,
             EngineCache cache,
             IPipTable pipTable,
             PipQueue schedulingQueue,
@@ -199,9 +201,9 @@ namespace BuildXL.Engine
         /// Creates an EngineSchedule for an immutable pip graph.
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope",
-             Justification = "The disposable objects ownership is handed over to the returned EngineSchedule that is responsible for disposing.")]
+             Justification = "The disposable objects ownership is handed over to the returned DynamicEngineSchedule that is responsible for disposing.")]
         [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
-        public static EngineSchedule Create(
+        public static DynamicEngineSchedule Create(
             LoggingContext loggingContext,
             EngineContext context,
             CacheInitializer cacheInitializer,
@@ -288,7 +290,7 @@ namespace BuildXL.Engine
                 return null;
             }
 
-            Scheduler.Scheduler scheduler;
+            Scheduler.DynamicScheduler scheduler;
 
             try
             {
@@ -299,7 +301,7 @@ namespace BuildXL.Engine
                     testHooks = new SchedulerTestHooks { DetoursListener = detoursListener };
                 }
 
-                scheduler = new Scheduler.Scheduler(
+                scheduler = new Scheduler.DynamicScheduler(
                     pipGraph,
                     pipQueue,
                     context,
@@ -361,13 +363,13 @@ namespace BuildXL.Engine
         /// EngineSchedule creation given an already-initialized scheduler (new or loaded from disk).
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope",
-             Justification = "The disposable objects ownership is handed over to the returned EngineScheudle that is responsible for disposing.")]
-        private static EngineSchedule Create(
+             Justification = "The disposable objects ownership is handed over to the returned DynamicEngineSchedule that is responsible for disposing.")]
+        private static DynamicEngineSchedule Create(
             LoggingContext loggingContext,
             EngineContext context,
             FileContentTable fileContentTable,
             IPipTable pipTable,
-            Scheduler.Scheduler scheduler,
+            Scheduler.DynamicScheduler scheduler,
             EngineCache cache,
             MountPathExpander mountPathExpander,
             PipQueue pipQueue,
@@ -397,7 +399,7 @@ namespace BuildXL.Engine
                 }
             }
 
-            return new EngineSchedule(
+            return new DynamicEngineSchedule(
                        context,
                        fileContentTable,
                        scheduler,
@@ -1042,16 +1044,18 @@ namespace BuildXL.Engine
             RootFilter filter,
             bool skipScrubbing = false)
         {
-            ScrubExtraneousFilesAndDirectories(
-                MountPathExpander,
-                Scheduler,
-                loggingContext,
-                configuration,
-                nonScrubbablePaths,
-                m_tempCleaner,
-                filter,
-                skipScrubbing);
-            return true;
+            // DYNAMIC-GRAPH: Scrubbing is disabled.
+            // ScrubExtraneousFilesAndDirectories(
+            //     MountPathExpander,
+            //     Scheduler,
+            //     loggingContext,
+            //     configuration,
+            //     nonScrubbablePaths,
+            //     m_tempCleaner,
+            //     filter,
+            //     skipScrubbing);
+
+            throw new InvalidOperationException("Scrubbing is disabled in dynamic graph mode.");
         }
 
         /// <summary>
@@ -1502,10 +1506,12 @@ namespace BuildXL.Engine
 
             m_schedulerStartTime = TimestampUtilities.Timestamp;
 
+            // DYNAMIC-GRAPH: Worker service integration is disabled because distribution is unsupported.
             if (workerService != null)
             {
-                var serializer = new ExecutionResultSerializer(MaxSerializedAbsolutePath, Scheduler.Context);
-                workerService.Start(this, serializer);
+                throw new InvalidOperationException("Worker service integration is disabled in dynamic graph mode.");
+            //     var serializer = new ExecutionResultSerializer(MaxSerializedAbsolutePath, Scheduler.Context);
+            //     workerService.Start(this, serializer);
             }
 
             Scheduler.Start(loggingContext);
@@ -1616,9 +1622,9 @@ namespace BuildXL.Engine
         /// objects that must be used in conjunction with the returned EngineSchedule. Returns null if unsuccessful
         /// </returns>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "The disposable objects ownership is handed over to the returned EngineSchedule that is responsible for disposing.")]
+            Justification = "The disposable objects ownership is handed over to the returned DynamicEngineSchedule that is responsible for disposing.")]
         [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
-        public static async Task<Tuple<EngineSchedule, EngineContext, IConfiguration>> LoadAsync(
+        public static async Task<Tuple<DynamicEngineSchedule, EngineContext, IConfiguration>> LoadAsync(
             EngineContext oldContext,
             EngineSerializer serializer,
             CacheInitializationTask engineCacheInitializationTask,
@@ -1758,11 +1764,11 @@ namespace BuildXL.Engine
                     return null;
                 }
 
-                Scheduler.Scheduler scheduler;
+                Scheduler.DynamicScheduler scheduler;
 
                 try
                 {
-                    scheduler = new Scheduler.Scheduler(
+                    scheduler = new Scheduler.DynamicScheduler(
                         await pipGraphTask,
                         pipQueue,
                         await pipExecutionContextTask,
@@ -1912,27 +1918,30 @@ namespace BuildXL.Engine
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
         internal EngineState GetOrCreateNewEngineState(EngineState previousEngineState)
         {
-            EngineState engineState;
+            // DYNAMIC-GRAPH: Engine state creation and reuse are unsupported.
+            throw new InvalidOperationException("[DYNAMIC GRAPH] EngineState reloading is not supported");
 
-            // If the previous engine state is null or disposed, then create a new one.
-            if (!EngineState.IsUsable(previousEngineState))
-            {
-                engineState = EngineState.CreateNew(this);
-            }
-            else
-            {
-                // Create the new one from the previous state
-                // We update the scheduler state every time because the developer might pass a different filter
-                // and the file content table with the new instance that was created this run.
-                engineState = previousEngineState
-                    .WithUpdatedSchedulerState(Scheduler)
-                    .WithUpdatedFileContentTable(FileContentTable);
-            }
+            // EngineState engineState;
 
-            bool isPipTableTransferred = TransferPipTableOwnership(engineState.PipTable);
-            Contract.Assert(isPipTableTransferred);
+            // // If the previous engine state is null or disposed, then create a new one.
+            // if (!EngineState.IsUsable(previousEngineState))
+            // {
+            //     engineState = EngineState.CreateNew(this);
+            // }
+            // else
+            // {
+            //     // Create the new one from the previous state
+            //     // We update the scheduler state every time because the developer might pass a different filter
+            //     // and the file content table with the new instance that was created this run.
+            //     engineState = previousEngineState
+            //         .WithUpdatedSchedulerState(Scheduler)
+            //         .WithUpdatedFileContentTable(FileContentTable);
+            // }
 
-            return engineState;
+            // bool isPipTableTransferred = TransferPipTableOwnership(engineState.PipTable);
+            // Contract.Assert(isPipTableTransferred);
+
+            // return engineState;
         }
 
         EngineState IEngineSchedule.GetOrCreateNewEngineState(EngineState previousEngineState) =>

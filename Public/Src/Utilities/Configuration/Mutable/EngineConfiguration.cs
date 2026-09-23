@@ -39,6 +39,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             TrackGvfsProjections = false;
             UseFileContentTable = default;
             AllowDuplicateTemporaryDirectory = false;
+            UnsafeEnableDynamicGraph = false;
             VerifyFileContentOnBuildManifestHashComputation = false;
             VerifyJournalForEngineVolumes = true;
             PipSpecificPropertyAndValues = new List<PipSpecificPropertyAndValue>();
@@ -88,6 +89,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UseFileContentTable = template.UseFileContentTable;
             AllowDuplicateTemporaryDirectory = template.AllowDuplicateTemporaryDirectory;
             UnsafeAllowOutOfMountWrites = template.UnsafeAllowOutOfMountWrites;
+            UnsafeEnableDynamicGraph = template.UnsafeEnableDynamicGraph;
             VerifyFileContentOnBuildManifestHashComputation = template.VerifyFileContentOnBuildManifestHashComputation;
             VerifyJournalForEngineVolumes = template.VerifyJournalForEngineVolumes;
             PipSpecificPropertyAndValues = template.PipSpecificPropertyAndValues.Select(
@@ -158,6 +160,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool? UnsafeAllowOutOfMountWrites { get; set; }
+
+        /// <inheritdoc />
+        public bool UnsafeEnableDynamicGraph { get; set; }
 
         /// <inheritdoc />
         public int BuildLockPollingIntervalSec { get; set; }

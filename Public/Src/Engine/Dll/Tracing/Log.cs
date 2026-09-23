@@ -1335,6 +1335,33 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIncompatibleOptionWithDistributedBuildWarn(LoggingContext context, string option, string currentValue, string newValue);
 
         [GeneratedEvent(
+            (ushort)LogEventId.DynamicGraphModeEnabled,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Experimental dynamic graph execution mode is enabled.")]
+        public abstract void DynamicGraphModeEnabled(LoggingContext context);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.DynamicGraphConfigurationIncompatible,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Dynamic graph execution is incompatible with the current configuration: {incompatibleOptions}.")]
+        public abstract void DynamicGraphConfigurationIncompatible(LoggingContext context, string incompatibleOptions);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.DynamicGraphConfigurationOptionDisabled,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Dynamic graph execution disabled configuration option '{option}'.")]
+        public abstract void DynamicGraphConfigurationOptionDisabled(LoggingContext context, string option);
+
+        [GeneratedEvent(
             (ushort)LogEventId.WarnToNotUsePackagesButModules,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

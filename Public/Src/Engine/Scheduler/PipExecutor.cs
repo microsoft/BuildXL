@@ -1039,7 +1039,8 @@ namespace BuildXL.Scheduler
                         environment,
                         state,
                         processExecutionResult.TwoPhaseCachingInfo,
-                        processExecutionResult.PipCacheDescriptorV2Metadata.Id);
+                        // HistoricMetadataCache omits metadata that it already has. The unique ID is only used for diagnostics.
+                        processExecutionResult.PipCacheDescriptorV2Metadata?.Id ?? 0);
 
                     if (storeCacheEntryResult.Converged && !IsProcessPreservingOutputs(environment, process))
                     {

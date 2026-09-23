@@ -47,8 +47,21 @@ if [[ "${OSTYPE}" == "linux-gnu" ]]; then
     readonly HostQualifier=Linux
     readonly DeploymentFolder=linux-x64
 elif [[ "${OSTYPE}" == darwin* ]]; then
-    readonly HostQualifier=DotNetCoreMac
-    readonly DeploymentFolder=osx-x64
+    readonly MacOSArchitecture="$(uname -m)"
+    case "$MacOSArchitecture" in
+        arm64)
+            readonly HostQualifier=DotNetCoreMacArm64
+            readonly DeploymentFolder=osx-arm64
+            ;;
+        x86_64)
+            readonly HostQualifier=DotNetCoreMac
+            readonly DeploymentFolder=osx-x64
+            ;;
+        *)
+            print_error "Unsupported macOS architecture: $MacOSArchitecture"
+            exit 1
+            ;;
+    esac
 else
     print_error "Operating system not supported: ${OSTYPE}"
     exit 1
@@ -180,7 +193,7 @@ function installLkg() {
         <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
     </PropertyGroup>
     <ItemGroup>
-        <PackageReference Include=\"$lkgName\" Version=\"$lkgVersion\" />
+        <PackageReference Include=\"$lkgName\" Version=\"[$lkgVersion]\" />
     </ItemGroup>
 </Project>"
 
@@ -193,13 +206,21 @@ function installLkg() {
 
 function getLkg() {
     local LKG_FILE="BuildXLLkgVersionPublic.cmd"
+    local LKG_DEPLOYMENT_FOLDER="$DeploymentFolder"
 
     if [[ -n "$arg_Internal" ]]; then
         local LKG_FILE="BuildXLLkgVersion.cmd"
+    elif [[ "$DeploymentFolder" == "osx-arm64" ]]; then
+        # A public macOS ARM64 LKG is not published yet. Keep external builds on the x64 LKG under Rosetta.
+        local LKG_DEPLOYMENT_FOLDER="osx-x64"
     fi
 
     local BUILDXL_LKG_VERSION=$(grep "BUILDXL_LKG_VERSION" "$MY_DIR/Shared/Scripts/$LKG_FILE" | cut -d= -f2 | tr -d '\r')
-    local BUILDXL_LKG_NAME=$(grep "BUILDXL_LKG_NAME" "$MY_DIR/Shared/Scripts/$LKG_FILE" | cut -d= -f2 | perl -pe 's/(net472|win-x64)/'${DeploymentFolder}'/g' | tr -d '\r')
+    if [[ -n "$arg_Internal" && "$DeploymentFolder" == "osx-arm64" ]]; then
+        # Remove this override once the shared LKG version is published for every supported runtime.
+        BUILDXL_LKG_VERSION=$(grep "BUILDXL_MACOS_ARM64_LKG_VERSION" "$MY_DIR/Shared/Scripts/$LKG_FILE" | cut -d= -f2 | tr -d '\r')
+    fi
+    local BUILDXL_LKG_NAME=$(grep "BUILDXL_LKG_NAME" "$MY_DIR/Shared/Scripts/$LKG_FILE" | cut -d= -f2 | perl -pe 's/(net472|win-x64)/'${LKG_DEPLOYMENT_FOLDER}'/g' | tr -d '\r')
     local BUILDXL_LKG_FEED_1=$(grep "BUILDXL_LKG_FEED_1" "$MY_DIR/Shared/Scripts/$LKG_FILE" | cut -d= -f2 | tr -d '\r')
 
     print_info "Nuget Feed: $BUILDXL_LKG_FEED_1"
@@ -493,6 +514,14 @@ function setAuthenticationTokenInNpmrc() {
 # allow this script to be sourced, in which case we shouldn't execute anything
 if [[ "$0" != "${BASH_SOURCE[0]}" ]]; then 
     return 0
+fi
+
+if [[ "${OSTYPE}" == darwin* ]]; then
+    if [[ "$MacOSArchitecture" == "arm64" ]]; then
+        print_info "macOS host architecture: Apple Silicon (arm64)"
+    else
+        print_info "macOS host architecture: Intel (x86_64)"
+    fi
 fi
 
 # Make sure we are running in our own working directory

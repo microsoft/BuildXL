@@ -13,6 +13,12 @@ export function createPublicDotNetRuntime(v3Runtime : StaticDirectory, v2Runtime
         return Transformer.sealDirectory(dotNetRuntimeRoot, []);
     }
 
+    if (v3Runtime !== undefined && v2Runtime === undefined)
+    {
+        // The modern runtime already has the final layout. Returning it directly avoids a shared opaque copy whose cached contents may not satisfy downstream existence assertions.
+        return v3Runtime;
+    }
+
     let dotNetRuntimeV3 : SharedOpaqueDirectory = undefined;
     let dotNetRuntimeV2 : SharedOpaqueDirectory = undefined;
 

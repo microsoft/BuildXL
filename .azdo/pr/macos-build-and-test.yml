@@ -8,7 +8,8 @@ jobs:
   displayName: BuildXL minimal self-host validation on macOS
   timeoutInMinutes: 120
   pool:
-    vmImage: macos-latest
+    name: GitHub-hosted Agents
+    vmImage: macos-26-arm64
   steps:
   - checkout: self
     fetchDepth: 1
@@ -32,16 +33,21 @@ jobs:
       script: |
         set -eu
 
-        bash bxl.sh --internal \
-          /q:ReleaseDotNetCoreMacArm64 \
-          "/f:output='$(Build.SourcesDirectory)/Out/Bin/release/osx-arm64/*'" \
+        machineArchitecture=$(uname -m)
+        echo "Host architecture: $machineArchitecture"
+        echo "Source revision: $(git rev-parse HEAD)"
+        test "$machineArchitecture" = arm64
+
+        bash bxl.sh \
+          --internal \
+          --minimal \
+          --deploy-dev \
+          --release \
           /sandboxKind:None \
           /useHistoricalRamUsageInfo- \
           /logsDirectory:"Out/Logs/Bootstrap" \
           /server-
 
-        mkdir -p Out/Selfhost/Dev
-        rsync -arhq Out/Bin/release/osx-arm64/ Out/Selfhost/Dev/ --delete
         file Out/Selfhost/Dev/bxl | grep -q arm64
         codesign --verify --verbose=2 Out/Selfhost/Dev/bxl
       workingDirectory: $(Build.SourcesDirectory)
@@ -53,14 +59,16 @@ jobs:
     displayName: Validate minimal BuildXL with deployed bits
     inputs:
       targetType: inline
-      script: >-
-        bash bxl.sh --internal --use-dev
-        /q:ReleaseDotNetCoreMacArm64
-        "/f:output='$(Build.SourcesDirectory)/Out/Bin/release/osx-arm64/*'"
-        /sandboxKind:None
-        /useHistoricalRamUsageInfo-
-        /logsDirectory:"Out/Logs/Selfhost"
-        /server-
+      script: |
+        bash bxl.sh \
+          --internal \
+          --minimal \
+          --use-dev \
+          --release \
+          /sandboxKind:None \
+          /useHistoricalRamUsageInfo- \
+          /logsDirectory:"Out/Logs/Selfhost" \
+          /server-
       workingDirectory: $(Build.SourcesDirectory)
     env:
       PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)

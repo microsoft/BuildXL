@@ -5,7 +5,8 @@ jobs:
   pool:
     name: Azure Pipelines
     os: macOs
-    vmImage: macos-latest
+    # This image is deprecated, but 1ES PT does not yet support GitHub-hosted runners for production stages.
+    vmImage: macos-15-arm64
 
   templateContext:
     sdl:
@@ -41,18 +42,23 @@ jobs:
     inputs:
       targetType: inline
       # Stateless macOS agents have no historical data, so cold RAM projections unnecessarily limit concurrency.
-      script: >-
+      script: |
         set -eu
 
-        bash bxl.sh --internal
-        /q:ReleaseDotNetCoreMacArm64
-        "/f:output='$(Build.SourcesDirectory)/Out/Bin/release/pkgs/BuildXL.osx-arm64.$(Build.BuildNumber).nupkg'"
-        /p:Build.BuildId=$(Build.BuildNumber)
-        /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
-        /sandboxKind:None
-        /useHistoricalRamUsageInfo-
-        /logOutput:FullOutputOnError
-        /logsDirectory:"Out/Logs/Build"
+        machineArchitecture=$(uname -m)
+        echo "Host architecture: $machineArchitecture"
+        test "$machineArchitecture" = arm64
+
+        bash bxl.sh \
+          --internal \
+          /q:ReleaseDotNetCoreMacArm64 \
+          "/f:output='$(Build.SourcesDirectory)/Out/Bin/release/pkgs/BuildXL.osx-arm64.$(Build.BuildNumber).nupkg'" \
+          /p:Build.BuildId=$(Build.BuildNumber) \
+          /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification) \
+          /sandboxKind:None \
+          /useHistoricalRamUsageInfo- \
+          /logOutput:FullOutputOnError \
+          /logsDirectory:"Out/Logs/Build"
       workingDirectory: $(Build.SourcesDirectory)
     env:
       PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)

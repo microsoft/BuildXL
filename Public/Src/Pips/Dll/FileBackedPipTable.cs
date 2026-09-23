@@ -176,8 +176,14 @@ namespace BuildXL.Pips
                 Contract.RequiresNotNull(serializer);
                 Contract.Requires(Volatile.Read(ref m_completed) == 0);
 
-                using (var stream = new MemoryStream(m_initialBufferSize))
+                using (var streamWrapper = Pools.MemoryStreamPool.GetInstance())
                 {
+                    var stream = streamWrapper.Instance;
+                    if (stream.Capacity < m_initialBufferSize)
+                    {
+                        stream.Capacity = m_initialBufferSize;
+                    }
+
                     using (var writer = new PipWriter(m_debug, stream, leaveOpen: true, logStats: true))
                     {
                         serializer(writer);

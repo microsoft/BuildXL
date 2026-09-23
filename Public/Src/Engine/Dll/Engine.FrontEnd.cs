@@ -360,9 +360,14 @@ namespace BuildXL.Engine
 
                     using (EngineCache cacheForWorker = cacheInitializerForWorker.CreateCacheForContext())
                     {
-                        PipGraphCacheDescriptor schedulerStateDescriptor;
-                        if (!m_workerService.TryGetBuildScheduleDescriptor(out schedulerStateDescriptor) ||
-                            !EngineSchedule.TryFetchFromCacheAsync(
+                        if (!m_workerService.TryGetBuildScheduleDescriptor(out PipGraphCacheDescriptor schedulerStateDescriptor))
+                        {
+                            cacheGraphStats.CacheMissReason = GraphCacheMissReason.NoFingerprintFromOrchestrator;
+                            cacheGraphStats.MissReason = cacheGraphStats.CacheMissReason;
+                            return cacheGraphStats;
+                        }
+
+                        if (!EngineSchedule.TryFetchFromCacheAsync(
                                 outerLoggingContext,
                                 Context,
                                 cacheForWorker,
@@ -371,7 +376,8 @@ namespace BuildXL.Engine
                                 FileContentTable,
                                 m_tempCleaner).Result)
                         {
-                            cacheGraphStats.CacheMissReason = GraphCacheMissReason.NoFingerprintFromOrchestrator;
+                            Logger.Log.DistributionWorkerCouldNotFetchGraphFromCache(outerLoggingContext);
+                            cacheGraphStats.CacheMissReason = GraphCacheMissReason.GraphUnavailableFromWorkerCache;
                             cacheGraphStats.MissReason = cacheGraphStats.CacheMissReason;
                             return cacheGraphStats;
                         }

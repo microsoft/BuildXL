@@ -363,6 +363,7 @@ namespace BuildXL.Engine.Tracing
         DistributionHelloNoSlot = 7072,
         DistributionSayingHelloToOrchestrator = 7073,
         DistributionWorkerExternalTerminationSignalReceived = 7074,
+        DistributionWorkerCouldNotFetchGraphFromCache = 7075,
 
         FallingBackOnGraphFileCopy = 7080,
         FailedLoadIncrementalSchedulingState = 7081,

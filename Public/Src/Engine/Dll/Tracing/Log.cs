@@ -985,6 +985,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionWorkerCouldNotLoadGraph(LoggingContext context);
 
         [GeneratedEvent(
+            (ushort)LogEventId.DistributionWorkerCouldNotFetchGraphFromCache,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "The worker received a graph descriptor from the orchestrator but could not retrieve the graph from its configured cache. Verify that the worker and orchestrator use the same shared cache endpoint; local-only caches cannot transfer graphs between machines.",
+            EventLevel = Level.Warning,
+            EventTask = (ushort)Tasks.Distribution,
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void DistributionWorkerCouldNotFetchGraphFromCache(LoggingContext context);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionWorkerPipOutputContent,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "[{pipDescription}] Pip output '{filePath}' with hash '{hash}' reported to orchestrator.",
@@ -3207,6 +3216,8 @@ If you can't update and need this feature after July 2018 please reach out to th
                         return "Not checked";
                     case GraphCacheMissReason.NoFingerprintFromOrchestrator:
                         return "Was not able to get a fingerprint from the orchestrator";
+                    case GraphCacheMissReason.GraphUnavailableFromWorkerCache:
+                        return "The worker received a graph descriptor from the orchestrator but could not retrieve the graph from its configured cache. Verify that the worker and orchestrator use the same shared cache endpoint; local-only caches cannot transfer graphs between machines.";
                     case GraphCacheMissReason.ForcedMiss:
                         return "Miss was forced for debugging via environment variable: " + InputTracker.ForceInvalidateCachedGraphVariable;
                     case GraphCacheMissReason.NotAllDirectoryEnumerationsAreAccounted:
@@ -3330,7 +3341,12 @@ If you can't update and need this feature after July 2018 please reach out to th
         /// <summary>
         /// Cache failure.
         /// </summary>
-        CacheFailure
+        CacheFailure,
+
+        /// <summary>
+        /// The worker received a graph descriptor but could not retrieve the graph from its cache.
+        /// </summary>
+        GraphUnavailableFromWorkerCache
     }
 
     /// <summary>

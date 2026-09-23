@@ -511,7 +511,8 @@ namespace BuildXL.Engine
                 (TimestampUtilities.Timestamp - m_schedulerStartTime.Value) > (postExecOptimizeThreshold ?? s_defaultPostExecOptimizeThreshold);
         }
 
-        private static async Task TryLoadHistoricMetadataCache(
+        // DYNAMIC-GRAPH: Remote retrieval is disabled, so the active path completes synchronously.
+        private static Task TryLoadHistoricMetadataCache(
             LoggingContext loggingContext,
             PipTwoPhaseCacheWithHashLookup historicMetadataCache,
             EngineContext context,
@@ -524,6 +525,10 @@ namespace BuildXL.Engine
 
             var location = historicMetadataCache.StoreLocation;
             bool fromCache = false;
+#if false
+            // DYNAMIC-GRAPH: Remote historic metadata retrieval is keyed by the final graph fingerprint,
+            // which is unavailable when the scheduler is created from the live graph. Keep the original code
+            // visible for comparison until this becomes a closure-time operation or gains a dynamic identity.
             if (configuration.Schedule.ForceUseEngineInfoFromCache || !Directory.Exists(location) || !Directory.EnumerateFiles(location).Any())
             {
                 using (historicMetadataCache.Counters.StartStopwatch(PipCachingCounter.HistoricRetrievalDuration))
@@ -546,7 +551,8 @@ namespace BuildXL.Engine
                 fromCache = true;
                 SchedulerLogger.Log.HistoricMetadataCacheTrace(loggingContext, I($"Loaded historic metadatacache data from cache"));
             }
-            else
+#endif
+            if (Directory.Exists(location) && Directory.EnumerateFiles(location).Any())
             {
                 SchedulerLogger.Log.HistoricMetadataCacheTrace(
                     loggingContext,
@@ -560,6 +566,8 @@ namespace BuildXL.Engine
                 historicMetadataCache.Counters.IncrementCounter(
                     fromCache ? PipCachingCounter.HistoricLoadedFromCache : PipCachingCounter.HistoricLoadedFromDisk);
             }
+
+            return Task.CompletedTask;
         }
 
         internal async Task<bool> TrySaveHistoricMetadataCache(
@@ -599,12 +607,18 @@ namespace BuildXL.Engine
                     return true;
                 }
 
+#if false
+                // DYNAMIC-GRAPH: Remote historic-table persistence requires the finalized immutable graph.
+                // Keep the intended closure-time implementation visible until the dynamic path exposes it.
                 using (historicMetadataCache.Counters.StartStopwatch(PipCachingCounter.HistoricSavingDuration))
                 {
                     var performanceDataFingerprint = PerformanceDataUtilities.ComputePerformanceDataFingerprint(
                         loggingContext,
                         context.PathTable,
-                        graphSemistableFingerprint: Scheduler.PipGraph.SemistableFingerprint,
+                        // DYNAMIC-GRAPH: Remote historic-table persistence is a closure-time operation and
+                        // therefore uses the immutable graph rather than expanding IDynamicGraph with final identity.
+                        // graphSemistableFingerprint: Scheduler.PipGraph.SemistableFingerprint,
+                        graphSemistableFingerprint: FinalizedPipGraph.SemistableFingerprint,
                         environmentFingerprint: configuration.Schedule.EnvironmentFingerprint);
 
                     var storeResult =
@@ -627,6 +641,7 @@ namespace BuildXL.Engine
                         SchedulerLogger.Log.HistoricMetadataCacheTrace(loggingContext, I($"Saving historic metadata cache to cache succeeded."));
                     }
                 }
+#endif
             }
 
             return true;
@@ -685,7 +700,8 @@ namespace BuildXL.Engine
         /// Failure to load does not result in an error event, just possibly a warning.
         /// Note that this respects IEngineConfiguration.UseHistoricalPerformanceInfo and returns null if disabled.
         /// </remarks>
-        private static async Task<HistoricPerfDataTable> TryLoadRunningTimeTable(
+        // DYNAMIC-GRAPH: Remote retrieval is disabled, so the active path completes synchronously.
+        private static Task<HistoricPerfDataTable> TryLoadRunningTimeTable(
             LoggingContext loggingContext,
             EngineContext context,
             IConfiguration configuration,
@@ -707,9 +723,13 @@ namespace BuildXL.Engine
                     if (filePath == null)
                     {
                         Contract.Assume(pm.LoggingContext.WarningWasLogged);
-                        return null;
+                        return Task.FromResult<HistoricPerfDataTable>(null);
                     }
 
+#if false
+                    // DYNAMIC-GRAPH: Remote running-time data retrieval is keyed by the final graph
+                    // fingerprint, which is unavailable during live-graph scheduler creation. Local data remains
+                    // usable; keep the original remote path visible for comparison.
                     if (configuration.Schedule.ForceUseEngineInfoFromCache || !File.Exists(filePath))
                     {
                         SchedulerLogger.Log.HistoricPerfDataCacheTrace(
@@ -749,7 +769,8 @@ namespace BuildXL.Engine
                             SchedulerLogger.Log.HistoricPerfDataCacheTrace(pm.LoggingContext, I($"Loaded historic perf data from cache"));
                         }
                     }
-                    else
+#endif
+                    if (File.Exists(filePath))
                     {
                         SchedulerLogger.Log.HistoricPerfDataCacheTrace(
                             pm.LoggingContext,
@@ -770,20 +791,20 @@ namespace BuildXL.Engine
                             HistoricPerfDataTable table = HistoricPerfDataTable.Load(pm.LoggingContext, filePath);
                             Logger.Log.HistoricPerfDataLoaded(pm.LoggingContext, table.Count);
                             context.EngineCounters.IncrementCounter(EngineCounter.HistoricPerfDataSuccessfullyLoaded);
-                            return table;
+                            return Task.FromResult(table);
                         }
                         catch (BuildXLException ex)
                         {
                             Logger.Log.LoadingHistoricPerfDataFailed(pm.LoggingContext, filePath, ex.LogEventMessage);
-                            return null;
+                            return Task.FromResult<HistoricPerfDataTable>(null);
                         }
                     }
 
-                    return null;
+                    return Task.FromResult<HistoricPerfDataTable>(null);
                 }
             }
 
-            return null;
+            return Task.FromResult<HistoricPerfDataTable>(null);
         }
 
         /// <summary>
@@ -807,7 +828,7 @@ namespace BuildXL.Engine
 
         internal static void ScrubExtraneousFilesAndDirectories(
             [AllowNull] MountPathExpander mountPathExpander,
-            Scheduler.Scheduler scheduler,
+            Scheduler.DynamicScheduler scheduler,
             LoggingContext loggingContext,
             IConfiguration configuration,
             IEnumerable<string> nonScrubbablePaths,
@@ -886,11 +907,18 @@ namespace BuildXL.Engine
                 maxDegreeParallelism: Environment.ProcessorCount,
                 tempDirectoryCleaner: tempCleaner);
 
+            // DYNAMIC-GRAPH: Sideband examination requires whole-graph enumeration and is unsupported.
+#if false
             var sidebandExaminer = new SidebandExaminer(loggingContext, scheduler, configuration, filter);
             var computeExtraneousSidebandFiles = true; // TODO: no need to do it if we got graph cache hit
             var sidebandState = sidebandExaminer.Examine(computeExtraneousSidebandFiles);
+#else
+            var sidebandState = SidebandState.CreateForEagerDeletion();
+#endif
             scheduler.SetSidebandState(sidebandState);
 
+#if false
+            // DYNAMIC-GRAPH: Sideband files are not examined or consumed in dynamic mode.
             if (sidebandState.ShouldPostponeDeletion)
             {
                 Logger.Log.PostponingDeletionOfSharedOpaqueOutputs(loggingContext);
@@ -918,6 +946,7 @@ namespace BuildXL.Engine
                     scrubber.DeleteFiles(sharedOpaqueSidebandFiles, logDeletedFiles: false);
                 }
             }
+#endif
 
             if (pathsToScrub.Count > 0)
             {
@@ -1044,18 +1073,16 @@ namespace BuildXL.Engine
             RootFilter filter,
             bool skipScrubbing = false)
         {
-            // DYNAMIC-GRAPH: Scrubbing is disabled.
-            // ScrubExtraneousFilesAndDirectories(
-            //     MountPathExpander,
-            //     Scheduler,
-            //     loggingContext,
-            //     configuration,
-            //     nonScrubbablePaths,
-            //     m_tempCleaner,
-            //     filter,
-            //     skipScrubbing);
-
-            throw new InvalidOperationException("Scrubbing is disabled in dynamic graph mode.");
+            ScrubExtraneousFilesAndDirectories(
+                MountPathExpander,
+                Scheduler,
+                loggingContext,
+                configuration,
+                nonScrubbablePaths,
+                m_tempCleaner,
+                filter,
+                skipScrubbing);
+            return true;
         }
 
         /// <summary>
@@ -1096,7 +1123,13 @@ namespace BuildXL.Engine
             // filesystem state used later by the scheduler. Scrubbing modifies the filesystem and would make the state that init captures
             // incorrect if they were to be interleaved.
             var scrubbingStopwatch = System.Diagnostics.Stopwatch.StartNew();
-            bool result = ScrubExtraneousFilesAndDirectories(loggingContext, configuration, nonScrubbablePaths, filter, skipScrubbingOnCleanMachine);
+
+            // DYNAMIC-GRAPH: Scrubbing is not supported under dynamic graph mode.
+            // bool result = ScrubExtraneousFilesAndDirectories(loggingContext, configuration, nonScrubbablePaths, filter, skipScrubbingOnCleanMachine);
+            var skipScrubbing = skipScrubbingOnCleanMachine;
+            skipScrubbing |= commandLineConfiguration.Engine.UnsafeEnableDynamicGraph;
+
+            bool result = ScrubExtraneousFilesAndDirectories(loggingContext, configuration, nonScrubbablePaths, filter, skipScrubbing: skipScrubbing);
             enginePerformanceInfo.ScrubbingDurationMs = scrubbingStopwatch.ElapsedMilliseconds;
 
             if (configuration.Distribution.BuildRole == DistributedBuildRoles.Worker)

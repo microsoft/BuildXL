@@ -83,11 +83,11 @@ namespace BuildXL.Scheduler
 
     /// <summary>
     /// Class implementing a dynamic scheduler.
+    /// DYNAMIC-GRAPH: This is a clone of Scheduler. Other deviations retain the original
+    /// code in comments marked DYNAMIC-GRAPH to facilitate review.
     /// </summary>
     /// <remarks>
     /// All public methods are thread-safe.
-     /// DYNAMIC-GRAPH: This is a clone of the Scheduler. Other deviations retain the original
-    /// code in comments marked DYNAMIC-GRAPH to facilitate review.
     /// </remarks>
     [SuppressMessage("Microsoft.Maintainability", "CA1506")]
     public partial class DynamicScheduler : IPipScheduler, IEngineScheduler, IPipExecutionEnvironment, IFileContentManagerHost, IOperationTrackerHost, IDisposable
@@ -423,6 +423,9 @@ namespace BuildXL.Scheduler
                     ExecutionLog :
                     ExecutionLog?.CreateWorkerTarget((uint)worker.WorkerId);
 
+                // DYNAMIC-GRAPH: Distribution is intentionally unsupported. Workers currently require the
+                // finalized PipGraph payload before they can initialize, so this call cannot consume IDynamicGraph.
+#if false
                 worker.InitializeForDistribution(
                     m_workersStatusOperation,
                     m_configuration,
@@ -430,6 +433,7 @@ namespace BuildXL.Scheduler
                     workerExecutionLogTarget,
                     m_schedulerCompletion.Task,
                     OnWorkerStatusChanged);
+#endif
 
                 worker.Start();
 
@@ -685,6 +689,10 @@ namespace BuildXL.Scheduler
         /// The pip runtime information
         /// </summary>
         private PipRuntimeInfo[] m_pipRuntimeInfos;
+        
+        // DYNAMIC-GRAPH: Protects resizing m_pipRuntimeInfos as pips are admitted after initialization.
+        // TODO: revisit, we need structures that can grow in a better way
+        private readonly object m_pipRuntimeInfosLock = new object();
 
         private HistoricPerfDataTable m_historicPerfDataTable;
         private readonly AsyncLazy<HistoricPerfDataTable> m_historicPerfDataTableTask;
@@ -706,7 +714,8 @@ namespace BuildXL.Scheduler
         /// Only includes the pips matching the filter itself, not their dependencies or dependents that may be included
         /// based on the filter's dependency selection settings
         /// </remarks>
-        private HashSet<NodeId> m_explicitlyScheduledNodes;
+        // DYNAMIC-GRAPH: Filtering is disabled, so the explicit build sets remain unavailable.
+        private HashSet<NodeId> m_explicitlyScheduledNodes = null;
 
         /// <summary>
         /// Process nodes that are explicitly scheduled by filtering.
@@ -715,7 +724,8 @@ namespace BuildXL.Scheduler
         /// Only includes the pips matching the filter itself, not their dependencies or dependents that may be included
         /// based on the filter's dependency selection settings
         /// </remarks>
-        private HashSet<NodeId> m_explicitlyScheduledProcessNodes;
+        // DYNAMIC-GRAPH: Filtering is disabled, so the explicit process build set remains unavailable.
+        private HashSet<NodeId> m_explicitlyScheduledProcessNodes = null;
 
         /// <summary>
         /// Nodes that must be executed when dirty build is enabled(/unsafe_forceSkipDeps+)
@@ -731,7 +741,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Service manager.
         /// </summary>
-        private readonly SchedulerServiceManager m_serviceManager;
+        private readonly ServiceManager m_serviceManager;
 
         /// <summary>
         /// External API server.
@@ -913,6 +923,8 @@ namespace BuildXL.Scheduler
                 runningPips = m_pipTypesToLogCountersSnapshot.RunningCount;
             }
 
+            // DYNAMIC-GRAPH: This is the number admitted so far, not the final build size. Status and progress
+            // reporting must stop treating it as a stable denominator while the admission stream remains open.
             totalPips = m_pipTable.Count;
         }
 
@@ -1249,7 +1261,8 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// The total number of service pips scheduled (i.e. not in the Ignored state)
         /// </summary>
-        private long m_numServicePipsScheduled;
+        // DYNAMIC-GRAPH: Service pips are unsupported.
+        private long m_numServicePipsScheduled = 0;
 
         /// <summary>
         /// Number of pips which produced tool warnings from cache.
@@ -1319,22 +1332,26 @@ namespace BuildXL.Scheduler
             /// <summary>
             /// Number of nodes for which critical path duration suggestions were available
             /// </summary>
-            public long NumHits;
+            // DYNAMIC-GRAPH: Critical-path calculation is disabled.
+            public long NumHits = 0;
 
             /// <summary>
             /// Number of nodes for which a critical path duration suggestions have been guessed by a default heuristic
             /// </summary>
-            public long NumWildGuesses;
+            // DYNAMIC-GRAPH: Critical-path calculation is disabled.
+            public long NumWildGuesses = 0;
 
             /// <summary>
             /// Number of process nodes for which Pip Usage ML supplied the critical path duration estimate.
             /// </summary>
-            public long NumMlPredictions;
+            // DYNAMIC-GRAPH: Critical-path calculation is disabled.
+            public long NumMlPredictions = 0;
 
             /// <summary>
             /// Longest critical path length.
             /// </summary>
-            public long LongestPath;
+            // DYNAMIC-GRAPH: Critical-path calculation is disabled.
+            public long LongestPath = 0;
         }
 
         /// <nodoc/>
@@ -1399,7 +1416,7 @@ namespace BuildXL.Scheduler
         #region Constructor
 
         /// <summary>
-        /// Constructs a scheduler for an immutable pip graph.
+        /// Constructs a scheduler for an append-only pip graph.
         /// </summary>
         public DynamicScheduler(
             PipGraph graph,
@@ -1539,9 +1556,15 @@ namespace BuildXL.Scheduler
             m_ipcProvider = new IpcProviderWithMemoization(
                 ipcProvider ?? IpcFactory.GetProvider(),
                 defaultClientLogger: CreateLoggerForIpcClients(loggingContext));
-            m_servicePipIds = new List<PipId>(graph.GetServicePipIds());
+            // DYNAMIC-GRAPH: Service-related pips are unsupported in the initial dynamic mode. Use the
+            // no-service implementation and reject service-related admissions below. Standalone IPC pips are separate.
+            // m_servicePipIds = new List<PipId>(graph.GetServicePipIds());
+            // m_servicePipTracker = new ServicePipTracker(context);
+            // m_serviceManager = new SchedulerServiceManager(graph, context, m_servicePipTracker, m_testHooks, m_ipcProvider);
+            m_servicePipIds = new List<PipId>();
             m_servicePipTracker = new ServicePipTracker(context);
-            m_serviceManager = new SchedulerServiceManager(graph, context, m_servicePipTracker, m_testHooks, m_ipcProvider);
+            m_serviceManager = ServiceManager.Default;
+
             m_pipFragmentRenderer = this.CreatePipFragmentRenderer();
 
             OperationTracker = new OperationTracker(loggingContext, this);
@@ -1638,12 +1661,18 @@ namespace BuildXL.Scheduler
             }
 
             // Execution log targets
+            // DYNAMIC-GRAPH: The binary execution log header requires the finalized GraphId and maximum
+            // serialized path index. Disable it until a dynamic log format or a closure-time header is designed.
+#if false
             m_executionLogFileTarget = CreateExecutionLog(
                     configuration,
                     context,
                     graph,
                     extraFingerprintSalts,
                     loggingContext);
+#else
+            m_executionLogFileTarget = null;
+#endif
 
             Contract.Assert(configuration.Logging.StoreFingerprints.HasValue, "Configuration.Logging.StoreFingerprints should be assigned some value before constructing the scheduler.");
 
@@ -1693,11 +1722,16 @@ namespace BuildXL.Scheduler
             WeakFingerprintAugmentationExecutionLogTarget fingerprintAugmentationTarget = null;
 
             var executionLogPath = configuration.Logging.ExecutionLog;
+            // DYNAMIC-GRAPH: PackedExecutionExporter builds graph-wide tables up front and requires PipGraph.
+#if false
             if (configuration.Logging.LogPackedExecution && executionLogPath.IsValid)
             {
                 var packedExecutionPath = Path.ChangeExtension(executionLogPath.ToString(Context.PathTable), "PXL"); // Packed eXecution Log
                 m_packedExecutionExporter = new PackedExecutionExporter(PipGraph, packedExecutionPath);
             }
+#else
+            m_packedExecutionExporter = null;
+#endif
 
             m_dumpPipLiteExecutionLogTarget = null;
 
@@ -1719,10 +1753,13 @@ namespace BuildXL.Scheduler
                 m_manifestExecutionLog = new BuildManifestStoreTarget(m_buildManifestGenerator, m_pipTwoPhaseCache);
 
                 // Only log failed pips on orchestrator to make it easier to retrieve logs for failing pips on workers
+                // DYNAMIC-GRAPH: DumpPipLiteExecutionLogTarget consumes the finalized graph for its log data.
+#if false
                 if (configuration.Logging.DumpFailedPips.GetValueOrDefault())
                 {
                     m_dumpPipLiteExecutionLogTarget = new DumpPipLiteExecutionLogTarget(context, graph.PipTable, loggingContext, configuration, graph);
                 }
+#endif
             }
 
             m_eventStatsExecutionLogTarget = new EventStatsExecutionLogTarget();
@@ -1730,7 +1767,9 @@ namespace BuildXL.Scheduler
             m_multiExecutionLogTarget = MultiExecutionLogTarget.CombineTargets(
                 m_executionLogFileTarget,
                 m_fingerprintStoreTarget,
-                new ObservedInputAnomalyAnalyzer(loggingContext, graph),
+                // DYNAMIC-GRAPH: This analyzer has a concrete PipGraph dependency and belongs to the
+                // graph-dependent execution-log functionality disabled for the initial dynamic mode.
+                null,
                 m_orchestratorTarget,
                 m_manifestExecutionLog,
                 fingerprintAugmentationTarget,
@@ -1886,8 +1925,14 @@ namespace BuildXL.Scheduler
                     loggingContext);
             }
 
-            m_serviceManager.Start(loggingContext, OperationTracker);
+            // DYNAMIC-GRAPH: The regular SchedulerServiceManager.Start call snapshots all services and
+            // finalization relationships. Service-related pips are disabled, so there is no service lifecycle to start.
+#if false
+            ((SchedulerServiceManager)m_serviceManager).Start(loggingContext, OperationTracker);
+#endif
 
+            // DYNAMIC GRAPH EXERCISE: This one-time check can miss an API moniker requested by a later pip. Either the
+            // moniker must be fixed before scheduling starts or non-pip graph metadata needs its own notification.
             if (PipGraph.ApiServerMoniker.IsValid)
             {
                 // Add try catch block to catch any exception thrown by new ApiServer()
@@ -2043,6 +2088,9 @@ namespace BuildXL.Scheduler
             {
                 Task simulatorTask = null;
 
+                // DYNAMIC-GRAPH: The simulator analyzes a complete schedule after execution and still takes
+                // PipGraph directly. Keep the original block visible while excluding this graph-wide diagnostic.
+#if false
                 if (!IsDistributedWorker && m_configuration.Schedule.SchedulerSimulator)
                 {
                     var simulator = new SchedulerSimulator(
@@ -2055,6 +2103,7 @@ namespace BuildXL.Scheduler
                         LocalWorker.InitialAvailableRamMb ?? 0);
                     simulatorTask = simulator.StartAsync();
                 }
+#endif
 
                 LogWorkerStats();
                 string[] perProcessPipPerf = m_perPipPerformanceInfoStore.GenerateTopPipPerformanceInfoJsonArray();
@@ -2063,10 +2112,13 @@ namespace BuildXL.Scheduler
                     Logger.Log.TopPipsPerformanceInfo(m_loggingContext, processPipPerf);
                 }
 
-                var shutdownServicesSucceeded = await m_serviceManager.ShutdownStartedServices(Context.CancellationToken.IsCancellationRequested || m_schedulerCancellationTokenSource.Token.IsCancellationRequested);
+                // DYNAMIC-GRAPH: Service-related pips are disabled, so there are no services to shut down.
+#if false
+                var shutdownServicesSucceeded = await ((SchedulerServiceManager)m_serviceManager).ShutdownStartedServices(Context.CancellationToken.IsCancellationRequested || m_schedulerCancellationTokenSource.Token.IsCancellationRequested);
                 Contract.Assert(
                     shutdownServicesSucceeded || m_executePhaseLoggingContext.ErrorWasLogged,
                     "ServiceManager encountered errors during shutdown, but none were logged.");
+#endif
 
                 if (m_apiServer != null)
                 {
@@ -2165,7 +2217,9 @@ namespace BuildXL.Scheduler
                     await simulatorTask;
                 }
 
-                return !HasFailed && shutdownServicesSucceeded;
+                // DYNAMIC-GRAPH: There is no service shutdown result while services are disabled.
+                //return !HasFailed && shutdownServicesSucceeded;
+                return !HasFailed;
             }
         }
 
@@ -2280,6 +2334,9 @@ namespace BuildXL.Scheduler
 
                 OperationTracker.Stop(Context, m_configuration.Logging, PipExecutionCounters, Worker.WorkerStatusOperationKinds);
 
+                // DYNAMIC-GRAPH: End-of-build critical-path reporting still requires PipGraph. The initial
+                // dynamic mode degrades critical-path functionality, so preserve the original block for comparison.
+#if false
                 m_criticalPathTracker.LogCriticalPathAndTopPips(new CriticalPathReportContext
                 {
                     Statistics = statistics,
@@ -2298,8 +2355,10 @@ namespace BuildXL.Scheduler
                     SchedulerDoneTimeUtc = m_schedulerDoneTimeUtc,
                     SchedulerCompletionExceptMaterializeOutputsTimeUtc = m_schedulerCompletionExceptMaterializeOutputsTimeUtc,
                 });
+#endif
 
-                int processPipsStartOrShutdownService = m_serviceManager.TotalServicePipsCompleted + m_serviceManager.TotalServiceShutdownPipsCompleted;
+                // DYNAMIC GRAPH EXERCISE: Service pips are rejected, so service completion statistics are zero.
+                int processPipsStartOrShutdownService = 0;
 
                 PipExecutionCounters.AddToCounter(PipExecutorCounter.TotalRunRemoteProcesses, localWorkerWithRemoting != null ? localWorkerWithRemoting.TotalRunRemote : 0);
                 PipExecutionCounters.AddToCounter(PipExecutorCounter.TotalRunLocallyProcessesOnRemotingWorker, localWorkerWithRemoting != null ? localWorkerWithRemoting.TotalRunLocally : 0);
@@ -2694,8 +2753,11 @@ namespace BuildXL.Scheduler
             FileContentStats = m_fileContentManager.FileContentStats,
             PipsWithWarnings = Volatile.Read(ref m_numPipsWithWarnings),
             PipsWithWarningsFromCache = Volatile.Read(ref m_numPipsWithWarningsFromCache),
-            ServicePipsCompleted = m_serviceManager.TotalServicePipsCompleted,
-            ServiceShutdownPipsCompleted = m_serviceManager.TotalServiceShutdownPipsCompleted,
+            // // DYNAMIC-GRAPH: Service-related pips are disabled, so these counts remain zero.
+            // ServicePipsCompleted = m_serviceManager.TotalServicePipsCompleted,
+            // ServiceShutdownPipsCompleted = m_serviceManager.TotalServiceShutdownPipsCompleted,
+            ServicePipsCompleted = 0,
+            ServiceShutdownPipsCompleted = 0,
         };
 
         private StatusRows m_statusRows;
@@ -2785,7 +2847,9 @@ namespace BuildXL.Scheduler
                 { "Running Process Locally", data => data.RunningLocallyPipExecutorProcesses },
                 { "Total Run Process Remotely", data => data.TotalRunRemotelyProcesses },
                 { "Total Run Process Locally", data => data.TotalRunLocallyProcesses },
-                { "Running service pips", data => m_serviceManager.RunningServicesCount },
+                // DYNAMIC-GRAPH: Service-related pips are disabled, so this count remains zero.
+                //{ "Running service pips", data => m_serviceManager.RunningServicesCount },
+                { "Running service pips", data => 0 },
 
                 // Drive stats
                 { windowsDiskStats, x => I($"Drive \'{x.Stat.Drive}\' % Active"), (x, _) => (data => data.DiskPercents[x.Index]) },
@@ -3010,7 +3074,9 @@ namespace BuildXL.Scheduler
                         pipsReady: pipsReady,
                         pipsWaiting: pipsWaiting,
                         pipsWaitingOnSemaphore: semaphoreQueued,
-                        servicePipsRunning: m_serviceManager.RunningServicesCount,
+                        // DYNAMIC-GRAPH: Service-related pips are disabled, so this count remains zero.
+                        // servicePipsRunning: m_serviceManager.RunningServicesCount,
+                        servicePipsRunning: 0,
                         perfInfoForConsole: m_perfInfo.ConsoleResourceSummary,
                         pipsWaitingOnResources: pipsWaitingOnResources,
                         // For the worker machines in ADO, we need to use the DispatcherQueue to obtain the number of processesExecuting. 
@@ -4126,6 +4192,9 @@ namespace BuildXL.Scheduler
                 }
             }
 
+            // DYNAMIC-GRAPH: This only observes dependents admitted before the parent completes. A child
+            // admitted afterward will never receive this completion decrement. Admission must atomically either
+            // register with an unfinished parent or observe and apply the parent's terminal result.
             foreach (Edge outEdge in ScheduledGraph.GetOutgoingEdges(nodeId))
             {
                 // Light edges do not propagate failure or ref-count changes.
@@ -6182,6 +6251,9 @@ namespace BuildXL.Scheduler
 
                 InitPipStates(pm.LoggingContext);
 
+                // DYNAMIC-GRAPH: Filtering and calculating a complete build set require a closed graph.
+                // Keep the original selection path visible, but drive scheduling from admission notifications below.
+#if false
                 IEnumerable<NodeId> nodesToSchedule;
                 if (filter != null && !filter.IsEmpty)
                 {
@@ -6195,6 +6267,7 @@ namespace BuildXL.Scheduler
                 {
                     nodesToSchedule = CalculateNodesToSchedule(loggingContext);
                 }
+#endif
 
                 ProcessPipCountersByFilter = new PipCountersByFilter(loggingContext, m_explicitlyScheduledProcessNodes ?? new HashSet<NodeId>());
                 ProcessPipCountersByTelemetryTag = new PipCountersByTelemetryTag(loggingContext, Context.StringTable, m_scheduleConfiguration.TelemetryTagPrefix);
@@ -6213,8 +6286,11 @@ namespace BuildXL.Scheduler
 
                 m_chooseWorkerCpu.SetUpWorkerResourceListeners();
 
-                PrioritizeAndSchedule(pm.LoggingContext, nodesToSchedule);
-
+                // DYNAMIC-GRAPH: To be replaced by proper pip admission
+                // PrioritizeAndSchedule(pm.LoggingContext, nodesToSchedule);
+                
+                // DYNAMIC-GRAPH: These features initialize graph-wide maps from the complete selected node set.
+#if false
                 if (m_configuration.Schedule.ModuleAffinityEnabled())
                 {
                     PopulateModuleWorkerMapping(nodesToSchedule);
@@ -6224,6 +6300,7 @@ namespace BuildXL.Scheduler
                 {
                     RegisterStaticDirectoriesForRemoting(nodesToSchedule);
                 }
+#endif
 
                 Contract.Assert(!HasFailed || loggingContext.ErrorWasLogged, "Scheduler encountered errors during initialization, but none were logged.");
                 return !HasFailed;
@@ -6374,11 +6451,14 @@ namespace BuildXL.Scheduler
                 FileSystemView fileSystemView;
                 using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.CreateFileSystemViewDuration))
                 {
-                    fileSystemView = FileSystemView.Create(
+                    // DYNAMIC-GRAPH: FileSystemView.Create pre-populates its cache by indexing every artifact
+                    // in PipGraph.ArtifactContentCount. Use the non-prepopulating constructor instead. This is not a
+                    // complete fix: negative path-existence cache entries must be invalidated when later admissions
+                    // declare an artifact under a path that was queried earlier.
+                    fileSystemView = new FileSystemView(
                         Context.PathTable,
                         PipGraph,
                         m_localDiskContentStore,
-                        maxInitializationDegreeOfParallelism: m_scheduleConfiguration.MaxProcesses,
                         inferNonExistenceBasedOnParentPathInRealFileSystem: m_scheduleConfiguration.InferNonExistenceBasedOnParentPathInRealFileSystem);
                 }
 
@@ -6448,6 +6528,8 @@ namespace BuildXL.Scheduler
 
             if (m_fileChangeTracker.IsBuildingInitialChangeTrackingSet)
             {
+                // DYNAMIC-GRAPH: Incremental scheduling constructs graph-wide dirty state and is unsupported.
+#if false
                 if (m_shouldCreateIncrementalSchedulingState)
                 {
                     Contract.Assert(incrementalSchedulingStateFactory != null);
@@ -6457,6 +6539,7 @@ namespace BuildXL.Scheduler
                         m_configuration,
                         m_previousInputsSalt);
                 }
+#endif
             }
             else if (m_fileChangeTracker.IsTrackingChanges)
             {
@@ -6467,6 +6550,9 @@ namespace BuildXL.Scheduler
                     fileChangeProcessor.Subscribe(m_fileContentTable);
                 }
 
+                // DYNAMIC-GRAPH: Loading and updating dirty-node state requires a finalized graph identity
+                // and complete dependency closure.
+#if false
                 if (m_shouldCreateIncrementalSchedulingState)
                 {
                     Contract.Assert(incrementalSchedulingStateFactory != null);
@@ -6492,6 +6578,7 @@ namespace BuildXL.Scheduler
                             m_previousInputsSalt);
                     }
                 }
+#endif
 
                 ScanningJournalResult scanningJournalResult = fileChangeProcessor.TryProcessChanges(
                     m_configuration.Engine.ScanChangeJournalTimeLimitInSec < 0
@@ -6578,6 +6665,8 @@ namespace BuildXL.Scheduler
                 IsInitialized = true;
                 m_pipRuntimeInfos = new PipRuntimeInfo[m_pipTable.Count + 1]; // PipId starts from 1!
 
+                // DYNAMIC-GRAPH: This initializes counters for the current snapshot only. Newly admitted pips
+                // transition from Ignored when ConsumeDynamicGraphAdmissionsAsync processes their notification.
                 // Note: We need IList<...> in order to get good Parallel.ForEach performance
                 IList<PipId> keys = m_pipTable.StableKeys;
 
@@ -6622,6 +6711,11 @@ namespace BuildXL.Scheduler
         /// </summary>
         private void PrioritizeAndSchedule(LoggingContext loggingContext, IEnumerable<NodeId> nodes)
         {
+            // DYNAMIC-GRAPH: The existing implementation walks the complete graph backwards from sinks to
+            // calculate downstream critical-path priorities and initializes every pip in one batch. Neither the sink
+            // set nor the complete dependent closure exists while publication is open. Keep the implementation below
+            // for comparison, but use a local priority and only the committed incoming edges for the supplied pips.
+#if false
             var readyNodes = new List<NodeId>();
             using (PerformanceMeasurement.Start(
                 loggingContext,
@@ -6843,6 +6937,73 @@ namespace BuildXL.Scheduler
                 // From this point, only pips that are already scheduled can enqueue new work items
                 PipQueue.SetAsFinalized();
             }
+#else
+            // DYNAMIC-GRAPH: AI slop attempt. Revisit.
+            ScheduledGraph = DirectedGraph;
+            m_criticalPathStats = new CriticalPathStats();
+
+            foreach (var node in nodes)
+            {
+                var pipId = node.ToPipId();
+                var pipType = m_pipTable.GetPipType(pipId);
+                if (pipType == PipType.HashSourceFile)
+                {
+                    continue;
+                }
+
+                if (pipId.Value > m_pipTable.Count)
+                {
+                    // The initial bulk count only included the pip-table snapshot taken during scheduler initialization.
+                    // Register the initial state before transitioning a pip admitted after that snapshot.
+                    m_pipStateCounters.AccumulateInitialState(PipState.Ignored, pipType);
+                }
+
+                var pipRuntimeInfo = GetPipRuntimeInfo(pipId);
+                pipRuntimeInfo.Priority = m_pipTable.GetPipPriority(pipId) << CriticalPathPriorityBitCount;
+
+                // Incoming edges are final when a topologically published pip is admitted. Outgoing edges are not.
+                // Parents can already be terminal because execution overlaps publication, so only unfinished parents
+                // contribute to the initial ref count and already-observed failures are propagated to the late child.
+                int unfinishedDependencyCount = 0;
+                bool hasFailedDependency = false;
+
+
+                foreach (var incomingEdge in DirectedGraph.GetIncomingEdges(node))
+                {
+                    if (incomingEdge.IsLight)
+                    {
+                        continue;
+                    }
+
+                    var dependencyRuntimeInfo = GetPipRuntimeInfo(incomingEdge.OtherNode);
+                    if (dependencyRuntimeInfo.RefCount == CompletedRefCount)
+                    {
+                        hasFailedDependency |= dependencyRuntimeInfo.State.IndicatesFailure();
+                    }
+                    else
+                    {
+                        unfinishedDependencyCount++;
+                    }
+                }
+
+                pipRuntimeInfo.RefCount = unfinishedDependencyCount;
+                pipRuntimeInfo.Transition(m_pipStateCounters, pipType, PipState.Waiting);
+
+                if (hasFailedDependency)
+                {
+                    pipRuntimeInfo.TryTransition(m_pipStateCounters, pipType, PipState.Waiting, PipState.Skipped);
+                }
+
+                if (pipRuntimeInfo.RefCount == 0)
+                {
+                    SchedulePip(node, pipId).GetAwaiter().GetResult();
+                }
+            }
+
+            // DYNAMIC-GRAPH: PipQueue cannot be finalized until the admission stream completes. The future
+            // IDynamicGraph completion callback must own this transition instead of initial scheduler setup.
+            // PipQueue.SetAsFinalized();
+#endif
         }
 
         #endregion Runtime Initialization
@@ -7713,6 +7874,21 @@ namespace BuildXL.Scheduler
         {
             Contract.Assume(IsInitialized);
 
+            // DYNAMIC-GRAPH: Pip ids can exceed the construction-time PipTable.Count. Array resizing is the
+            // smallest adaptation for this exercise; a segmented or concurrent table would avoid copying in production.
+            if (nodeId.Value >= (uint)m_pipRuntimeInfos.Length)
+            {
+                lock (m_pipRuntimeInfosLock)
+                {
+                    if (nodeId.Value >= (uint)m_pipRuntimeInfos.Length)
+                    {
+                        int newLength = Math.Max((int)nodeId.Value + 1, m_pipRuntimeInfos.Length * 2);
+                        Array.Resize(ref m_pipRuntimeInfos, newLength);
+                        NodeIdDebugView.RuntimeInfos = m_pipRuntimeInfos;
+                    }
+                }
+            }
+
             var info = m_pipRuntimeInfos[(int)nodeId.Value];
             if (info == null)
             {
@@ -7775,6 +7951,9 @@ namespace BuildXL.Scheduler
         /// their dependencies and (if filter.DependencySelection == DependencySelection.DependenciesAndDependents)
         /// all their dependents.
         /// </summary>
+        // DYNAMIC-GRAPH: Filtering is excluded because its universe and dependent closure are not final while
+        // admissions remain open. The whole method is retained to show the static graph API it depends on.
+#if false
         private bool TryGetFilteredNodes(LoggingContext loggingContext, RootFilter filter, SchedulerState state, out IEnumerable<NodeId> includedNodes)
         {
             Contract.Requires(filter != null);
@@ -7821,6 +8000,7 @@ namespace BuildXL.Scheduler
             includedNodes = ScheduleServiceFinalizations(calculatedNodes);
             return true;
         }
+#endif
 
         private IEnumerable<NodeId> ScheduleServiceFinalizations(IEnumerable<NodeId> calculatedNodes)
         {

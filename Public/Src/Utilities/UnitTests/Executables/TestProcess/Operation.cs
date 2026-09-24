@@ -1492,9 +1492,11 @@ namespace Test.BuildXL.Executables.TestProcess
                 // For Windows, we call EnumerateWinFileSystemEntriesForTest whose underlying implementation
                 // calls FindFirstFile/FindNextFile. This is a workaround for testing enumeration with pattern.
                 // In .netcore 3.1, the implementation of Directory.EnumerateFileSystemEntries uses FindFirstFile/FindNextFile
-                // with the specified pattern included in the search path when calling FindFirstFile. In .NET5, the implementation
-                // of Directory.EnumerateFileSystemEntries calls NtQueryDirectoryFile with "null" (equal to "*") pattern,
-                // and path matching itself is done in the managed level. Thus, for .NET5, Detours will not detect/report the search pattern.
+                // with the specified pattern included in the search path when calling FindFirstFile. From .NET5 to .NET9, the
+                // implementation of Directory.EnumerateFileSystemEntries calls NtQueryDirectoryFile with "null" (equal to "*")
+                // pattern, and path matching itself is done in the managed level. Thus, for those versions, Detours will not
+                // detect/report the search pattern. Starting with .NET10, the pattern is passed down to NtQueryDirectoryFile,
+                // so Detours detects/reports it again.
                 // Unfortunately, for more precise caching, our observed input processor relies on the pattern reported by Detours.
                 //
                 // The Linux Detours does not detect/report the search pattern simply because the search pattern is not passed to opendir.

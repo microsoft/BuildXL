@@ -61,9 +61,9 @@ extends:
           - template: /.azdo/common/journaling.yml@self
           - template: /.azdo/common/set-variable-pats.yml@self
           - task: UseDotNet@2
-            displayName: Install .NET 9 SDK
+            displayName: Install .NET 10 SDK
             inputs:
-              version: 9.x
+              version: 10.x
           - template: /.azdo/common/install-credential-provider.yml@self
           - template: /.azdo/common/install-vcredist.yml@self
 
@@ -75,7 +75,7 @@ extends:
               /p:[Sdk.BuildXL]useQTest=true
               /p:[Sdk.BuildXL]microsoftInternal=1
               /environment:SelfHostPrivateBuild
-              /q:DebugNet9
+              /q:DebugNet10
               /runInSubst
               /server-
               /enableLazyOutputs:minimal

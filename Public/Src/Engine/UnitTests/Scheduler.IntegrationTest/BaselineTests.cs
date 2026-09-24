@@ -2502,17 +2502,12 @@ namespace IntegrationTest.BuildXL.Scheduler
             FileArtifact bCFile = CreateFileArtifactWithName("b.c", dirString);
             WriteSourceFile(bCFile);
 
-            // If useDotNetEnumerateOnWindows for dotnet is true, EnumerateDir calls NtQueryDirectoryFile with no pattern,
-            // which BuildXL treats as "*" pattern (.NET does the filtering in the managed layer, which is not visible by Detours).
-            // Thus, when useDotNetEnumerateOnWindows is true, the pip will have a cache miss even though EnumerateDir specified "*.h" as a pattern.
-            // When useDotNetEnumerateOnWindows is false, EnumerateDir calls FindFirstFile/FindNextFile to enumerate the directory.
-            // For such calls, Detours is aware of the enumeration pattern and can report it accurately to BuildXL.
-            // Thus, when useDotNetEnumerateOnWindows is false, the pip will have a cache hit.
-            if (useDotNetEnumerateOnWindows)
-            {
-                RunScheduler().AssertCacheMiss(pip.PipId);
-            }
-
+            // Both enumeration methods report the "*.h" pattern to Detours, so adding a .c file does not
+            // invalidate the pip's fingerprint.
+            // When useDotNetEnumerateOnWindows is false, EnumerateDir calls FindFirstFile/FindNextFile, which passes
+            // the pattern to the OS. Starting with .NET 10, Directory.EnumerateFileSystemEntries also passes the
+            // pattern down to NtQueryDirectoryFile instead of filtering in the managed layer, so Detours observes the
+            // pattern in that case as well.
             RunScheduler().AssertCacheHit(pip.PipId);
 
             // Add a .h file, pip should cache miss.

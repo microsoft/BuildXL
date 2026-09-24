@@ -18,7 +18,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Gets the pip graph used by the scheduler.
         /// </summary>
-        PipGraph PipGraph { get; }
+        IDynamicGraph PipGraph { get; }
 
         /// <summary>
         /// Gets the graph selected for scheduling.

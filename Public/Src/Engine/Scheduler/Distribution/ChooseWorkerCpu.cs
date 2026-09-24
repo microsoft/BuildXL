@@ -92,7 +92,7 @@ namespace BuildXL.Scheduler.Distribution
             IScheduleConfiguration scheduleConfig,
             IReadOnlyList<Worker> workers,
             IPipQueue pipQueue,
-            PipGraph pipGraph,
+            IDynamicGraph pipGraph,
             FileContentManager fileContentManager,
             Dictionary<ModuleId, (int, bool[])> moduleWorkerMapping)
         {

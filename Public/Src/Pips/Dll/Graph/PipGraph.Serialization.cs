@@ -166,7 +166,7 @@ namespace BuildXL.Pips.Graph
                     rewritingPips: graph.RewritingPips,
                     rewrittenPips: graph.RewrittenPips,
                     latestWriteCountsByPath: graph.LatestWriteCountsByPath,
-                    servicePipClients: graph.m_servicePipClients,
+                    servicePipClients: graph.ServicePipClients,
                     apiServerMoniker: graph.ApiServerMoniker,
                     maxAbsolutePath: graph.MaxAbsolutePathIndex,
                     semistableProcessFingerprint: graph.SemistableFingerprint,

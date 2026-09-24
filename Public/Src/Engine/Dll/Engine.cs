@@ -1956,12 +1956,15 @@ namespace BuildXL.Engine
                                 if (success && phase.HasFlag(EnginePhases.Schedule) && Configuration.Ide.IsEnabled)
                                 {
                                     Contract.Assert(engineSchedule != null);
+                                    // DYNAMIC-GRAPH: IDE generation consumes the complete graph and therefore
+                                    // runs against the closure-time graph rather than the scheduler's live graph.
+                                    var finalizedPipGraph = engineSchedule.FinalizedPipGraph;
 
                                     if (Configuration.Ide.IsNewEnabled)
                                     {
                                         IdeGenerator.Generate(
                                             engineSchedule.Context,
-                                            engineSchedule.Scheduler.PipGraph,
+                                            finalizedPipGraph,
                                             engineSchedule.Scheduler.ScheduledGraph,
                                             m_initialCommandLineConfiguration.Startup.ConfigFile,
                                             Configuration.Ide);
@@ -1970,7 +1973,7 @@ namespace BuildXL.Engine
                                     {
                                         BuildXL.Ide.Generator.Old.IdeGenerator.Generate(
                                             engineSchedule.Context,
-                                            engineSchedule.Scheduler.PipGraph,
+                                            finalizedPipGraph,
                                             engineSchedule.Scheduler.ScheduledGraph,
                                             m_initialCommandLineConfiguration.Startup.ConfigFile,
                                             Configuration.Ide);
@@ -1997,11 +2000,13 @@ namespace BuildXL.Engine
                                         !phase.HasFlag(EnginePhases.Execute),
                                         "CleanOnly in conjunction with executing pips doesn't make sense since output file cleaning happens again before each pip run.");
                                     Contract.Assert(rootFilter != null);
+                                    // DYNAMIC-GRAPH: Clean-only output selection requires the complete graph.
+                                    var finalizedPipGraph = engineSchedule.FinalizedPipGraph;
 
                                     Func<DirectoryArtifact, bool> isOutputDir = artifact =>
                                     {
-                                        NodeId node = engineSchedule.Scheduler.PipGraph.GetSealedDirectoryNode(artifact);
-                                        SealDirectoryKind sealDirectoryKind = engineSchedule.Scheduler.PipGraph.PipTable.GetSealDirectoryKind(node.ToPipId());
+                                        NodeId node = finalizedPipGraph.GetSealedDirectoryNode(artifact);
+                                        SealDirectoryKind sealDirectoryKind = finalizedPipGraph.PipTable.GetSealDirectoryKind(node.ToPipId());
 
                                         return sealDirectoryKind == SealDirectoryKind.Opaque || sealDirectoryKind == SealDirectoryKind.SharedOpaque;
                                     };
@@ -2009,7 +2014,7 @@ namespace BuildXL.Engine
                                     success &= OutputCleaner.DeleteOutputs(
                                         engineLoggingContext,
                                         isOutputDir,
-                                        engineSchedule.Scheduler.PipGraph.FilterOutputsForClean(
+                                        finalizedPipGraph.FilterOutputsForClean(
                                             rootFilter).ToArray(),
                                         Context.PathTable,
                                         m_tempCleaner);
@@ -2247,7 +2252,7 @@ namespace BuildXL.Engine
                                 {
                                     // We cannot dispose the PipTable in the EngineSchedule if TestHooks or Visualization is enabled.
                                     // We transfer PipTable ownership to TestHooks or EngineLiveVisualizationInformation if at least one of them are enabled.
-                                    // DYNAMIC GRAPH: EngineTestHooksData retains only the concrete production Scheduler.
+                                    // DYNAMIC-GRAPH: EngineTestHooksData retains only the concrete production Scheduler.
                                     // Transferring ownership for DynamicScheduler would orphan the PipTable, so its schedule keeps ownership.
                                     if (TestHooks?.Scheduler != null && engineSchedule is EngineSchedule regularEngineSchedule)
                                     {
@@ -3084,7 +3089,7 @@ namespace BuildXL.Engine
                     InputTracker inputTrackerForGraphConstruction;
                     if (Configuration.Engine.UnsafeEnableDynamicGraph)
                     {
-                        // DYNAMIC GRAPH EXERCISE: Frontend evaluation can observe files produced by pips that are
+                        // DYNAMIC-GRAPH: Frontend evaluation can observe files produced by pips that are
                         // already executing. Those paths legitimately transition from absent to present, which violates
                         // InputTracker's immutable graph-input model. Graph caching is disabled in this mode, so do not
                         // track construction inputs until the dynamic protocol has an explicit publication barrier.
@@ -3162,6 +3167,64 @@ namespace BuildXL.Engine
                             evaluationFilter = EvaluationFilter.Empty;
                         }
 
+                        DynamicEngineSchedule dynamicEngineSchedule = null;
+                        Func<IPipGraphBuilder, bool> onPipGraphBuilderCreated = null;
+                        if (Configuration.Engine.UnsafeEnableDynamicGraph && phase.HasFlag(EnginePhases.Schedule))
+                        {
+                            // DYNAMIC-GRAPH: Start constructing the dynamic schedule as soon as the mutable
+                            // graph is available, before frontend evaluation completes.
+                            onPipGraphBuilderCreated = pipGraphBuilder =>
+                            {
+                                var dynamicGraph = pipGraphBuilder as IDynamicGraph;
+                                // DYNAMIC-GRAPH: Dynamic mode requires the graph builder to expose live admissions.
+                                Contract.Assert(dynamicGraph != null, "Dynamic graph mode requires a builder implementing IDynamicGraph.");
+
+                                Possible<CacheInitializer> possibleCacheInitializer = cacheInitializationTask.GetAwaiter().GetResult();
+                                if (!possibleCacheInitializer.Succeeded)
+                                {
+                                    Logger.Log.ErrorCacheInitializationForEngineScheduleConstruction(
+                                        loggingContext,
+                                        possibleCacheInitializer.Failure.Describe());
+                                    return false;
+                                }
+
+                                dynamicEngineSchedule = DynamicEngineSchedule.Create(
+                                    loggingContext,
+                                    context: Context,
+                                    cacheInitializer: possibleCacheInitializer.Result,
+                                    configuration: Configuration,
+                                    fileContentTable: FileContentTable,
+                                    pipGraph: dynamicGraph,
+                                    journalState: journalState,
+                                    mountPathExpander: mountsTable.MountPathExpander,
+                                    directoryMembershipFingerprinterRules: new DirectoryMembershipFingerprinterRuleSet(Configuration, Context.StringTable),
+                                    performanceCollector: m_collector,
+                                    directoryTranslator: m_directoryTranslator,
+                                    maxDegreeOfParallelism: Configuration.FrontEnd.MaxFrontEndConcurrency(),
+                                    tempCleaner: m_tempCleaner,
+                                    buildEngineFingerprint: graphFingerprint?.ExactFingerprint.BuildEngineHash.ToString(),
+                                    pipSpecificPropertiesConfig: m_pipSpecificPropertiesConfig,
+                                    detoursListener: TestHooks?.DetoursListener);
+
+                                if (dynamicEngineSchedule == null)
+                                {
+                                    return false;
+                                }
+
+                                dynamicEngineSchedule.Scheduler.SetProcessStartTime(m_processStartTimeUtc);
+
+                                // DYNAMIC-GRAPH: Start before PopulateGraph so admitted pips can execute
+                                // while frontends continue constructing and publishing the remaining graph.
+                                if (phase.HasFlag(EnginePhases.Execute) &&
+                                    !dynamicEngineSchedule.StartScheduler(loggingContext, m_enginePerformanceInfo))
+                                {
+                                    return false;
+                                }
+
+                                return true;
+                            };
+                        }
+
                         if (!ConstructAndEvaluateGraph(
                             loggingContext,
                             frontEndEngineAbstraction,
@@ -3170,8 +3233,10 @@ namespace BuildXL.Engine
                             evaluationFilter,
                             reuseResult,
                             m_pipSpecificPropertiesConfig,
+                            onPipGraphBuilderCreated,
                             out newlyEvaluatedGraph))
                         {
+                            dynamicEngineSchedule?.Dispose();
                             Contract.Assume(loggingContext.ErrorWasLogged, "An error should have been logged during DScript graph construction.");
                             return ConstructScheduleResult.Failure;
                         }
@@ -3196,40 +3261,25 @@ namespace BuildXL.Engine
 
                         Contract.Assert(newlyEvaluatedGraph != null);
 
-                        // TODO: Shouldn't need to force the cache until the execution phase; this can be fixed when BuildXLScheduler is constructed only in the Execute phase.
-                        Possible<CacheInitializer> possibleCacheInitializer = cacheInitializationTask.GetAwaiter().GetResult();
-                        if (!possibleCacheInitializer.Succeeded)
-                        {
-                            // StorageCacheStartupError has been logged by CacheInitializer
-                            Logger.Log.ErrorCacheInitializationForEngineScheduleConstruction(loggingContext, possibleCacheInitializer.Failure.Describe());
-                            return ConstructScheduleResult.Failure;
-                        }
-
-                        CacheInitializer cacheInitializerForGraphConstruction = possibleCacheInitializer.Result;
-                        // This is the engine boundary where the dynamic implementation forks from the
-                        // production schedule. Subsequent engine lifecycle code consumes IEngineSchedule.
                         if (Configuration.Engine.UnsafeEnableDynamicGraph)
                         {
-                            engineSchedule = DynamicEngineSchedule.Create(
-                                loggingContext,
-                                context: Context,
-                                cacheInitializer: cacheInitializerForGraphConstruction,
-                                configuration: Configuration,
-                                fileContentTable: FileContentTable,
-                                pipGraph: newlyEvaluatedGraph,
-                                journalState: journalState,
-                                mountPathExpander: mountsTable.MountPathExpander,
-                                directoryMembershipFingerprinterRules: new DirectoryMembershipFingerprinterRuleSet(Configuration, Context.StringTable),
-                                performanceCollector: m_collector,
-                                directoryTranslator: m_directoryTranslator,
-                                maxDegreeOfParallelism: Configuration.FrontEnd.MaxFrontEndConcurrency(),
-                                tempCleaner: m_tempCleaner,
-                                buildEngineFingerprint: graphFingerprint?.ExactFingerprint.BuildEngineHash.ToString(),
-                                pipSpecificPropertiesConfig: m_pipSpecificPropertiesConfig,
-                                detoursListener: TestHooks?.DetoursListener);
+                            // DYNAMIC-GRAPH: The builder callback must have created the sole dynamic schedule.
+                            Contract.Assert(dynamicEngineSchedule != null);
+                            dynamicEngineSchedule.SetFinalizedPipGraph(newlyEvaluatedGraph);
+                            engineSchedule = dynamicEngineSchedule;
                         }
                         else
                         {
+                            // TODO: Shouldn't need to force the cache until the execution phase; this can be fixed when BuildXLScheduler is constructed only in the Execute phase.
+                            Possible<CacheInitializer> possibleCacheInitializer = cacheInitializationTask.GetAwaiter().GetResult();
+                            if (!possibleCacheInitializer.Succeeded)
+                            {
+                                // StorageCacheStartupError has been logged by CacheInitializer
+                                Logger.Log.ErrorCacheInitializationForEngineScheduleConstruction(loggingContext, possibleCacheInitializer.Failure.Describe());
+                                return ConstructScheduleResult.Failure;
+                            }
+
+                            CacheInitializer cacheInitializerForGraphConstruction = possibleCacheInitializer.Result;
                             engineSchedule = EngineSchedule.Create(
                                 loggingContext,
                                 context: Context,
@@ -3272,7 +3322,7 @@ namespace BuildXL.Engine
                         // Disable caching graph when InputTracker is disabled.
                         if ((TestHooks == null || TestHooks.AppDeployment != null) && inputTrackerForGraphConstruction.IsEnabled)
                         {
-                            // DYNAMIC GRAPH: Graph caching is rejected for dynamic mode, so this remains a production-only path.
+                            // DYNAMIC-GRAPH: Graph caching is rejected for dynamic mode, so this remains a production-only path.
                             Contract.Assert(engineSchedule is EngineSchedule, "Dynamic graph mode disables graph caching.");
                             m_graphCacheContentCachePut = CacheEngineScheduleStateAsync(
                                 loggingContext,
@@ -3324,20 +3374,20 @@ namespace BuildXL.Engine
                 // Now that graph is constructed and saved, workers can be attached
                 if (IsDistributedOrchestrator && phase.HasFlag(EnginePhases.Execute))
                 {
-                    // DYNAMIC GRAPH: Distribution is rejected for dynamic mode, so this remains a production-only path.
+                    // DYNAMIC-GRAPH: Distribution is rejected for dynamic mode, so this remains a production-only path.
                     Contract.Assert(engineSchedule is EngineSchedule, "Distribution is not supported in dynamic graph mode.");
                     m_orchestratorService.EnableDistribution((EngineSchedule)engineSchedule);
                 }
 
                 if (!engineSchedule.PrepareForBuild(
-                    loggingContext,
-                    m_initialCommandLineConfiguration,
-                    Configuration,
-                    previousSchedulerState,
-                    ref rootFilter,
-                    GetNonScrubbablePaths(),
-                    m_enginePerformanceInfo,
-                    skipScrubbingOnCleanMachine))
+                        loggingContext,
+                        m_initialCommandLineConfiguration,
+                        Configuration,
+                        previousSchedulerState,
+                        ref rootFilter,
+                        GetNonScrubbablePaths(),
+                        m_enginePerformanceInfo,
+                        skipScrubbingOnCleanMachine))
                 {
                     MakeScheduleInfoAvailableToViewer(engineSchedule);
                     Contract.Assume(loggingContext.ErrorWasLogged, "An error should have been logged during graph scheduling.");
@@ -3354,7 +3404,7 @@ namespace BuildXL.Engine
 
             MakeScheduleInfoAvailableToViewer(engineSchedule);
 
-            // DYNAMIC GRAPH: EngineTestHooksData exposes only the concrete production Scheduler.
+            // DYNAMIC-GRAPH: EngineTestHooksData exposes only the concrete production Scheduler.
             if (TestHooks?.Scheduler != null && engineSchedule is EngineSchedule regularEngineSchedule)
             {
                 TestHooks.Scheduler.Value = regularEngineSchedule.Scheduler;

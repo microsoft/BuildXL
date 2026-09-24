@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 using BuildXL.Engine.Distribution;
 using BuildXL.Pips;
 using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler;
-using BuildXL.Scheduler.Performance;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.ViewModel;
@@ -33,6 +33,11 @@ namespace BuildXL.Engine
         /// Gets the scheduler view used by the engine.
         /// </summary>
         IEngineScheduler Scheduler { get; }
+
+        /// <summary>
+        /// Gets the immutable graph produced after graph publication completes.
+        /// </summary>
+        PipGraph FinalizedPipGraph { get; }
 
         /// <summary>
         /// Gets the table containing the schedule's pips.

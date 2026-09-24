@@ -28,7 +28,7 @@ namespace BuildXL.Pips.Graph
     /// <summary>
     /// Defines graph of pips and allows adding Pips with validation.
     /// </summary>
-    public sealed partial class PipGraph : PipGraphBase, IQueryablePipDependencyGraph, IPipScheduleTraversal
+    public sealed partial class PipGraph : PipGraphBase, IPipScheduleTraversal
     {
         /// <summary>
         /// Envelope for graph serialization
@@ -50,11 +50,6 @@ namespace BuildXL.Pips.Graph
         /// to the corresponding <see cref="SealDirectory" /> node.
         /// </remarks>
         private readonly ConcurrentBigMap<DirectoryArtifact, NodeId> m_sealedDirectoryNodes;
-
-        /// <summary>
-        /// Relation representing Service PipId -> Service Client PipId.
-        /// </summary>
-        private readonly ConcurrentBigMap<PipId, ConcurrentBigSet<PipId>> m_servicePipClients;
 
         /// <summary>
         /// Unique identifier for a graph, established at creation time. This ID is durable under serialization and deserialization.
@@ -109,6 +104,7 @@ namespace BuildXL.Pips.Graph
                 rewritingPips: serializedState.RewritingPips,
                 rewrittenPips: serializedState.RewrittenPips,
                 latestWriteCountsByPath: serializedState.LatestWriteCountsByPath,
+                servicePipClients: serializedState.ServicePipClients,
                 apiServerMoniker: serializedState.ApiServerMoniker,
                 pipStaticFingerprints: serializedState.PipStaticFingerprints)
         {
@@ -124,363 +120,11 @@ namespace BuildXL.Pips.Graph
             Contract.Assume(GraphId != default(Guid), "Not convincingly unique.");
 
             m_sealedDirectoryNodes = serializedState.SealDirectoryNodes;
-            m_servicePipClients = serializedState.ServicePipClients;
             MaxAbsolutePathIndex = serializedState.MaxAbsolutePath;
             SemistableFingerprint = serializedState.SemistableProcessFingerprint;
         }
 
         #endregion Constructor
-
-        #region Dependency-based queries (IQueryablePipDependencyGraph)
-
-        /// <summary>
-        /// Performs a reachability check between <paramref name="from" /> and <paramref name="to" /> on <see cref="PipGraphBase.DirectedGraph" />.
-        /// </summary>
-        /// <remarks>
-        /// TODO: This will not return correct results w.r.t. meta-pips, e.g. spec file pips. Need to get meta-pips ordered correctly (i.e., add them topologically).
-        /// Mis-ordering is ignored for now to unblock dependency violation analysis for real pips.
-        /// </remarks>
-        public bool IsReachableFrom(NodeId from, NodeId to)
-        {
-            if (from == PipId.DummyHashSourceFilePipId.ToNodeId() || to == PipId.DummyHashSourceFilePipId.ToNodeId())
-            {
-                return false;
-            }
-
-            // TODO: skipOutOfOrderNodes has to be used until meta-pips are ordered correctly.
-            return DataflowGraph.IsReachableFrom(from, to, skipOutOfOrderNodes: true);
-        }
-
-        /// <inheritdoc />
-        Pip IQueryablePipDependencyGraph.HydratePip(PipId pipId, PipQueryContext queryContext)
-        {
-            return PipTable.HydratePip(pipId, queryContext);
-        }
-
-        /// <inheritdoc />
-        public RewritePolicy GetRewritePolicy(PipId pipId)
-        {
-            return PipTable.GetRewritePolicy(pipId);
-        }
-
-        /// <inheritdoc />
-        public AbsolutePath GetProcessExecutablePath(PipId pipId)
-        {
-            return PipTable.GetProcessExecutablePath(pipId);
-        }
-
-        /// <inheritdoc />
-        public string GetFormattedSemiStableHash(PipId pipId)
-        {
-            return PipTable.GetFormattedSemiStableHash(pipId);
-        }
-
-        private NodeId TryFindContainingExclusiveOpaqueOutputDirectory(AbsolutePath filePath)
-        {
-            AbsolutePath path = filePath.GetParent(Context.PathTable);
-
-            while (path.IsValid)
-            {
-                NodeId nodeId;
-                if (OutputDirectoryProducers.TryGetValue(DirectoryArtifact.CreateWithZeroPartialSealId(path), out nodeId))
-                {
-                    return nodeId;
-                }
-
-                path = path.GetParent(Context.PathTable);
-            }
-
-            return NodeId.Invalid;
-        }
-
-        /// <inheritdoc/>
-        public PipId TryFindContainingExclusiveOpaqueOutputDirectoryProducer(AbsolutePath filePath)
-        {
-            if (TryFindContainingExclusiveOpaqueOutputDirectory(filePath) is var producer && producer.IsValid)
-            {
-                return producer.ToPipId();
-            }
-
-            return PipId.Invalid;
-        }
-
-        /// <inheritdoc/>
-        public DirectoryArtifact TryGetSealSourceAncestor(AbsolutePath path)
-        {
-            // Walk the parent directories of the path to find if it is under a sealedSourceDirectory.
-            foreach (var current in Context.PathTable.EnumerateHierarchyBottomUp(path.Value, HierarchicalNameTable.NameFlags.Sealed))
-            {
-                var currentDirectory = new AbsolutePath(current);
-                if (SourceSealedDirectoryRoots.TryGetValue(currentDirectory, out var directoryArtifact))
-                {
-                    return directoryArtifact;
-                }
-            }
-            return DirectoryArtifact.Invalid;
-        }
-
-        /// <inheritdoc/>
-        public bool TryGetTempDirectoryAncestor(AbsolutePath path, out Pip pip, out AbsolutePath temPath)
-        {
-            // Walk the parent directories of the path to find if it is under a temp directory.
-            foreach (var current in Context.PathTable.EnumerateHierarchyBottomUp(path.Value))
-            {
-                var currentDirectory = new AbsolutePath(current);
-                if (TemporaryPaths.TryGetValue(currentDirectory, out var pipId))
-                {
-                    pip = PipTable.HydratePip(pipId, PipQueryContext.PipGraphRetrieveAllPips);
-                    temPath = currentDirectory;
-                    return true;
-                }
-            }
-
-            pip = null;
-            temPath = AbsolutePath.Invalid;
-            return false;
-        }
-
-        /// <inheritdoc />
-        public Pip GetSealedDirectoryPip(DirectoryArtifact directoryArtifact, PipQueryContext queryContext)
-        {
-            var nodeId = GetSealedDirectoryNode(directoryArtifact);
-            var pip = PipTable.HydratePip(nodeId.ToPipId(), queryContext);
-            return pip;
-        }
-
-        /// <inheritdoc />
-        public PipId? TryFindProducerPipId(AbsolutePath path, VersionDisposition versionDisposition, DependencyOrderingFilter? maybeOrderingFilter, bool includeFilesUnderExclusiveOpaques = false)
-        {
-            Contract.Assume(path.IsValid);
-
-            // First check if the file is witin any opaque output directory. If it is, attribute the production to that pip.
-            NodeId opaqueDirectoryProducer = includeFilesUnderExclusiveOpaques ? TryFindContainingExclusiveOpaqueOutputDirectory(path) : NodeId.Invalid;
-
-            PipId matchedPipId;
-            if (!maybeOrderingFilter.HasValue)
-            {
-                // No filter: We are looking for the earliest or latest producer of the path.
-                if (opaqueDirectoryProducer.IsValid)
-                {
-                    matchedPipId = opaqueDirectoryProducer.ToPipId();
-                }
-                else if (versionDisposition == VersionDisposition.Latest)
-                {
-                    FileArtifact artifact = TryGetLatestFileArtifactForPath(path);
-                    if (!artifact.IsValid)
-                    {
-                        return null;
-                    }
-
-                    matchedPipId = PipProducers[artifact].ToPipId();
-                }
-                else
-                {
-                    Contract.Assert(versionDisposition == VersionDisposition.Earliest);
-                    NodeId producerNode = TryGetOriginalProducerForPath(path);
-                    if (!producerNode.IsValid)
-                    {
-                        return null;
-                    }
-
-                    matchedPipId = producerNode.ToPipId();
-                }
-            }
-            else
-            {
-                // Filter: We need to find an artifact relative to other pips.
-                DependencyOrderingFilter orderingFilter = maybeOrderingFilter.Value;
-                Contract.Assert(orderingFilter.Reference != null);
-
-                NodeId originalProducerNode = opaqueDirectoryProducer;
-                switch (orderingFilter.Filter)
-                {
-                    case DependencyOrderingFilterType.PossiblyPrecedingInWallTime:
-                        {
-                            // Here we need to find a producer for this path 'possibly preceding' the reference in some actual execution order.
-                            // The found artifact's producer is either definitely preceding (reference reachable from producer) or concurrent (neither reachable from the other).
-                            // Equivalently, the disallowed condition is that the producer is reachable from the reference - i.e., the reference occurs earlier in all execution orders.
-                            //
-                            // Before the reachability check, we need to pick the right artifact (producer) for the path (there may be multiple in the event of rewrites):
-                            // - If the artifact is written once (or source), this is trivial.
-                            // - If the artifact is rewritten multiple times, we have the property that any producer P_i (producing version i) is reachable from P_(i-1), down to the first version -
-                            //   rewrites are serialized in order of version. So, we check reachability from the reference to the *lowest* version, which determines reachability to *all* versions.
-                            //
-                            // Examples:
-                            //    R -> P_1 -> P_2 (find none; lowest reachable)
-                            //    P_1 -> R -> P_2 (find P_1 since not reachable from R)
-                            //    P_1    R -> P_2 (same as prior, but this time P_1 is concurrent with R).
-                            //      \______/
-                            // TODO: This approach is not specific to the 'latest or earliest possible' criterion - 'version dispositon'; consider
-                            //       P_1 -> P_2 -> R should report P_2, not P_1
-                            //       Consider a fancier IsReachableFrom(from, {set of to}) which returns the 'to' node found first (fewest hops).
-                            if (!originalProducerNode.IsValid)
-                            {
-                                originalProducerNode = TryGetOriginalProducerForPath(path);
-                            }
-
-                            if (!originalProducerNode.IsValid)
-                            {
-                                return null;
-                            }
-
-                            var referenceNode = orderingFilter.Reference.PipId.ToNodeId();
-
-                            if (IsReachableFrom(referenceNode, originalProducerNode))
-                            {
-                                // Reference must execute before any version produced, so no match.
-                                return null;
-                            }
-
-                            matchedPipId = originalProducerNode.ToPipId();
-                        }
-
-                        break;
-                    case DependencyOrderingFilterType.Concurrent:
-                        {
-                            // We want to find a pip that is neither ordered before nor after the reference. This means that there is not a path between
-                            // them when traversing edges either direction.
-                            // Before each reachability check, we need to pick a suitable producer for the path (there may be multiple in the event of rewrites).
-                            // Note that in general, we have to check concurrency with each version.
-                            // As a tricky case, consider the following with and without P_2:
-                            // P_1 ->   R -> P_3
-                            //      \__>P_2>__/
-                            // R is concurrent with P_2 if it is present. But without P_2, it is well-ordered between P_1 and P_3 (so concurrent with no P_*)
-                            FileArtifact latestArtifact = TryGetLatestFileArtifactForPath(path);
-
-                            var referenceNode = orderingFilter.Reference.PipId.ToNodeId();
-
-                            if (!latestArtifact.IsValid)
-                            {
-                                // Check for an opaque directory producer
-                                if (opaqueDirectoryProducer.IsValid &&
-                                    !IsReachableFrom(referenceNode, opaqueDirectoryProducer) &&
-                                    !IsReachableFrom(opaqueDirectoryProducer, referenceNode))
-                                {
-                                    matchedPipId = opaqueDirectoryProducer.ToPipId();
-                                }
-                                else
-                                {
-                                    return null;
-                                }
-                            }
-                            else
-                            {
-                                matchedPipId = PipId.Invalid;
-                                for (int rewriteCount = latestArtifact.RewriteCount; rewriteCount >= 0; rewriteCount--)
-                                {
-                                    var thisArtifact = new FileArtifact(path, rewriteCount);
-                                    NodeId producerNodeId;
-                                    if (!PipProducers.TryGetValue(thisArtifact, out producerNodeId))
-                                    {
-                                        Contract.Assume(
-                                            rewriteCount == 0,
-                                            "Rewrite counts are dense down to zero, unless source rewrites are disallowed (then zero might be missing).");
-                                        break;
-                                    }
-
-                                    if (!IsReachableFrom(referenceNode, producerNodeId) &&
-                                        !IsReachableFrom(producerNodeId, referenceNode))
-                                    {
-                                        // TODO: Should respect version disposition rather than disingenuously returning the latest.
-                                        matchedPipId = producerNodeId.ToPipId();
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-
-                        break;
-                    case DependencyOrderingFilterType.OrderedBefore:
-                        {
-                            // We want to find a pip that is ordered before the reference. This means that there is a path from a producer of thepath to the reference.
-                            // Since the earliest producer of a path is ordered before any later producers (higher write counts), we can try to find a path from there.
-                            if (!originalProducerNode.IsValid)
-                            {
-                                originalProducerNode = TryGetOriginalProducerForPath(path);
-                            }
-
-                            if (!originalProducerNode.IsValid)
-                            {
-                                return null;
-                            }
-
-                            var referenceNode = orderingFilter.Reference.PipId.ToNodeId();
-
-                            if (!IsReachableFrom(originalProducerNode, referenceNode))
-                            {
-                                // No path from the original producer to the reference, so original producer is not ordered before the reference.
-                                return null;
-                            }
-
-                            matchedPipId = originalProducerNode.ToPipId();
-                        }
-
-                        break;
-                    default:
-                        throw Contract.AssertFailure("Unhandled DependencyOrderingFilterType (not yet supported by Scheduler).");
-                }
-            }
-
-            if (!matchedPipId.IsValid)
-            {
-                return null;
-            }
-
-            return matchedPipId;
-        }
-
-        /// <inheritdoc />
-        bool IQueryablePipDependencyGraph.IsReachableFrom(PipId from, PipId to)
-        {
-            return IsReachableFrom(from.ToNodeId(), to.ToNodeId());
-        }
-
-        /// <inheritdoc />
-        public Pip TryFindProducer(AbsolutePath producedPath, VersionDisposition versionDisposition, DependencyOrderingFilter? maybeOrderingFilter, bool includeFilesUnderExclusiveOpaques = false)
-        {
-            PipId? matchedPipId = TryFindProducerPipId(producedPath, versionDisposition, maybeOrderingFilter, includeFilesUnderExclusiveOpaques);
-            if (!matchedPipId.HasValue)
-            {
-                return null;
-            }
-
-            if (matchedPipId.Value == PipId.DummyHashSourceFilePipId)
-            {
-                return new HashSourceFile(FileArtifact.CreateSourceFile(producedPath));
-            }
-
-            return PipTable.HydratePip(matchedPipId.Value, PipQueryContext.PipGraphTryFindProducer);
-        }
-
-        /// <summary>
-        /// Gets all service pip ids
-        /// </summary>
-        public IEnumerable<PipId> GetServicePipIds()
-        {
-            return m_servicePipClients.Keys;
-        }
-
-        /// <summary>
-        /// For a given service PipId (<paramref name="servicePipId"/>), looks up all its clients, hydrates and returns them.
-        /// </summary>
-        public IEnumerable<Pip> GetServicePipClients(PipId servicePipId)
-        {
-            ConcurrentBigSet<PipId> clients;
-            if (!m_servicePipClients.TryGetValue(servicePipId, out clients))
-            {
-                return CollectionUtilities.EmptyArray<Pip>();
-            }
-
-            var result = new Pip[clients.Count];
-            for (int i = 0; i < clients.Count; i++)
-            {
-                result[i] = PipTable.HydratePip(clients[i], PipQueryContext.PipGraphAddServicePipDependency);
-            }
-
-            return result;
-        }
-
-        #endregion
 
         #region Queries
 
@@ -542,148 +186,12 @@ namespace BuildXL.Pips.Graph
         }
 
         /// <summary>
-        /// Checks if a number is a valid numeric representation of a pip
-        /// </summary>
-        public bool CanGetPipFromUInt32(uint value)
-        {
-            var nodeId = new NodeId(value);
-            return DataflowGraph.ContainsNode(nodeId);
-        }
-
-        /// <summary>
-        /// Turns a previously obtained numeric representation of a pip back into the pip
-        /// </summary>
-        public Pip GetPipFromUInt32(uint value)
-        {
-            Contract.Requires(CanGetPipFromUInt32(value));
-            return PipTable.HydratePip(new PipId(value), PipQueryContext.PipGraphGetPipFromUInt32);
-        }
-
-        /// <summary>
-        /// Hydrites a pip from a <see cref="PipId"/>
-        /// </summary>
-        public Pip GetPipFromPipId(PipId pipId)
-        {
-            return PipTable.HydratePip(pipId, PipQueryContext.PipGraphGetPipFromUInt32);
-        }
-
-        /// <summary>
         /// Gets a numeric representation of a pip id
         /// </summary>
         public static uint GetUInt32FromPip(Pip pip)
         {
             Contract.Requires(pip != null);
             return pip.PipId.Value;
-        }
-
-        /// <summary>
-        /// Gets the producing pips for the given file artifact
-        /// </summary>
-        /// <param name="filePath">The produced file paht</param>
-        /// <returns>List of pips that produce/rewrite the given file, or an empty list if file is not produced</returns>
-        public IEnumerable<Pip> GetProducingPips(AbsolutePath filePath)
-        {
-            List<FileArtifact> files = (from k in PipProducers.Keys where k.Path == filePath select k).ToList();
-            List<NodeId> nodeIds = PipProducers.Where(kvp => files.Contains(kvp.Key)).Select(kvp => kvp.Value).ToList();
-
-            return HydratePips(nodeIds, PipQueryContext.PipGraphGetProducingPips);
-        }
-
-        private static bool IsInput(AbsolutePath path, FileArtifact artifact, bool isInput)
-        {
-            return
-                path == artifact.Path &&
-                (isInput || artifact.RewriteCount > 1);
-        }
-
-        private static bool IsInput(AbsolutePath path, IEnumerable<FileArtifact> artifacts, bool isInput)
-        {
-            foreach (FileArtifact artifact in artifacts)
-            {
-                if (IsInput(path, artifact, isInput))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static bool IsInput(AbsolutePath path, Pip pip)
-        {
-            switch (pip.PipType)
-            {
-                case PipType.CopyFile:
-                    var copyFile = (CopyFile)pip;
-                    return
-                        IsInput(path, copyFile.Source, isInput: true) ||
-                        IsInput(path, copyFile.Destination, isInput: false);
-                case PipType.WriteFile:
-                    var writeFile = (WriteFile)pip;
-                    return IsInput(path, writeFile.Destination, isInput: false);
-                case PipType.Process:
-                    var process = (Process)pip;
-                    return
-                        IsInput(path, process.Dependencies, isInput: true) ||
-                        IsInput(path, process.GetOutputs(), isInput: false);
-                case PipType.SealDirectory:
-                    var sealDirectory = (SealDirectory)pip;
-                    return IsInput(path, sealDirectory.Contents, isInput: true);
-                default:
-                    return false;
-            }
-        }
-
-        /// <summary>
-        /// Returns pips consuming given directory artifact.
-        /// </summary>
-        public IEnumerable<Pip> GetConsumingPips(DirectoryArtifact dir)
-        {
-            var producer = GetProducer(dir);
-            var potentialConsumers = HydratePips(
-                DataflowGraph.GetOutgoingEdges(producer.ToNodeId()).Cast<Edge>().Select(edge => edge.OtherNode), 
-                PipQueryContext.PipGraphGetConsumingPips);
-
-            return potentialConsumers
-                .Where(pip =>
-                    (pip is Process proc && proc.DirectoryDependencies.Contains(dir)) ||
-                    (pip is SealDirectory sd && sd.Directory == dir));
-        }
-
-        /// <summary>
-        /// Get the list of pips that consume a given file artifact
-        /// </summary>
-        /// <param name="filePath">The consumed file path</param>
-        /// <returns>List of pips that consume the given file, or an empty list if file is not consumed</returns>
-        public IEnumerable<Pip> GetConsumingPips(AbsolutePath filePath)
-        {
-            var potentialConsumers = new HashSet<NodeId>();
-            var artifact = FileArtifact.CreateSourceFile(filePath);
-
-            while (true)
-            {
-                NodeId producer;
-                if (PipProducers.TryGetValue(artifact, out producer))
-                {
-                    foreach (Edge edge in DataflowGraph.GetOutgoingEdges(producer))
-                    {
-                        potentialConsumers.Add(edge.OtherNode);
-                    }
-                }
-                else if (!artifact.IsSourceFile)
-                {
-                    // No producer was found. Stop looking for more producers if this wasn't a source file, since there
-                    // will always be a continuous chain of producers of later rewritten versions of the file
-                    break;
-                }
-
-                // Look for a producer of the next rewritten version if a producer was found for this version or
-                // the file was a source file (rewrite version 0)
-                artifact = artifact.CreateNextWrittenVersion();
-            }
-
-            return HydratePips(potentialConsumers, PipQueryContext.PipGraphGetConsumingPips)
-                .Where(pip => IsInput(filePath, pip));
         }
 
         /// <summary>
@@ -713,34 +221,6 @@ namespace BuildXL.Pips.Graph
 
             AbsolutePath path;
             return !AbsolutePath.TryGet(Context.PathTable, pathStr, out path) ? NodeId.Invalid : TryGetOriginalProducerForPath(path);
-        }
-
-        /// <summary>
-        /// Checks to see if a path is part of the build or not
-        /// </summary>
-        /// <returns>true if the path is a known input or output file</returns>
-        public bool IsPathInBuild(AbsolutePath path)
-        {
-            Contract.Requires(path.IsValid);
-
-            if (TryGetOriginalProducerForPath(path).IsValid)
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Checks to see whether a path is part of the build, and if it is not, whether we should avoid scrubbing the path.
-        /// </summary>
-        /// <returns>true if the path is a known input or output file, or if it is a non-scrubbable path</returns>
-        public bool IsPathInBuildOrShouldNotBeScrubbed(AbsolutePath path)
-        {
-            Contract.Requires(path.IsValid);
-
-            return IsPathInBuild(path) 
-                || SourceSealedDirectoryRoots.ContainsKey(path);
         }
 
         /// <summary>
@@ -827,6 +307,21 @@ namespace BuildXL.Pips.Graph
             return nodeId;
         }
 
+        /// <inheritdoc />
+        protected override bool TryGetSealedDirectoryNode(DirectoryArtifact directoryArtifact, out NodeId nodeId) =>
+            m_sealedDirectoryNodes.TryGetValue(directoryArtifact, out nodeId);
+
+        /// <inheritdoc />
+        protected override bool TryGetDirectoryProducer(DirectoryArtifact directoryArtifact, out NodeId nodeId)
+        {
+            if (OutputDirectoryProducers.TryGetValue(directoryArtifact, out nodeId))
+            {
+                return true;
+            }
+
+            return m_sealedDirectoryNodes.TryGetValue(directoryArtifact, out nodeId);
+        }
+
         internal bool TryGetValuePip(FullSymbol fullSymbol, QualifierId qualifierId, AbsolutePath specFile, out PipId pipId)
         {
             NodeId nodeId;
@@ -838,22 +333,6 @@ namespace BuildXL.Pips.Graph
 
             pipId = nodeId.ToPipId();
             return true;
-        }
-
-        /// <summary>
-        /// Checks if a pip rewrites its input.
-        /// </summary>
-        public bool IsRewritingPip(PipId pipId)
-        {
-            return RewritingPips.Contains(pipId);
-        }
-
-        /// <summary>
-        /// Checks if a pip has one of its outputs rewritten.
-        /// </summary>
-        public bool IsRewrittenPip(PipId pipId)
-        {
-            return RewrittenPips.Contains(pipId);
         }
 
         /// <summary>
@@ -898,7 +377,7 @@ namespace BuildXL.Pips.Graph
         /// <summary>
         /// Gets the number of declared content (file or sealed directories or service pips) for the build
         /// </summary>
-        public int ContentCount => FileCount + m_sealedDirectoryNodes.Count + m_servicePipClients.Count;
+        public int ContentCount => FileCount + m_sealedDirectoryNodes.Count + ServicePipClients.Count;
 
         /// <summary>
         /// Gets the number of declared content (file, sealed directories, or temp directories) for the build
@@ -954,7 +433,7 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         internal int? GetServiceContentIndex(PipId servicePipId)
         {
-            var result = m_servicePipClients.TryGet(servicePipId);
+            var result = ServicePipClients.TryGet(servicePipId);
             return result.IsFound ? (int?)(result.Index + FileCount + m_sealedDirectoryNodes.Count) : null;
         }
 
@@ -976,99 +455,9 @@ namespace BuildXL.Pips.Graph
         public IEnumerable<SealDirectory> GetSealDirectoriesByKind(Func<SealDirectoryKind, bool> kindPredicate) => GetSealDirectoriesByKind(PipQueryContext.PipGraphGetSealDirectoryByKind, kindPredicate);
 
         /// <summary>
-        /// Gets the producer for the statically defined file or directory
-        /// </summary>
-        public PipId TryGetProducer(in FileOrDirectoryArtifact fileOrDirectory)
-        {
-            NodeId producer;
-            if (fileOrDirectory.IsFile)
-            {
-                PipProducers.TryGetValue(fileOrDirectory.FileArtifact, out producer);
-            }
-            else if (!OutputDirectoryProducers.TryGetValue(fileOrDirectory.DirectoryArtifact, out producer))
-            {
-                m_sealedDirectoryNodes.TryGetValue(fileOrDirectory.DirectoryArtifact, out producer);
-            }
-
-            return producer.IsValid ? producer.ToPipId() : PipId.Invalid;
-        }
-
-        /// <summary>
-        /// Gets the producer for the statically defined file or directory
-        /// </summary>
-        public PipId GetProducer(in FileOrDirectoryArtifact fileOrDirectory)
-        {
-            var producer = TryGetProducer(fileOrDirectory);
-            Contract.Assert(producer.IsValid);
-            return producer;
-        }
-
-        /// <summary>
-        /// Tries to get pip fingerprints.
-        /// </summary>
-        public bool TryGetPipFingerprint(in PipId pipId, out ContentFingerprint fingerprint) => PipStaticFingerprints.TryGetFingerprint(pipId, out fingerprint);
-
-        /// <summary>
-        /// Tries to get pip from fingerprints.
-        /// </summary>
-        public bool TryGetPipFromFingerprint(in ContentFingerprint fingerprint, out PipId pipId) => PipStaticFingerprints.TryGetPip(fingerprint, out pipId);
-
-        /// <summary>
         /// Gets all pip static fingerprints.
         /// </summary>
         public IEnumerable<KeyValuePair<PipId, ContentFingerprint>> AllPipStaticFingerprints => PipStaticFingerprints.PipStaticFingerprints;
-
-        /// <summary>
-        /// Checks if artifact must remain writable.
-        /// </summary>
-        public bool MustArtifactRemainWritable(in FileOrDirectoryArtifact artifact)
-        {
-            Contract.Requires(artifact.IsValid);
-
-            PipId pipId = TryGetProducer(artifact);
-            Contract.Assert(pipId.IsValid);
-
-            return PipTable.MustOutputsRemainWritable(pipId);
-        }
-
-        /// <summary>
-        /// Checks if artifact is an output that should be preserved.
-        /// </summary>
-        public bool IsPreservedOutputArtifact(in FileOrDirectoryArtifact artifact, int sandBoxPreserveOutputTrustLevel)
-        {
-            Contract.Requires(artifact.IsValid);
-
-            if (artifact.IsFile && artifact.FileArtifact.IsSourceFile)
-            {
-                // Shortcut, source file is not preserved.
-                return false;
-            }
-
-            PipId pipId = TryGetProducer(artifact);
-            Contract.Assert(pipId.IsValid);
-
-
-            if (!PipTable.IsPreservedOutputsPip(pipId))
-            {
-                return false;
-            }
-
-            if (PipTable.GetProcessPreserveOutputsTrustLevel(pipId) < sandBoxPreserveOutputTrustLevel)
-            {
-                return false;
-            }
-
-            if (!PipTable.HasPreserveOutputAllowlist(pipId))
-            {
-                // If allowlist is not given, we preserve all outputs of the given pip.
-                // This is shortcut to avoid hydrating pip in order to get the allowlist.
-                return true;
-            }
-
-            Process process = PipTable.HydratePip(pipId, PipQueryContext.PreserveOutput) as Process;
-
-            return PipArtifacts.IsPreservedOutputByPip(process, artifact.Path, Context.PathTable, sandBoxPreserveOutputTrustLevel);
-        }
 
         #endregion Queries
 

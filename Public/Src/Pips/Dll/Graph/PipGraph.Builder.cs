@@ -35,7 +35,7 @@ namespace BuildXL.Pips.Graph
     /// </summary>
     public sealed partial class PipGraph
     {
-        public class Builder : PipGraphBase, IPipGraphBuilder
+        public partial class Builder : PipGraphBase, IPipGraphBuilder
         {
             /// <summary>
             /// Lazily initialized BuildXL server IPC moniker.
@@ -77,11 +77,6 @@ namespace BuildXL.Pips.Graph
             /// Maintained by <see cref="AddInput" /> and <see cref="AddOutput" />
             /// </remarks>
             private readonly ConcurrentBigSet<FileArtifact> m_outputFileArtifactsUsedAsInputs;
-
-            /// <summary>
-            ///     A multi-value map from service PipId to its client PipIds.
-            /// </summary>
-            private readonly ConcurrentBigMap<PipId, ConcurrentBigSet<PipId>> m_servicePipClients;
 
             /// <summary>
             ///     A mapping of Service PipId to corresponding Shutdown PipId (<see cref="BuildXL.Pips.Operations.Process.ShutdownProcessPipId"/>).
@@ -143,8 +138,6 @@ namespace BuildXL.Pips.Graph
             /// <inheritdoc />
             public bool IsImmutable => m_immutablePipGraph != null || !m_isValidConstructedGraph;
 
-            private readonly PipGraphStaticFingerprints m_pipStaticFingerprints = new PipGraphStaticFingerprints();
-
             #endregion State
 
             /// <summary>
@@ -194,7 +187,6 @@ namespace BuildXL.Pips.Graph
 
                 SealDirectoryTable = new SealedDirectoryTable(Context.PathTable);
                 m_outputFileArtifactsUsedAsInputs = new ConcurrentBigSet<FileArtifact>();
-                m_servicePipClients = new ConcurrentBigMap<PipId, ConcurrentBigSet<PipId>>();
                 m_servicePipToServiceInfoMap = new ConcurrentBigMap<PipId, ServiceInfo>();
                 m_temporaryOutputFiles = new ConcurrentBigSet<FileArtifact>();
                 m_untrackedPathsAndScopes = new ConcurrentBigMap<AbsolutePath, PipId>();
@@ -273,13 +265,13 @@ namespace BuildXL.Pips.Graph
                 {
                     var pipId = kvp.Key;
                     var assertions = kvp.Value;
-                    if (!m_pipStaticFingerprints.TryGetFingerprint(pipId, out var fingerprint))
+                    if (!PipStaticFingerprints.TryGetFingerprint(pipId, out var fingerprint))
                     {
                         continue;
                     }
 
                     ContentFingerprint newFingerprint = m_pipStaticFingerprinter.PatchWithFileArtifactSet(fingerprint, "ExistenceAssertions", assertions);
-                    m_pipStaticFingerprints.UpdateFingerprint(pipId, newFingerprint);
+                    PipStaticFingerprints.UpdateFingerprint(pipId, newFingerprint);
                 }
             }
 
@@ -325,7 +317,7 @@ namespace BuildXL.Pips.Graph
                                 rewritingPips: RewritingPips,
                                 rewrittenPips: RewrittenPips,
                                 latestWriteCountsByPath: LatestWriteCountsByPath,
-                                servicePipClients: m_servicePipClients,
+                                servicePipClients: ServicePipClients,
                                 apiServerMoniker: apiServerMonikerId,
 
                                 // If there are N paths in the path table (including AbsolutePath.Invalid), the path table count will be N and the value
@@ -333,7 +325,7 @@ namespace BuildXL.Pips.Graph
                                 // Capture this here so we know that all paths < PathTable.Count are valid to use with serialized pip graph.
                                 maxAbsolutePath: Context.PathTable.Count - 1,
                                 semistableProcessFingerprint: semistableProcessFingerprint,
-                                pipStaticFingerprints: m_pipStaticFingerprints);
+                                pipStaticFingerprints: PipStaticFingerprints);
 
                             m_immutablePipGraph = new PipGraph(
                                 pipGraphState,
@@ -345,12 +337,18 @@ namespace BuildXL.Pips.Graph
                             if (!ScheduleConfiguration.UnsafeDisableGraphPostValidation && !IsValidGraph())
                             {
                                 m_isValidConstructedGraph = false;
+                                CompletePipAdmissions(new InvalidOperationException("Pip graph post-validation failed."));
                                 return null;
                             }
 
                             m_counters.LogAsStatistics("PipGraph.Builder", LoggingContext);
 
                             LockManager = null;
+
+                            // DYNAMIC-GRAPH: For this stage, we can complete pip admissions after Build() is called, which
+                            // happens when all the frontends are done evaluation. In the future, when pips can create new pips
+                            // we should remove this and determine the end of asmissions by some other mechanism.
+                            CompletePipAdmissions();
                         }
                     }
                 }
@@ -436,6 +434,26 @@ namespace BuildXL.Pips.Graph
             {
                 SealDirectoryTable.TryGetSealForDirectoryArtifact(directoryArtifact, out PipId pipId);
                 return pipId.ToNodeId();
+            }
+
+            /// <inheritdoc />
+            protected override bool TryGetSealedDirectoryNode(DirectoryArtifact directoryArtifact, out NodeId nodeId)
+            {
+                bool found = SealDirectoryTable.TryGetSealForDirectoryArtifact(directoryArtifact, out PipId pipId);
+                nodeId = found ? pipId.ToNodeId() : NodeId.Invalid;
+                return found;
+            }
+
+            /// <inheritdoc />
+            protected override bool TryGetDirectoryProducer(DirectoryArtifact directoryArtifact, out NodeId nodeId)
+            {
+                if (OutputDirectoryProducers.TryGetValue(directoryArtifact, out nodeId) ||
+                    CompositeOutputDirectoryProducers.TryGetValue(directoryArtifact, out nodeId))
+                {
+                    return true;
+                }
+
+                return TryGetSealedDirectoryNode(directoryArtifact, out nodeId);
             }
 
             internal bool ApplyCurrentOsDefaultsInternal(ProcessBuilder processBuilder, bool untrackInsteadSourceSeal)
@@ -2009,6 +2027,7 @@ namespace BuildXL.Pips.Graph
                 }
 
                 ComputeAndStorePipStaticFingerprint(copyFile);
+                PublishPipAdmission(copyFile);
 
                 return true;
             }
@@ -2049,6 +2068,7 @@ namespace BuildXL.Pips.Graph
                 }
 
                 ComputeAndStorePipStaticFingerprint(writeFile);
+                PublishPipAdmission(writeFile);
 
                 return true;
             }
@@ -2265,7 +2285,7 @@ namespace BuildXL.Pips.Graph
                         m_servicePipToServiceInfoMap[process.PipId] = process.ServiceInfo;
                         // When service pip clients are processed, they are added to the (servicePip -> clients) map.
                         // If there are no clients, a service pip won't be added to that map. Adding it here, to ensure its presence in the map.
-                        m_servicePipClients.TryAdd(process.PipId, new ConcurrentBigSet<PipId>());
+                        ServicePipClients.TryAdd(process.PipId, new ConcurrentBigSet<PipId>());
                     }
 
                     // Collect all untracked paths and scopes
@@ -2322,6 +2342,7 @@ namespace BuildXL.Pips.Graph
                     }
                 }
 
+                PublishPipAdmission(process);
                 return true;
             }
 
@@ -2394,6 +2415,7 @@ namespace BuildXL.Pips.Graph
                     }
                 }
 
+                PublishPipAdmission(ipcPip);
                 return true;
             }
 
@@ -2900,6 +2922,7 @@ namespace BuildXL.Pips.Graph
                 }
 
                 ComputeAndStorePipStaticFingerprint(sealDirectory);
+                PublishPipAdmission(sealDirectory);
 
                 return artifactForNewSeal;
             }
@@ -2958,6 +2981,12 @@ namespace BuildXL.Pips.Graph
                     }
 
                     PipProducers.Add(artifact, node);
+
+                    // Only admit the pip id we have a real HashSourceFile pip for (and not the dummy one).
+                    if (!ScheduleConfiguration.SkipHashSourceFile)
+                    {
+                        PublishPipAdmission(node.ToPipId());
+                    }
                 }
             }
 
@@ -2978,7 +3007,7 @@ namespace BuildXL.Pips.Graph
                 Contract.Requires(PipTable.IsValid(servicePipId));
 
                 // remember service client
-                var getOrAddResult = m_servicePipClients.GetOrAdd(servicePipId, new ConcurrentBigSet<PipId>());
+                var getOrAddResult = ServicePipClients.GetOrAdd(servicePipId, new ConcurrentBigSet<PipId>());
                 getOrAddResult.Item.Value.Add(serviceClientPipId);
 
                 AddPipProducerConsumerDependency(servicePipId.ToNodeId(), serviceClientNode, edgeScope: edgeScope);
@@ -3248,7 +3277,7 @@ namespace BuildXL.Pips.Graph
                     ? m_pipStaticFingerprinter.ComputeWeakFingerprint(pip, out fingerprintText)
                     : m_pipStaticFingerprinter.ComputeWeakFingerprint(pip);
 
-                m_pipStaticFingerprints.AddFingerprint(pip, fingerprint);
+                PipStaticFingerprints.AddFingerprint(pip, fingerprint);
 
                 if (fingerprintText != null)
                 {
@@ -3262,7 +3291,7 @@ namespace BuildXL.Pips.Graph
 
                 return SealDirectoryTable.TryGetSealForDirectoryArtifact(directory, out PipId pipId)
                        && PipTable.HydratePip(pipId, PipQueryContext.GetSealDirectoryFingerprint) is SealDirectory sealDirectory
-                       && m_pipStaticFingerprints.TryGetFingerprint(sealDirectory, out ContentFingerprint fingerprint)
+                       && PipStaticFingerprints.TryGetFingerprint(sealDirectory, out ContentFingerprint fingerprint)
                        ? fingerprint
                        : ContentFingerprint.Zero;
             }
@@ -3272,7 +3301,7 @@ namespace BuildXL.Pips.Graph
                 Contract.Requires(directory.IsValid);
 
                 return OutputDirectoryProducers.TryGetValue(directory, out NodeId nodeId)
-                    && m_pipStaticFingerprints.TryGetFingerprint(nodeId.ToPipId(), out ContentFingerprint fingerprint)
+                    && PipStaticFingerprints.TryGetFingerprint(nodeId.ToPipId(), out ContentFingerprint fingerprint)
                     ? fingerprint
                     : ContentFingerprint.Zero;
             }
@@ -3626,12 +3655,6 @@ namespace BuildXL.Pips.Graph
                     provenanceForRelated.SemiStableHash,
                     relatedPip.GetDescription(Context),
                     provenanceForRelated.OutputValueSymbol.ToString(Context.SymbolTable));
-            }
-
-            /// <inheritdoc/>
-            public Pip GetPipFromPipId(PipId pipId)
-            {
-                return PipTable.HydratePip(pipId, PipQueryContext.PipGraphGetPipFromUInt32);
             }
 
             #endregion Event Logging

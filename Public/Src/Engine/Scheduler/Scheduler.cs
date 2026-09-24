@@ -310,7 +310,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public readonly PipGraph PipGraph;
 
-        PipGraph IEngineScheduler.PipGraph => PipGraph;
+        IDynamicGraph IEngineScheduler.PipGraph => PipGraph;
 
         /// <summary>
         /// Underlying data-flow graph for the pip graph.

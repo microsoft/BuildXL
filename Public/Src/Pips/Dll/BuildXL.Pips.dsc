@@ -31,6 +31,8 @@ export const dll = BuildXLSdk.library({
         ...addIf(includeCredScan,
             importFrom("Microsoft.Security.Utilities.Internal").pkg
         ),
+        ...BuildXLSdk.systemThreadingChannelsPackages,
+        ...BuildXLSdk.bclAsyncPackages,
     ],
     runtimeReferences: includeCredScan ? [ importFrom("Crc32.NET").pkg ] : undefined,
     internalsVisibleTo: [

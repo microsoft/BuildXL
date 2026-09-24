@@ -73,6 +73,40 @@ namespace BuildXL.Engine
 
         IEngineScheduler IEngineSchedule.Scheduler => Scheduler;
 
+        private PipGraph m_finalizedPipGraph;
+
+        /// <summary>
+        /// Finalized pip graph used by closure-time engine functionality.
+        /// </summary>
+        /// <remarks>
+        /// DYNAMIC-GRAPH: The scheduler can start from an <see cref="IDynamicGraph"/>, but engine-state
+        /// persistence and other closure-time operations still require the immutable graph. The current adapter is
+        /// itself a <see cref="PipGraph"/>. A real dynamic session should publish its final graph here after completion.
+        /// </remarks>
+        internal PipGraph FinalizedPipGraph
+        {
+            get
+            {
+                // DYNAMIC-GRAPH: The immutable graph is supplied only after frontend completion.
+                Contract.Assert(m_finalizedPipGraph != null, "The dynamic graph session has not produced its finalized PipGraph.");
+                return m_finalizedPipGraph;
+            }
+        }
+
+        PipGraph IEngineSchedule.FinalizedPipGraph => FinalizedPipGraph;
+
+        /// <summary>
+        /// Supplies the immutable graph after dynamic publication completes.
+        /// </summary>
+        internal void SetFinalizedPipGraph(PipGraph pipGraph)
+        {
+            // DYNAMIC-GRAPH: Dynamic finalization requires a concrete immutable graph.
+            Contract.Requires(pipGraph != null);
+            // DYNAMIC-GRAPH: Finalization may only attach the graph once.
+            Contract.Assert(m_finalizedPipGraph == null || ReferenceEquals(m_finalizedPipGraph, pipGraph));
+            m_finalizedPipGraph = pipGraph;
+        }
+
         /// <summary>
         /// Pip table that holds all pips.
         /// </summary>
@@ -103,6 +137,7 @@ namespace BuildXL.Engine
         private readonly TempCleaner m_tempCleaner;
 
         private TimeSpan? m_schedulerStartTime;
+        private bool m_schedulerStarted;
 
         /// <summary>
         /// The default minimum amount of time the build must run before the optimization data structures are serialized.
@@ -147,7 +182,8 @@ namespace BuildXL.Engine
             MountPathExpander mountPathExpander,
             TempCleaner tempCleaner,
             ConfigFileState configFileState,
-            int maxDegreeOfParallelism)
+            int maxDegreeOfParallelism,
+            PipGraph finalizedPipGraph)
         {
             Contract.Requires(context != null);
             Contract.Requires(fileContentTable != null);
@@ -158,8 +194,12 @@ namespace BuildXL.Engine
             Contract.Requires(configFileState != null);
             Contract.Requires(tempCleaner != null);
 
-            MaxSerializedAbsolutePath = scheduler.PipGraph.MaxAbsolutePathIndex;
             Scheduler = scheduler;
+            m_finalizedPipGraph = finalizedPipGraph;
+            // DYNAMIC-GRAPH: This value is used only by distribution result serialization, which is disabled
+            // in dynamic mode. Capture the paths known at schedule creation without adding a global maximum to
+            // IDynamicGraph. A dynamic distribution design would need a versioned/growable path serialization protocol.
+            MaxSerializedAbsolutePath = context.PathTable.Count - 1;
             PipTable = pipTable;
             SchedulingQueue = schedulingQueue;
             Context = context;
@@ -198,7 +238,7 @@ namespace BuildXL.Engine
         }
 
         /// <summary>
-        /// Creates an EngineSchedule for an immutable pip graph.
+        /// Creates an EngineSchedule for a live pip graph.
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope",
              Justification = "The disposable objects ownership is handed over to the returned DynamicEngineSchedule that is responsible for disposing.")]
@@ -209,7 +249,7 @@ namespace BuildXL.Engine
             CacheInitializer cacheInitializer,
             IConfiguration configuration,
             FileContentTable fileContentTable,
-            PipGraph pipGraph,
+            IDynamicGraph pipGraph,
             JournalState journalState,
             MountPathExpander mountPathExpander,
             DirectoryMembershipFingerprinterRuleSet directoryMembershipFingerprinterRules,
@@ -239,11 +279,15 @@ namespace BuildXL.Engine
             // cache for the schedule. Note that the resultant EngineSchedule will own this cache and dispose it later.
             EngineCache scheduleCache = cacheInitializer.CreateCacheForContext();
 
-            var performanceDataFingerprint = PerformanceDataUtilities.ComputePerformanceDataFingerprint(
-                loggingContext,
-                context.PathTable,
-                graphSemistableFingerprint: pipGraph.SemistableFingerprint,
-                environmentFingerprint: configuration.Schedule.EnvironmentFingerprint);
+            // DYNAMIC-GRAPH: The engine handoff supplies the live builder before graph closure.
+            var finalizedPipGraph = pipGraph as PipGraph;
+            var performanceDataFingerprint = finalizedPipGraph != null
+                ? PerformanceDataUtilities.ComputePerformanceDataFingerprint(
+                    loggingContext,
+                    context.PathTable,
+                    graphSemistableFingerprint: finalizedPipGraph.SemistableFingerprint,
+                    environmentFingerprint: configuration.Schedule.EnvironmentFingerprint)
+                : ContentFingerprint.Zero;
 
             AsyncLazy<HistoricPerfDataTable> runtimeTable = Lazy.CreateAsync(() => TryLoadRunningTimeTable(
                 loggingContext,
@@ -356,7 +400,8 @@ namespace BuildXL.Engine
                 pipQueue,
                 tempCleaner,
                 configFileState,
-                maxDegreeOfParallelism);
+                maxDegreeOfParallelism,
+                finalizedPipGraph);
         }
 
         /// <summary>
@@ -375,7 +420,8 @@ namespace BuildXL.Engine
             PipQueue pipQueue,
             TempCleaner tempCleaner,
             ConfigFileState configFileState,
-            int maxDegreeOfParallelism)
+            int maxDegreeOfParallelism,
+            PipGraph finalizedPipGraph)
         {
             Contract.Requires(context != null);
             Contract.Requires(fileContentTable != null);
@@ -409,7 +455,8 @@ namespace BuildXL.Engine
                        mountPathExpander,
                        tempCleaner,
                        configFileState,
-                       maxDegreeOfParallelism);
+                       maxDegreeOfParallelism,
+                       finalizedPipGraph);
         }
 
         /// <summary>
@@ -807,6 +854,10 @@ namespace BuildXL.Engine
             return Task.FromResult<HistoricPerfDataTable>(null);
         }
 
+#if false
+        // DYNAMIC-GRAPH: Pip filtering is rejected during configuration validation because it requires
+        // the complete pip universe. Keep the cloned helpers visible until dynamic filtering is designed.
+
         /// <summary>
         /// Gets the pip filter for the build
         /// </summary>
@@ -825,7 +876,11 @@ namespace BuildXL.Engine
                 MountPathExpander.TryGetRootByMountName,
                 rootFilter: out rootFilter);
         }
+#endif
 
+#if false
+        // DYNAMIC-GRAPH: Scrubbing requires a fully constructed graph and is unsupported in dynamic mode.
+        // Keep the cloned implementation visible for comparison until a dynamic-safe design is available.
         internal static void ScrubExtraneousFilesAndDirectories(
             [AllowNull] MountPathExpander mountPathExpander,
             Scheduler.DynamicScheduler scheduler,
@@ -848,9 +903,13 @@ namespace BuildXL.Engine
             }
 
             var pathsToScrub = new List<string>();
-            HashSet<AbsolutePath> moduleScrubDirectories = scheduler.PipGraph.Modules
+            // DYNAMIC-GRAPH: Scrubbing is a closed-graph operation and dynamic mode skips this path.
+            var finalizedPipGraph = scheduler.PipGraph as PipGraph;
+            // DYNAMIC-GRAPH: Retain the static scrubbing implementation behind an explicit finalized-graph assertion.
+            Contract.Assert(finalizedPipGraph != null, "Scrubbing requires a finalized PipGraph.");
+            HashSet<AbsolutePath> moduleScrubDirectories = finalizedPipGraph.Modules
                 .Where(m => m.Key.IsValid)
-                .Select(moduleId => scheduler.PipGraph.PipTable.HydratePip(moduleId.Value.ToPipId(), PipQueryContext.SchedulerExecutePips) as Pips.Operations.ModulePip)
+                .Select(moduleId => finalizedPipGraph.PipTable.HydratePip(moduleId.Value.ToPipId(), PipQueryContext.SchedulerExecutePips) as Pips.Operations.ModulePip)
                 .Where(m => m?.ScrubDirectories != null)
                 .SelectMany(m => m.ScrubDirectories)
                 .ToHashSet();
@@ -871,9 +930,9 @@ namespace BuildXL.Engine
             if (!configuration.Engine.AssumeCleanOutputs ?? true)
             {
                 // We don't scrub composite shared directories since scrubbing the non-composite ones is enough to clean up all outputs
-                sharedOpaqueDirectoriesToScrub.AddRange(scheduler.PipGraph.AllSealDirectories.Where(directoryArtifact =>
+                sharedOpaqueDirectoriesToScrub.AddRange(finalizedPipGraph.AllSealDirectories.Where(directoryArtifact =>
                     directoryArtifact.IsSharedOpaque &&
-                    !scheduler.PipGraph.PipTable.IsSealDirectoryComposite(scheduler.PipGraph.GetSealedDirectoryNode(directoryArtifact).ToPipId())));
+                    !finalizedPipGraph.PipTable.IsSealDirectoryComposite(finalizedPipGraph.GetSealedDirectoryNode(directoryArtifact).ToPipId())));
             }
 
             HashSet<string> nonDeletableDirectories = null;
@@ -893,9 +952,9 @@ namespace BuildXL.Engine
                 //
                 // Another alternative is to make incremental scheduling use FileSystemView for existence checking
                 // during journal scanning. This alternative requires more plumbing; see Task 1241786.
-                nonDeletableDirectories = scheduler.PipGraph.AllDirectoriesContainingOutputs()
-                    .Concat(scheduler.PipGraph.AllParentsOfTemporaryPaths())
-                    .Concat(scheduler.PipGraph.AllSealDirectories.Select(sd => sd.Path))
+                nonDeletableDirectories = finalizedPipGraph.AllDirectoriesContainingOutputs()
+                    .Concat(finalizedPipGraph.AllParentsOfTemporaryPaths())
+                    .Concat(finalizedPipGraph.AllSealDirectories.Select(sd => sd.Path))
                     .Select(d => d.ToString(scheduler.Context.PathTable))
                     .ToHashSet(OperatingSystemHelper.PathComparer);
             }
@@ -979,7 +1038,7 @@ namespace BuildXL.Engine
                 // Add the set of exclusion to the collection of non-scrubbable paths: it is safe to not scrub under those since there are no
                 // shared opaque outputs produced under exclusions by construction
                 nonScrubbablePaths = nonScrubbablePaths.Union(
-                    scheduler.PipGraph.OutputDirectoryExclusions.UnsafeGetList().Select(exclusion => exclusion.ToString(scheduler.Context.PathTable)));
+                    finalizedPipGraph.OutputDirectoryExclusions.UnsafeGetList().Select(exclusion => exclusion.ToString(scheduler.Context.PathTable)));
 
                 // The condition to delete a file under a shared opaque is more strict than for regular scrubbing: only files that have a specific
                 // timestamp (which marks files as being shared opaque outputs) are deleted.
@@ -1003,7 +1062,11 @@ namespace BuildXL.Engine
             // EnumerateFileSystemEntries is known to be slow, but is used anyways because of the expected use-case.
             return configuration.Schedule.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing && Directory.Exists(path) && !Directory.EnumerateFileSystemEntries(path).Any();
         }
+#endif
 
+#if false
+        // DYNAMIC-GRAPH: Scrubbing is rejected during configuration validation, so its path-exclusion
+        // calculation is unused along with the scrubbing implementation above.
         internal static IReadOnlyList<string> GetNonScrubbablePaths(
             PathTable pathTable,
             IConfiguration configuration,
@@ -1065,7 +1128,10 @@ namespace BuildXL.Engine
 
             return nonScrubbablePaths;
         }
+#endif
 
+#if false
+        // DYNAMIC-GRAPH: Scrubbing is unsupported; callers skip it unconditionally.
         private bool ScrubExtraneousFilesAndDirectories(
             LoggingContext loggingContext,
             IConfiguration configuration,
@@ -1084,6 +1150,7 @@ namespace BuildXL.Engine
                 skipScrubbing);
             return true;
         }
+#endif
 
         /// <summary>
         /// Prepares scheduler for building.
@@ -1099,6 +1166,10 @@ namespace BuildXL.Engine
             bool skipScrubbingOnCleanMachine = false)
         {
             Contract.Requires(!HasFailed, "Build has already failed. Engine should have bailed out");
+            Contract.Requires(loggingContext != null);
+            Contract.Requires(commandLineConfiguration != null);
+            Contract.Requires(configuration != null);
+            Contract.Requires(enginePerformanceInfo != null);
 
             if (!configuration.Engine.Phase.HasFlag(EnginePhases.Schedule))
             {
@@ -1110,6 +1181,8 @@ namespace BuildXL.Engine
                 return false;
             }
 
+#if false
+            // DYNAMIC-GRAPH: Filtering requires the complete pip universe and is unsupported.
             // The filter may or may not have already been computed depending on whether there was a graph hit or not.
             if (filter == null && !TryGetPipFilter(loggingContext, Context, commandLineConfiguration, configuration, out filter))
             {
@@ -1125,24 +1198,94 @@ namespace BuildXL.Engine
             var scrubbingStopwatch = System.Diagnostics.Stopwatch.StartNew();
 
             // DYNAMIC-GRAPH: Scrubbing is not supported under dynamic graph mode.
-            // bool result = ScrubExtraneousFilesAndDirectories(loggingContext, configuration, nonScrubbablePaths, filter, skipScrubbingOnCleanMachine);
-            var skipScrubbing = skipScrubbingOnCleanMachine;
-            skipScrubbing |= commandLineConfiguration.Engine.UnsafeEnableDynamicGraph;
-
-            bool result = ScrubExtraneousFilesAndDirectories(loggingContext, configuration, nonScrubbablePaths, filter, skipScrubbing: skipScrubbing);
+            bool result = true;
             enginePerformanceInfo.ScrubbingDurationMs = scrubbingStopwatch.ElapsedMilliseconds;
 
+            // DYNAMIC-GRAPH: Distribution is unsupported.
             if (configuration.Distribution.BuildRole == DistributedBuildRoles.Worker)
             {
                 return Scheduler.InitForWorker(loggingContext);
             }
 
+            // DYNAMIC-GRAPH: The scheduler is initialized and started during graph construction.
             var initStopwatch = System.Diagnostics.Stopwatch.StartNew();
             result &= Scheduler.InitForOrchestrator(loggingContext, filter, schedulerState);
             enginePerformanceInfo.SchedulerInitDurationMs = initStopwatch.ElapsedMilliseconds;
 
             return result;
+#endif
+
+            // ConfigureDynamicGraphMode rejects these features before graph construction. Keep the assertions here
+            // because this implementation intentionally omits their normal preparation paths.
+            Contract.Assert(configuration.Engine.UnsafeEnableDynamicGraph);
+            Contract.Assert(configuration.Distribution.BuildRole == DistributedBuildRoles.None);
+            Contract.Assert(!configuration.Schedule.IncrementalScheduling);
+            Contract.Assert(string.IsNullOrEmpty(configuration.Engine.DefaultFilter));
+            Contract.Assert(string.IsNullOrEmpty(commandLineConfiguration.Filter));
+            Contract.Assert(commandLineConfiguration.Startup.ImplicitFilters.Count == 0);
+            Contract.Assert(!configuration.Engine.Scrub);
+            Contract.Assert(configuration.Engine.ScrubDirectories.Count == 0);
+            Contract.Assert(!configuration.Cache.CacheGraph);
+            Contract.Assert(!configuration.Cache.CachedGraphLastBuildLoad);
+            Contract.Assert(string.IsNullOrEmpty(configuration.Cache.CachedGraphIdToLoad));
+            Contract.Assert(!configuration.Cache.CachedGraphPathToLoad.IsValid);
+            Contract.Assert(schedulerState == null);
+
+            if (configuration.Engine.Phase.HasFlag(EnginePhases.Execute))
+            {
+                // Execution must already be consuming admissions by the time graph construction completes.
+                Contract.Assert(Scheduler.IsInitialized);
+                Contract.Assert(m_schedulerStarted);
+            }
+
+            return true;
         }
+
+        /// <summary>
+        /// Initializes and starts scheduler execution while the dynamic graph might still be populated.
+        /// </summary>
+        internal bool StartScheduler(
+            LoggingContext loggingContext,
+            EnginePerformanceInfo enginePerformanceInfo)
+        {
+            Contract.Requires(loggingContext != null);
+            Contract.Requires(enginePerformanceInfo != null);
+
+            if (m_schedulerStarted)
+            {
+                return true;
+            }
+
+            // DYNAMIC-GRAPH: Early initialization must occur exactly once before graph construction completes.
+            Contract.Assert(!Scheduler.IsInitialized);
+
+            if (IsTerminating)
+            {
+                return false;
+            }
+
+            // DYNAMIC-GRAPH: Filtering, scrubbing, and previous scheduler state all require a closed graph
+            // and are disabled for this mode. Initialize only the runtime state needed to consume admissions.
+            // Sideband examination is also unsupported, but execution still requires an explicit non-lazy state.
+            Scheduler.SetSidebandState(SidebandState.CreateForEagerDeletion());
+            var initStopwatch = System.Diagnostics.Stopwatch.StartNew();
+            bool result = Scheduler.InitForOrchestrator(loggingContext);
+            enginePerformanceInfo.SchedulerInitDurationMs = initStopwatch.ElapsedMilliseconds;
+            if (!result)
+            {
+                return false;
+            }
+
+            LogDiskFreeSpace(loggingContext, executionStart: true);
+            m_schedulerStartTime = TimestampUtilities.Timestamp;
+            Scheduler.Start(loggingContext);
+            m_schedulerStarted = true;
+            return true;
+        }
+
+#if false
+        // DYNAMIC-GRAPH: Pip filtering and partial evaluation are unsupported because graph construction
+        // and execution overlap. Keep the original parsing helpers for future design work.
 
         /// <summary>
         /// Gets the data used to do partial evaluation. This must be included in the pip fingerprint
@@ -1326,6 +1469,7 @@ namespace BuildXL.Engine
 
             return true;
         }
+#endif
 
         internal static PreserveOutputsInfo? PreparePreviousOutputsSalt(LoggingContext loggingContext, PathTable pathTable, IConfiguration config)
         {
@@ -1473,7 +1617,8 @@ namespace BuildXL.Engine
                         var performanceDataFingerprint = PerformanceDataUtilities.ComputePerformanceDataFingerprint(
                             loggingContext,
                             context.PathTable,
-                            graphSemistableFingerprint: Scheduler.PipGraph.SemistableFingerprint,
+                            // DYNAMIC-GRAPH: Remote performance-data persistence uses the closure-time graph.
+                            graphSemistableFingerprint: FinalizedPipGraph.SemistableFingerprint,
                             environmentFingerprint: configuration.Schedule.EnvironmentFingerprint);
                         storeResult = await m_cache.TryStoreRunningTimeTableAsync(pm.LoggingContext, filePath, Context.PathTable, performanceDataFingerprint);
                     }
@@ -1535,10 +1680,6 @@ namespace BuildXL.Engine
             LoggingContext loggingContext,
             WorkerService workerService)
         {
-            LogDiskFreeSpace(loggingContext, executionStart: true);
-
-            m_schedulerStartTime = TimestampUtilities.Timestamp;
-
             // DYNAMIC-GRAPH: Worker service integration is disabled because distribution is unsupported.
             if (workerService != null)
             {
@@ -1547,7 +1688,8 @@ namespace BuildXL.Engine
             //     workerService.Start(this, serializer);
             }
 
-            Scheduler.Start(loggingContext);
+            // DYNAMIC-GRAPH: Execution starts during graph construction so admitted pips can run immediately.
+            Contract.Assert(m_schedulerStarted);
 
             bool success = true;
 
@@ -1646,6 +1788,12 @@ namespace BuildXL.Engine
         }
 
 #region Serialization
+
+#if false
+        // DYNAMIC-GRAPH: Loading a serialized schedule is unsupported. Dynamic mode requires a live PipGraph.Builder
+        // that publishes admissions while graph construction is in progress, whereas this path loads an already
+        // finalized PipGraph. Engine graph reuse continues to use EngineSchedule.LoadAsync and dynamic mode rejects
+        // explicit graph loading during configuration validation.
 
         /// <summary>
         /// Attempts to load an EngineSchedule from disk.
@@ -1857,7 +2005,8 @@ namespace BuildXL.Engine
                     pipQueue,
                     tempCleaner,
                     await configFileStateTask,
-                    configuration.FrontEnd.MaxFrontEndConcurrency());
+                    configuration.FrontEnd.MaxFrontEndConcurrency(),
+                    await pipGraphTask);
 
                 if (engineSchedule == null)
                 {
@@ -1871,6 +2020,11 @@ namespace BuildXL.Engine
 
             return null;
         }
+#endif
+
+#if false
+        // DYNAMIC-GRAPH: Loading a serialized PipGraph bypasses the live builder and admission stream.
+        // Serialized graph loading is rejected during configuration validation.
 
         /// <summary>
         /// Attempts to load the PipGraph from disk.
@@ -1947,12 +2101,13 @@ namespace BuildXL.Engine
 
             return Tuple.Create(loadingGraph, graphIdAndSemistableFingerprintOfGraphToReload.Item2);
         }
+#endif
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
         internal EngineState GetOrCreateNewEngineState(EngineState previousEngineState)
         {
             // DYNAMIC-GRAPH: Engine state creation and reuse are unsupported.
-            throw new InvalidOperationException("[DYNAMIC GRAPH] EngineState reloading is not supported");
+            throw new InvalidOperationException("[DYNAMIC-GRAPH] EngineState reloading is not supported");
 
             // EngineState engineState;
 
@@ -1999,6 +2154,11 @@ namespace BuildXL.Engine
             return true;
         }
 
+#if false
+        // DYNAMIC-GRAPH: Serialized schedule persistence is unsupported. Dynamic mode disables graph caching,
+        // the engine cache-save path accepts only EngineSchedule, and DynamicEngineSchedule.LoadAsync is disabled.
+        // Keep the cloned implementation visible until dynamic graph persistence and reuse are designed together.
+
         /// <summary>
         /// Synchronously saves the schedule to disk for reuse in a future run
         /// </summary>
@@ -2009,7 +2169,8 @@ namespace BuildXL.Engine
                 serializer,
                 context,
                 PipTable,
-                Scheduler.PipGraph,
+                // DYNAMIC-GRAPH: Schedule serialization is a closure-time operation.
+                FinalizedPipGraph,
                 MountPathExpander,
                 context.NextHistoricTableSizes);
 
@@ -2053,6 +2214,11 @@ namespace BuildXL.Engine
 
             return results.All(a => a.Success);
         }
+#endif
+
+#if false
+        // DYNAMIC-GRAPH: Graph persistence, cache retrieval, and serialized graph file duplication are
+        // unsupported together with SaveToDiskAsync and LoadAsync. The engine cache paths use EngineSchedule.
 
         /// <summary>
         /// Saves the schedule to the cache
@@ -2368,6 +2534,7 @@ namespace BuildXL.Engine
 
             return true;
         }
+#endif
 
         #endregion
     }

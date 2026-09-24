@@ -44,6 +44,7 @@ namespace BuildXL.Engine
             EvaluationFilter evaluationFilter,
             [AllowNull] GraphReuseResult reuseResult,
             [AllowNull] PipSpecificPropertiesConfig pipSpecificPropertiesConfig,
+            [AllowNull] Func<IPipGraphBuilder, bool> onPipGraphBuilderCreated,
             out PipGraph pipGraph)
         {
             Contract.Requires(frontEndEngineAbstration != null);
@@ -67,6 +68,10 @@ namespace BuildXL.Engine
             if (Configuration.Engine.Phase.HasFlag(EnginePhases.Schedule))
             {
                 pipGraphBuilder = CreatePipGraphBuilder(loggingContext, mountsTable, reuseResult, pipSpecificPropertiesConfig: pipSpecificPropertiesConfig);
+                if (onPipGraphBuilderCreated != null && !onPipGraphBuilderCreated(pipGraphBuilder))
+                {
+                    return false;
+                }
             }
 
             // Have to do some horrible magic here to get to a proper Task<T> with the BuildXL cache since

@@ -6,10 +6,14 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
+using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.Operations;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
@@ -21,7 +25,7 @@ namespace BuildXL.Pips.Graph
     /// Base class for PipGraph and PipGraph.Builder containing common state which can safely be accessed during graph build (or providing
     /// override functionality to allow locking) and implementing <see cref="IPipScheduleTraversal"/>
     /// </summary>
-    public abstract class PipGraphBase : IPipScheduleTraversal, IPipGraphFileSystemView
+    public abstract class PipGraphBase : IPipScheduleTraversal, IPipGraphFileSystemView, IQueryablePipDependencyGraph
     {
         #region Context State
 
@@ -169,6 +173,11 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         protected readonly PipGraphStaticFingerprints PipStaticFingerprints;
 
+        /// <summary>
+        /// Relation from service pip IDs to their client pip IDs.
+        /// </summary>
+        protected readonly ConcurrentBigMap<PipId, ConcurrentBigSet<PipId>> ServicePipClients;
+
         #endregion Serialized State
 
         #region Constructors
@@ -205,6 +214,7 @@ namespace BuildXL.Pips.Graph
             LatestWriteCountsByPath = new ConcurrentBigMap<AbsolutePath, int>();
             ApiServerMoniker = StringId.Invalid;
             PipStaticFingerprints = new PipGraphStaticFingerprints();
+            ServicePipClients = new ConcurrentBigMap<PipId, ConcurrentBigSet<PipId>>();
         }
 
         /// <summary>
@@ -229,6 +239,7 @@ namespace BuildXL.Pips.Graph
                 ConcurrentBigSet<PipId> rewritingPips,
                 ConcurrentBigSet<PipId> rewrittenPips,
                 ConcurrentBigMap<AbsolutePath, int> latestWriteCountsByPath,
+                ConcurrentBigMap<PipId, ConcurrentBigSet<PipId>> servicePipClients,
                 StringId apiServerMoniker,
                 PipGraphStaticFingerprints pipStaticFingerprints)
         {
@@ -249,6 +260,7 @@ namespace BuildXL.Pips.Graph
             Contract.Requires(rewritingPips != null);
             Contract.Requires(rewrittenPips != null);
             Contract.Requires(latestWriteCountsByPath != null);
+            Contract.Requires(servicePipClients != null);
             Contract.Requires(pipStaticFingerprints != null);
 
             PipTable = pipTable;
@@ -271,6 +283,7 @@ namespace BuildXL.Pips.Graph
             RewritingPips = rewritingPips;
             RewrittenPips = rewrittenPips;
             LatestWriteCountsByPath = latestWriteCountsByPath;
+            ServicePipClients = servicePipClients;
             ApiServerMoniker = apiServerMoniker;
             PipStaticFingerprints = pipStaticFingerprints;
         }
@@ -350,6 +363,513 @@ namespace BuildXL.Pips.Graph
                 yield return pip;
             }
         }
+
+        /// <inheritdoc />
+        Pip IQueryablePipDependencyGraph.HydratePip(PipId pipId, PipQueryContext queryContext) =>
+            PipTable.HydratePip(pipId, queryContext);
+
+        /// <inheritdoc />
+        bool IQueryablePipDependencyGraph.IsReachableFrom(PipId from, PipId to) =>
+            IsReachableFrom(from.ToNodeId(), to.ToNodeId());
+
+        /// <summary>
+        /// Performs a reachability check between two nodes.
+        /// </summary>
+        public bool IsReachableFrom(NodeId from, NodeId to)
+        {
+            if (from == PipId.DummyHashSourceFilePipId.ToNodeId() || to == PipId.DummyHashSourceFilePipId.ToNodeId())
+            {
+                return false;
+            }
+
+            return DataflowGraph.IsReachableFrom(from, to, skipOutOfOrderNodes: true);
+        }
+
+        /// <inheritdoc />
+        public RewritePolicy GetRewritePolicy(PipId pipId) => PipTable.GetRewritePolicy(pipId);
+
+        /// <inheritdoc />
+        public string GetFormattedSemiStableHash(PipId pipId) => PipTable.GetFormattedSemiStableHash(pipId);
+
+        /// <inheritdoc />
+        public AbsolutePath GetProcessExecutablePath(PipId pipId) => PipTable.GetProcessExecutablePath(pipId);
+
+        /// <inheritdoc />
+        public DirectoryArtifact TryGetSealSourceAncestor(AbsolutePath path)
+        {
+            foreach (var current in Context.PathTable.EnumerateHierarchyBottomUp(path.Value, HierarchicalNameTable.NameFlags.Sealed))
+            {
+                var currentDirectory = new AbsolutePath(current);
+                if (SourceSealedDirectoryRoots.TryGetValue(currentDirectory, out var directoryArtifact))
+                {
+                    return directoryArtifact;
+                }
+            }
+
+            return DirectoryArtifact.Invalid;
+        }
+
+        private NodeId TryFindContainingExclusiveOpaqueOutputDirectory(AbsolutePath filePath)
+        {
+            for (var path = filePath.GetParent(Context.PathTable); path.IsValid; path = path.GetParent(Context.PathTable))
+            {
+                if (OutputDirectoryProducers.TryGetValue(DirectoryArtifact.CreateWithZeroPartialSealId(path), out var producer))
+                {
+                    return producer;
+                }
+            }
+
+            return NodeId.Invalid;
+        }
+
+        /// <inheritdoc />
+        public PipId TryFindContainingExclusiveOpaqueOutputDirectoryProducer(AbsolutePath filePath)
+        {
+            var producer = TryFindContainingExclusiveOpaqueOutputDirectory(filePath);
+            return producer.IsValid ? producer.ToPipId() : PipId.Invalid;
+        }
+
+        /// <inheritdoc />
+        public bool TryGetTempDirectoryAncestor(AbsolutePath path, out Pip pip, out AbsolutePath tempPath)
+        {
+            foreach (var current in Context.PathTable.EnumerateHierarchyBottomUp(path.Value))
+            {
+                var currentDirectory = new AbsolutePath(current);
+                if (TemporaryPaths.TryGetValue(currentDirectory, out var pipId))
+                {
+                    pip = PipTable.HydratePip(pipId, PipQueryContext.PipGraphRetrieveAllPips);
+                    tempPath = currentDirectory;
+                    return true;
+                }
+            }
+
+            pip = null;
+            tempPath = AbsolutePath.Invalid;
+            return false;
+        }
+
+        /// <inheritdoc />
+        public Pip GetSealedDirectoryPip(DirectoryArtifact directoryArtifact, PipQueryContext queryContext) =>
+            PipTable.HydratePip(GetSealedDirectoryNode(directoryArtifact).ToPipId(), queryContext);
+
+        /// <summary>
+        /// Attempts to get the sealed-directory node from representation-specific storage.
+        /// </summary>
+        protected abstract bool TryGetSealedDirectoryNode(DirectoryArtifact directoryArtifact, out NodeId nodeId);
+
+        /// <summary>
+        /// Attempts to get a directory producer from representation-specific storage.
+        /// </summary>
+        protected abstract bool TryGetDirectoryProducer(DirectoryArtifact directoryArtifact, out NodeId nodeId);
+
+        /// <summary>
+        /// Attempts to find a producer node for a path relative to an optional dependency ordering.
+        /// </summary>
+        public PipId? TryFindProducerPipId(
+            AbsolutePath path,
+            VersionDisposition versionDisposition,
+            DependencyOrderingFilter? maybeOrderingFilter,
+            bool includeFilesUnderExclusiveOpaques = false)
+        {
+            Contract.Assume(path.IsValid);
+
+            NodeId opaqueDirectoryProducer = includeFilesUnderExclusiveOpaques ? TryFindContainingExclusiveOpaqueOutputDirectory(path) : NodeId.Invalid;
+
+            PipId matchedPipId;
+            if (!maybeOrderingFilter.HasValue)
+            {
+                if (opaqueDirectoryProducer.IsValid)
+                {
+                    matchedPipId = opaqueDirectoryProducer.ToPipId();
+                }
+                else if (versionDisposition == VersionDisposition.Latest)
+                {
+                    FileArtifact artifact = TryGetLatestFileArtifactForPath(path);
+                    if (!artifact.IsValid)
+                    {
+                        return null;
+                    }
+
+                    matchedPipId = PipProducers[artifact].ToPipId();
+                }
+                else
+                {
+                    Contract.Assert(versionDisposition == VersionDisposition.Earliest);
+                    NodeId producerNode = TryGetOriginalProducerForPath(path);
+                    if (!producerNode.IsValid)
+                    {
+                        return null;
+                    }
+
+                    matchedPipId = producerNode.ToPipId();
+                }
+            }
+            else
+            {
+                DependencyOrderingFilter orderingFilter = maybeOrderingFilter.Value;
+                Contract.Assert(orderingFilter.Reference != null);
+
+                NodeId originalProducerNode = opaqueDirectoryProducer;
+                switch (orderingFilter.Filter)
+                {
+                    case DependencyOrderingFilterType.PossiblyPrecedingInWallTime:
+                        {
+                            if (!originalProducerNode.IsValid)
+                            {
+                                originalProducerNode = TryGetOriginalProducerForPath(path);
+                            }
+
+                            if (!originalProducerNode.IsValid)
+                            {
+                                return null;
+                            }
+
+                            var referenceNode = orderingFilter.Reference.PipId.ToNodeId();
+
+                            if (IsReachableFrom(referenceNode, originalProducerNode))
+                            {
+                                return null;
+                            }
+
+                            matchedPipId = originalProducerNode.ToPipId();
+                        }
+
+                        break;
+                    case DependencyOrderingFilterType.Concurrent:
+                        {
+                            FileArtifact latestArtifact = TryGetLatestFileArtifactForPath(path);
+                            var referenceNode = orderingFilter.Reference.PipId.ToNodeId();
+
+                            if (!latestArtifact.IsValid)
+                            {
+                                if (opaqueDirectoryProducer.IsValid &&
+                                    !IsReachableFrom(referenceNode, opaqueDirectoryProducer) &&
+                                    !IsReachableFrom(opaqueDirectoryProducer, referenceNode))
+                                {
+                                    matchedPipId = opaqueDirectoryProducer.ToPipId();
+                                }
+                                else
+                                {
+                                    return null;
+                                }
+                            }
+                            else
+                            {
+                                matchedPipId = PipId.Invalid;
+                                for (int rewriteCount = latestArtifact.RewriteCount; rewriteCount >= 0; rewriteCount--)
+                                {
+                                    var thisArtifact = new FileArtifact(path, rewriteCount);
+                                    NodeId producerNodeId;
+                                    if (!PipProducers.TryGetValue(thisArtifact, out producerNodeId))
+                                    {
+                                        Contract.Assume(
+                                            rewriteCount == 0,
+                                            "Rewrite counts are dense down to zero, unless source rewrites are disallowed (then zero might be missing).");
+                                        break;
+                                    }
+
+                                    if (!IsReachableFrom(referenceNode, producerNodeId) &&
+                                        !IsReachableFrom(producerNodeId, referenceNode))
+                                    {
+                                        matchedPipId = producerNodeId.ToPipId();
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        break;
+                    case DependencyOrderingFilterType.OrderedBefore:
+                        {
+                            if (!originalProducerNode.IsValid)
+                            {
+                                originalProducerNode = TryGetOriginalProducerForPath(path);
+                            }
+
+                            if (!originalProducerNode.IsValid)
+                            {
+                                return null;
+                            }
+
+                            var referenceNode = orderingFilter.Reference.PipId.ToNodeId();
+
+                            if (!IsReachableFrom(originalProducerNode, referenceNode))
+                            {
+                                return null;
+                            }
+
+                            matchedPipId = originalProducerNode.ToPipId();
+                        }
+
+                        break;
+                    default:
+                        throw Contract.AssertFailure("Unhandled DependencyOrderingFilterType (not yet supported by Scheduler).");
+                }
+            }
+
+            if (!matchedPipId.IsValid)
+            {
+                return null;
+            }
+
+            return matchedPipId;
+        }
+
+        /// <inheritdoc />
+        public Pip TryFindProducer(
+            AbsolutePath path,
+            VersionDisposition versionDisposition,
+            DependencyOrderingFilter? orderingFilter = null,
+            bool includeFilesUnderExclusiveOpaques = false)
+        {
+            var pipId = TryFindProducerPipId(path, versionDisposition, orderingFilter, includeFilesUnderExclusiveOpaques);
+            if (!pipId.HasValue)
+            {
+                return null;
+            }
+
+            return pipId.Value == PipId.DummyHashSourceFilePipId
+                ? new HashSourceFile(FileArtifact.CreateSourceFile(path))
+                : PipTable.HydratePip(pipId.Value, PipQueryContext.PipGraphTryFindProducer);
+        }
+
+        /// <summary>
+        /// Attempts to get the producer of an artifact.
+        /// </summary>
+        public PipId TryGetProducer(in FileOrDirectoryArtifact artifact)
+        {
+            if (artifact.IsFile)
+            {
+                return PipProducers.TryGetValue(artifact.FileArtifact, out var fileProducer)
+                    ? fileProducer.ToPipId()
+                    : PipId.Invalid;
+            }
+
+            return TryGetDirectoryProducer(artifact.DirectoryArtifact, out var directoryProducer)
+                ? directoryProducer.ToPipId()
+                : PipId.Invalid;
+        }
+
+        /// <summary>
+        /// Gets the producer of an artifact.
+        /// </summary>
+        public PipId GetProducer(in FileOrDirectoryArtifact artifact)
+        {
+            var producer = TryGetProducer(artifact);
+            Contract.Assert(producer.IsValid);
+            return producer;
+        }
+
+        /// <summary>
+        /// Gets the clients of a service pip.
+        /// </summary>
+        public IEnumerable<Pip> GetServicePipClients(PipId servicePipId)
+        {
+            if (!ServicePipClients.TryGetValue(servicePipId, out var clients))
+            {
+                return CollectionUtilities.EmptyArray<Pip>();
+            }
+
+            var result = new Pip[clients.Count];
+            for (int i = 0; i < clients.Count; i++)
+            {
+                result[i] = PipTable.HydratePip(clients[i], PipQueryContext.PipGraphAddServicePipDependency);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Gets all service pip IDs.
+        /// </summary>
+        public IEnumerable<PipId> GetServicePipIds() => ServicePipClients.Keys;
+
+        /// <summary>
+        /// Gets pips producing a path.
+        /// </summary>
+        public IEnumerable<Pip> GetProducingPips(AbsolutePath filePath) =>
+            HydratePips(
+                PipProducers.Where(kvp => kvp.Key.Path == filePath).Select(kvp => kvp.Value),
+                PipQueryContext.PipGraphGetProducingPips);
+
+        /// <summary>
+        /// Gets pips consuming a directory artifact.
+        /// </summary>
+        public IEnumerable<Pip> GetConsumingPips(DirectoryArtifact directory)
+        {
+            var producer = GetProducer(directory);
+            return HydratePips(
+                    DataflowGraph.GetOutgoingEdges(producer.ToNodeId()).Select(edge => edge.OtherNode),
+                    PipQueryContext.PipGraphGetConsumingPips)
+                .Where(
+                    pip => (pip is Process process && process.DirectoryDependencies.Contains(directory)) ||
+                           (pip is SealDirectory sealDirectory && sealDirectory.Directory == directory));
+        }
+
+        /// <summary>
+        /// Gets pips consuming a path.
+        /// </summary>
+        public IEnumerable<Pip> GetConsumingPips(AbsolutePath filePath)
+        {
+            var consumers = new HashSet<NodeId>();
+            var artifact = FileArtifact.CreateSourceFile(filePath);
+
+            while (true)
+            {
+                if (PipProducers.TryGetValue(artifact, out var producer))
+                {
+                    foreach (var edge in DataflowGraph.GetOutgoingEdges(producer))
+                    {
+                        consumers.Add(edge.OtherNode);
+                    }
+                }
+                else if (!artifact.IsSourceFile)
+                {
+                    break;
+                }
+
+                artifact = artifact.CreateNextWrittenVersion();
+            }
+
+            return HydratePips(consumers, PipQueryContext.PipGraphGetConsumingPips)
+                .Where(pip => IsInput(filePath, pip));
+        }
+
+        private static bool IsInput(AbsolutePath path, FileArtifact artifact, bool isInput) =>
+            path == artifact.Path && (isInput || artifact.RewriteCount > 1);
+
+        private static bool IsInput(AbsolutePath path, IEnumerable<FileArtifact> artifacts, bool isInput) =>
+            artifacts.Any(artifact => IsInput(path, artifact, isInput));
+
+        private static bool IsInput(AbsolutePath path, Pip pip)
+        {
+            switch (pip.PipType)
+            {
+                case PipType.CopyFile:
+                    var copyFile = (CopyFile)pip;
+                    return IsInput(path, copyFile.Source, isInput: true) ||
+                           IsInput(path, copyFile.Destination, isInput: false);
+                case PipType.WriteFile:
+                    return IsInput(path, ((WriteFile)pip).Destination, isInput: false);
+                case PipType.Process:
+                    var process = (Process)pip;
+                    return IsInput(path, process.Dependencies, isInput: true) ||
+                           IsInput(path, process.GetOutputs(), isInput: false);
+                case PipType.SealDirectory:
+                    return IsInput(path, ((SealDirectory)pip).Contents, isInput: true);
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Returns whether a numeric pip identifier is present.
+        /// </summary>
+        public bool CanGetPipFromUInt32(uint value) => DataflowGraph.ContainsNode(new NodeId(value));
+
+        /// <summary>
+        /// Gets a pip from its numeric identifier.
+        /// </summary>
+        public Pip GetPipFromUInt32(uint value)
+        {
+            Contract.Requires(CanGetPipFromUInt32(value));
+            return PipTable.HydratePip(new PipId(value), PipQueryContext.PipGraphGetPipFromUInt32);
+        }
+
+        /// <summary>
+        /// Gets a pip from its identifier.
+        /// </summary>
+        public Pip GetPipFromPipId(PipId pipId) =>
+            PipTable.HydratePip(pipId, PipQueryContext.PipGraphGetPipFromUInt32);
+
+        /// <summary>
+        /// Attempts to get the pip representing a module.
+        /// </summary>
+        public bool TryGetModulePip(ModuleId moduleId, out PipId pipId)
+        {
+            if (Modules.TryGetValue(moduleId, out var nodeId))
+            {
+                pipId = nodeId.ToPipId();
+                return true;
+            }
+
+            pipId = PipId.Invalid;
+            return false;
+        }
+
+        /// <summary>
+        /// Attempts to get the fingerprint of a pip.
+        /// </summary>
+        public bool TryGetPipFingerprint(in PipId pipId, out ContentFingerprint fingerprint) =>
+            PipStaticFingerprints.TryGetFingerprint(pipId, out fingerprint);
+
+        /// <summary>
+        /// Attempts to get a pip from its fingerprint.
+        /// </summary>
+        public bool TryGetPipFromFingerprint(in ContentFingerprint fingerprint, out PipId pipId) =>
+            PipStaticFingerprints.TryGetPip(fingerprint, out pipId);
+
+        /// <summary>
+        /// Returns whether an artifact must remain writable.
+        /// </summary>
+        public bool MustArtifactRemainWritable(in FileOrDirectoryArtifact artifact)
+        {
+            Contract.Requires(artifact.IsValid);
+            return PipTable.MustOutputsRemainWritable(GetProducer(artifact));
+        }
+
+        /// <summary>
+        /// Returns whether an artifact is a preserved output.
+        /// </summary>
+        public bool IsPreservedOutputArtifact(in FileOrDirectoryArtifact artifact, int preserveOutputTrustLevel)
+        {
+            Contract.Requires(artifact.IsValid);
+
+            if (artifact.IsFile && artifact.FileArtifact.IsSourceFile)
+            {
+                return false;
+            }
+
+            var pipId = GetProducer(artifact);
+            if (!PipTable.IsPreservedOutputsPip(pipId) ||
+                PipTable.GetProcessPreserveOutputsTrustLevel(pipId) < preserveOutputTrustLevel)
+            {
+                return false;
+            }
+
+            if (!PipTable.HasPreserveOutputAllowlist(pipId))
+            {
+                return true;
+            }
+
+            var process = PipTable.HydratePip(pipId, PipQueryContext.PreserveOutput) as Process;
+            return PipArtifacts.IsPreservedOutputByPip(process, artifact.Path, Context.PathTable, preserveOutputTrustLevel);
+        }
+
+        /// <summary>
+        /// Returns whether a path is part of the graph.
+        /// </summary>
+        public bool IsPathInBuild(AbsolutePath path)
+        {
+            Contract.Requires(path.IsValid);
+            return TryGetOriginalProducerForPath(path).IsValid;
+        }
+
+        /// <summary>
+        /// Returns whether a path is part of the graph or protected from scrubbing.
+        /// </summary>
+        public bool IsPathInBuildOrShouldNotBeScrubbed(AbsolutePath path) =>
+            IsPathInBuild(path) || SourceSealedDirectoryRoots.ContainsKey(path);
+
+        /// <summary>
+        /// Returns whether a pip rewrites an input.
+        /// </summary>
+        public bool IsRewritingPip(PipId pipId) => RewritingPips.Contains(pipId);
+
+        /// <summary>
+        /// Returns whether a pip has an output rewritten.
+        /// </summary>
+        public bool IsRewrittenPip(PipId pipId) => RewrittenPips.Contains(pipId);
 
         /// <summary>
         /// Gets the unique dependency node IDs (incoming edges) for a given node.

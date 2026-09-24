@@ -72,6 +72,11 @@ namespace BuildXL.Engine
         IEngineScheduler IEngineSchedule.Scheduler => Scheduler;
 
         /// <summary>
+        /// The graph is always finalized for this schedule.
+        /// </summary>
+        PipGraph IEngineSchedule.FinalizedPipGraph => Scheduler.PipGraph;
+
+        /// <summary>
         /// Pip table that holds all pips.
         /// </summary>
         public IPipTable PipTable { get; private set; }

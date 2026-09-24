@@ -2,6 +2,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260918.2 (Release [32090188](https://dev.azure.com/mseng/Domino/_build/results?buildId=32090188&view=results))
+- [macOS] Add `osx-arm64` support to the NuGet resolver and DScript qualifiers, and publish the internal macOS bootstrap package.
+- [Cache] Prevent BlobL3 timeout retries from retaining destination paths.
+- [Performance] Optimize sandbox report path processing and reported file access list allocation.
+- [Performance] Release oversized distribution buffers after capacity spikes to reduce CPU usage.
+- [Performance] Optimizations for builds with large shared opaque directories.
+- Various bug fixes and improvements.
+
 # 0.1.0-20260914.6 (Release [32063656](https://dev.azure.com/mseng/Domino/_build/results?buildId=32063656&view=results))
 - [Cache] Revert blob-download sibling temporary files that could cause exclusive-opaque cleanup sharing violations.
 - [DScript] Fix array sorting on disposed evaluation frames.

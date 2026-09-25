@@ -870,7 +870,9 @@ namespace BuildXL
                             sandboxConfiguration.WarningTimeoutMultiplier = (int)CommandLineUtilities.ParseDoubleOption(opt, 0.000001, 1000000)),
                         OptionHandlerFactory.CreateOption(
                             "pipUsageMLMode",
-                            opt => schedulingConfiguration.PipUsageMLMode = CommandLineUtilities.ParseEnumOption<PipUsageMLMode>(opt)),
+                            opt => schedulingConfiguration.PipUsageMLMode = CommandLineUtilities.ParseEnumOption<PipUsageMLMode>(
+                                opt,
+                                value => opt.Value.IndexOf(',') < 0 && Enum.IsDefined(typeof(PipUsageMLMode), value))),
                         OptionHandlerFactory.CreateOption(
                             "pipProperty",
                             opt =>

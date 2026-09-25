@@ -83,6 +83,7 @@ namespace BuildXL.Utilities.Configuration
             // Enable historic ram and CPU based throttling.
             config.Schedule.UseHistoricalRamUsageInfo = true;
             config.Schedule.UseHistoricalCpuUsageInfo = true;
+            config.Schedule.PipUsageMLMode = PipUsageMLMode.HistoricDataUnavailable;
 
             config.Cache.FileContentTableEntryTimeToLive = 100;
 

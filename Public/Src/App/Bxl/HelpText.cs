@@ -862,7 +862,7 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/pipUsageMLMode:<Disabled|Cold|ColdAndWarm>",
+                "/pipUsageMLMode:<Disabled|Cold|ColdAndWarm|HistoricDataUnavailable>",
                 Strings.HelpText_DisplayHelp_PipUsageMLMode);
 
             hw.WriteOption(

@@ -228,14 +228,27 @@ namespace BuildXL.ML.PipUsage
             return processorsInPercents == 0 && exeDurationInMs == 0;
         }
 
-        internal static bool ShouldEvaluate(PipUsageMLMode mode, ProcessPipHistoricPerfData historicPerfData)
+        internal static bool ShouldEvaluate(
+            PipUsageMLMode mode,
+            ProcessPipHistoricPerfData historicPerfData,
+            bool historicDataUnavailable)
         {
-            return ShouldEvaluate(mode, IsCold(historicPerfData));
+            return ShouldEvaluate(mode, IsCold(historicPerfData), historicDataUnavailable);
         }
 
-        internal static bool ShouldEvaluate(PipUsageMLMode mode, bool isCold)
+        internal static bool ShouldEvaluate(PipUsageMLMode mode, bool isCold, bool historicDataUnavailable)
         {
-            return mode == PipUsageMLMode.ColdAndWarm || (mode == PipUsageMLMode.Cold && isCold);
+            switch (mode)
+            {
+                case PipUsageMLMode.Cold:
+                    return isCold;
+                case PipUsageMLMode.ColdAndWarm:
+                    return true;
+                case PipUsageMLMode.HistoricDataUnavailable:
+                    return historicDataUnavailable;
+                default:
+                    return false;
+            }
         }
 
         internal static bool CanEvaluate(PipType pipType, AbsolutePath executablePath)

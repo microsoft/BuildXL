@@ -692,7 +692,10 @@ namespace BuildXL.Scheduler
 
         private bool ShouldEvaluatePipUsageML(ProcessPipHistoricPerfData historicPerfData)
         {
-            return PipUsageModel.ShouldEvaluate(m_pipUsageMLMode, historicPerfData);
+            return PipUsageModel.ShouldEvaluate(
+                m_pipUsageMLMode,
+                historicPerfData,
+                HistoricPerfDataUnavailable);
         }
 #endif
 
@@ -712,6 +715,10 @@ namespace BuildXL.Scheduler
 
         private HistoricPerfDataTable m_historicPerfDataTable;
         private readonly AsyncLazy<HistoricPerfDataTable> m_historicPerfDataTableTask;
+
+        private bool HistoricPerfDataUnavailable =>
+            m_configuration.Schedule.UseHistoricalPerformanceInfo &&
+            m_historicPerfDataTableTask?.Value == null;
 
         /// <summary>
         /// Tracks and reports the build's critical paths. See <see cref="CriticalPathTracker"/>.

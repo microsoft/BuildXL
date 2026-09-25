@@ -1,6 +1,6 @@
 # Pip Usage ML
 
-Pip Usage ML supplies CPU, memory, and duration estimates for process pips. The scheduler uses the CPU and memory estimates for CPU weight, CPU throttling, and RAM projection. `Cold` predicts cold pips without requiring historical data; `ColdAndWarm` predicts cold and warm pips and lets the prediction override historical values.
+Pip Usage ML supplies CPU, memory, and duration estimates for process pips. The scheduler uses the CPU and memory estimates for CPU weight, CPU throttling, and RAM projection. `Cold` predicts cold pips without requiring historical data; `ColdAndWarm` predicts cold and warm pips and lets the prediction override historical values; `HistoricDataUnavailable` predicts all eligible pips only when the configured historical performance table cannot be loaded.
 
 ## Runtime scope
 
@@ -8,22 +8,23 @@ The model is evaluated only when all of the following are true:
 
 - The pip is a process pip, not an IPC pip.
 - The executable path is valid.
-- The selected mode enables the pip: `Cold` requires a cold pip, while `ColdAndWarm` also permits warm pips.
+- The selected mode enables the pip: `Cold` requires a cold pip, `ColdAndWarm` permits all eligible pips, and `HistoricDataUnavailable` permits all eligible pips only when the historical performance table cannot be loaded.
 - The Microsoft-internal scheduler assembly contains a valid embedded model payload.
 
 Missing resources or an incompatible manifest set the runtime mode to `Disabled` for the remainder of the build. An evaluation exception, malformed pip metadata, or a rejected non-finite prediction falls back to existing historical/default resource behavior for that pip. None of these cases fail the build.
 
 ## Configuration
 
-Use `/pipUsageMLMode:<Disabled|Cold|ColdAndWarm>` to select a mode. Names are case-insensitive. ML is disabled by default.
+Use `/pipUsageMLMode:<Disabled|Cold|ColdAndWarm|HistoricDataUnavailable>` to select a mode. Names are case-insensitive. The default is `HistoricDataUnavailable`.
 
 | Mode | Current behavior |
 | --- | --- |
-| `Disabled` | Never evaluate the model. This is the default. |
+| `Disabled` | Never evaluate the model. |
 | `Cold` | Evaluate cold process pips. |
 | `ColdAndWarm` | Evaluate cold and warm process pips; warm predictions use historical resource values as model inputs. |
+| `HistoricDataUnavailable` | Evaluate all eligible process pips only when historical performance information is enabled but its table cannot be loaded. This is the default. |
 
-The command-line option is the only control. When omitted, the mode is `Disabled`. Invalid command-line values produce an argument error. The former `BuildXLUseMLForPipUsage` environment variable is no longer read.
+The command-line option is the only control. When omitted, the mode is `HistoricDataUnavailable`. Invalid command-line values produce an argument error. The former `BuildXLUseMLForPipUsage` environment variable is no longer read.
 
 ## Predictions
 
@@ -131,11 +132,11 @@ RUNTIME EVALUATION AND CONSUMERS
 ================================
 
 Schedule.PipUsageMLMode
-	Disabled | Cold | ColdAndWarm
+	Disabled | Cold | ColdAndWarm | HistoricDataUnavailable (default)
   |
-  +-- PipUsageModel.ShouldEvaluate(mode, historical data)
+  +-- PipUsageModel.ShouldEvaluate(mode, historical data, table availability)
 	  |
-	  +-- Scheduler.GetMLPipUsagePrediction(pipId, historicPerfData)
+	  +-- Scheduler / DynamicScheduler.GetMLPipUsagePrediction(pipId, historicPerfData)
 		  |
 		  +-- Lazy<PipUsageModel>
 		  |     PipUsageModelSpec   -- parses/validates model_spec.json
@@ -158,6 +159,11 @@ Schedule.PipUsageMLMode
 			  |
 			  +-- DurationSec
 				  +-- Scheduler critical-path priority estimate
+
+`Cold` evaluates pips without usable historical CPU and duration data.
+`ColdAndWarm` evaluates all eligible pips. `HistoricDataUnavailable`
+evaluates all eligible pips only when historical performance information is
+enabled but its table cannot be loaded.
 
 If loading or evaluation fails, BuildXL counts the failure and falls
 back to historical data or existing defaults without failing the build.

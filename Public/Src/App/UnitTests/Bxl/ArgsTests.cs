@@ -73,6 +73,7 @@ namespace Test.BuildXL
         [InlineData("Disabled", PipUsageMLMode.Disabled)]
         [InlineData("Cold", PipUsageMLMode.Cold)]
         [InlineData("ColdAndWarm", PipUsageMLMode.ColdAndWarm)]
+        [InlineData("HistoricDataUnavailable", PipUsageMLMode.HistoricDataUnavailable)]
         [InlineData("cOlDaNdWaRm", PipUsageMLMode.ColdAndWarm)]
         public void PipUsageMLModeOption(string value, PipUsageMLMode expected)
         {
@@ -88,7 +89,7 @@ namespace Test.BuildXL
         [InlineData("")]
         [InlineData("unknown")]
         [InlineData("-1")]
-        [InlineData("3")]
+        [InlineData("4")]
         [InlineData("Cold,ColdAndWarm")]
         public void PipUsageMLModeOptionRejectsInvalidValues(string value)
         {
@@ -102,6 +103,13 @@ namespace Test.BuildXL
             var argsParser = new Args();
             XAssert.IsTrue(argsParser.TryParse(new[] { "/c:" + m_specFilePath }, new PathTable(), out var config));
             Assert.Equal(PipUsageMLMode.Disabled, config.Schedule.PipUsageMLMode);
+        }
+
+        [Fact]
+        public void PipUsageMLModeDefaultsToHistoricDataUnavailableInCloudBuild()
+        {
+            var config = ConfigurationProvider.GetMutableDefaultConfig(Infra.CloudBuild);
+            Assert.Equal(PipUsageMLMode.HistoricDataUnavailable, config.Schedule.PipUsageMLMode);
         }
 
         [Fact]

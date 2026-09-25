@@ -52,11 +52,20 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         public void EvaluationModeDistinguishesColdAndWarmPips()
         {
-            XAssert.IsTrue(PipUsageModel.ShouldEvaluate(PipUsageMLMode.Cold, isCold: true));
-            XAssert.IsFalse(PipUsageModel.ShouldEvaluate(PipUsageMLMode.Cold, isCold: false));
-            XAssert.IsTrue(PipUsageModel.ShouldEvaluate(PipUsageMLMode.ColdAndWarm, isCold: true));
-            XAssert.IsTrue(PipUsageModel.ShouldEvaluate(PipUsageMLMode.ColdAndWarm, isCold: false));
-            XAssert.IsFalse(PipUsageModel.ShouldEvaluate(PipUsageMLMode.Disabled, isCold: true));
+            XAssert.IsTrue(PipUsageModel.ShouldEvaluate(PipUsageMLMode.Cold, isCold: true, historicDataUnavailable: false));
+            XAssert.IsFalse(PipUsageModel.ShouldEvaluate(PipUsageMLMode.Cold, isCold: false, historicDataUnavailable: false));
+            XAssert.IsTrue(PipUsageModel.ShouldEvaluate(PipUsageMLMode.ColdAndWarm, isCold: true, historicDataUnavailable: false));
+            XAssert.IsTrue(PipUsageModel.ShouldEvaluate(PipUsageMLMode.ColdAndWarm, isCold: false, historicDataUnavailable: false));
+            XAssert.IsFalse(PipUsageModel.ShouldEvaluate(PipUsageMLMode.Disabled, isCold: true, historicDataUnavailable: true));
+        }
+
+        [Fact]
+        public void EvaluationModeDistinguishesUnavailableHistoricTable()
+        {
+            XAssert.IsFalse(PipUsageModel.ShouldEvaluate(PipUsageMLMode.HistoricDataUnavailable, isCold: true, historicDataUnavailable: false));
+            XAssert.IsTrue(PipUsageModel.ShouldEvaluate(PipUsageMLMode.HistoricDataUnavailable, isCold: false, historicDataUnavailable: true));
+            XAssert.IsTrue(PipUsageModel.ShouldEvaluate(PipUsageMLMode.Cold, isCold: true, historicDataUnavailable: false));
+            XAssert.IsTrue(PipUsageModel.ShouldEvaluate(PipUsageMLMode.Cold, isCold: true, historicDataUnavailable: true));
         }
 
         [Theory]

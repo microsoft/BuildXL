@@ -227,7 +227,7 @@ namespace BuildXL.Utilities.Configuration
         int ProcessRetries { get; }
 
         /// <summary>
-        /// Pip Usage ML evaluation mode. Defaults to Disabled.
+        /// Pip Usage ML evaluation mode. Defaults to Disabled generally and HistoricDataUnavailable in CloudBuild.
         /// </summary>
         PipUsageMLMode PipUsageMLMode { get; }
 

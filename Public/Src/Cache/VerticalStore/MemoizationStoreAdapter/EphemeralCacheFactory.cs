@@ -52,7 +52,7 @@ public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeralCacheConfig>,
 
         ContentStore.Distributed.Ephemeral.EphemeralCacheFactory.Configuration factoryConfiguration;
 
-        // Opt-in switch that selects the Grpc.Net server host instead of Grpc.Core for the ephemeral cache.
+        // Use the legacy Grpc.Core server only when the Grpc.Net server is explicitly disabled.
         var useGrpcDotNet = EngineEnvironmentSettings.EphemeralCacheGrpcDotNetServerEnabled.Value;
 
         // The encrypted port makes the ephemeral cache use encrypted gRPC communication (see MachineLocation.HasEncryptedPort).

@@ -12,6 +12,7 @@ namespace Scheduler.IntegrationTest {
 
     const testArgs : BuildXLSdk.TestArguments = {
         assemblyName: "IntegrationTest.BuildXL.Scheduler",
+        skipTestRun: BuildXLSdk.isTargetRuntimeOsx,
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {
             unsafeTestRunArguments: {

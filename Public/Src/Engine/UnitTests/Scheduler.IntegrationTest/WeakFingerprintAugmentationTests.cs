@@ -19,6 +19,7 @@ using Xunit;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
+    [TestClassIfSupported(requiresSandbox: true)]
     public class WeakFingerprintAugmentationTests : SchedulerIntegrationTestBase
     {
         public WeakFingerprintAugmentationTests(ITestOutputHelper output) : base(output)

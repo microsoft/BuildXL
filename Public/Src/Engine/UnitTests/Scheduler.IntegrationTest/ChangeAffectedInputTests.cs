@@ -15,6 +15,7 @@ using Xunit;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
+    [TestClassIfSupported(requiresSandbox: true)]
     public class ChangeAffectedInputTests : SchedulerIntegrationTestBase
     {
         public ChangeAffectedInputTests(ITestOutputHelper output) : base(output)

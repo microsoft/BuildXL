@@ -1,7 +1,15 @@
 # Overview
 There are two variants of BuildXL development: Public (default) and Internal (for Microsoft internal developers). The difference comes down to a few dependencies which are only available internally within Microsoft today, like the connections to an internal cache server. The acquisition path for machine prerequisites may also differ slightly. 
 
-If you are a Microsoft internal developer, the Internal variant is automatically selected based on your user domain on Windows. On Linux you need to specify --internal in bxl.sh.
+## Microsoft internal developers
+
+If you are a Microsoft internal developer, the Internal variant is automatically selected based on your user domain on Windows. On Linux and macOS you need to specify `--internal` in `bxl.sh`.
+
+When cloning `BuildXL.Internal` on an Intune-managed macOS machine, configure Git to use OAuth for Azure Repos credentials before cloning:
+
+```bash
+git config --global credential.azreposCredentialType oauth
+```
 
 # Prerequesites
 ## Windows
@@ -11,8 +19,15 @@ If you are a Microsoft internal developer, the Internal variant is automatically
 ## Linux
 See [Prepare Linux VM](/Documentation/Wiki/LinuxDevelopment/How_to_prep_VM.md)
 
+## macOS
+BuildXL support on macOS is experimental. BuildXL runs natively as `osx-arm64` on Apple Silicon and as `osx-x64` on Intel Macs. `bxl.sh` detects the host architecture and acquires the matching bootstrap deployment.
+
+BuildXL currently runs without file-access sandboxing on macOS. See [macOS Support](macOS-Support.md) for supported capabilities, test exclusions, and the current validation status.
+
+Install the .NET SDK and make sure `dotnet` is on your `PATH`. `bxl.sh` uses it to acquire the bootstrap deployment and passes it to the build; internal builds also use it to run the Azure Artifacts credential provider.
+
 # Performing a build
-`bxl.cmd` (and `./bxl.sh`) are the entry points to building BuildXL. They provide some shorthands for common tasks to prevent developers from needing to specify longer command line options. While most examples below are based off of bxl.cmd for Windows, there will most times be a bxl.sh equivalent for Linux: `bxl.sh -h` shows the custom arguments for this script.
+`bxl.cmd` (and `./bxl.sh`) are the entry points to building BuildXL. They provide some shorthands for common tasks to prevent developers from needing to specify longer command line options. While most examples below are based off of bxl.cmd for Windows, there will most times be a bxl.sh equivalent for Linux and macOS: `bxl.sh -h` shows the custom arguments for this script.
 
 
 ## Minimal Build
@@ -29,12 +44,22 @@ Running a vanilla `bxl.cmd` without the `-minimal` flag above will compile a lar
 
 The `-minimal` and `-all` flags are shorthands that get translated to more complicated pip filter expressions which are eventually passed to `bxl.exe`
 
-## Build and Test for Linux
-BuildXL can be run on Linux via the `bxl.sh` script. The `--minimal` flag can be passed to run a minimal build (as described in the section above).
+## Build and Test for Linux and macOS
+BuildXL can be run on Linux and macOS via the `bxl.sh` script. The `--minimal` flag can be passed to run a minimal build (as described in the section above). Microsoft internal developers should also pass `--internal` so package restore uses the internal Azure DevOps feed.
 
 One can also run `./bxl.sh "/f:tag='test'"` to only run the tests.
 
 ## Development workflow
+### Using an existing BuildXL deployment
+
+On Linux or macOS, set `BUILDXL_BIN` to use a BuildXL binary built elsewhere instead of the default LKG bootstrap deployment. For example:
+
+```bash
+BUILDXL_BIN=/path/to/deployment ./bxl.sh --minimal
+```
+
+This bypasses the default LKG bootstrap download.
+
 ### Browsing source code in Visual Studio
 Because we don't have deep [Visual Studio](https://visualstudio.microsoft.com/vs/) integration for BuildXL at this time, you should use BuildXL's solution generation feature to generate  MSBuild `.proj` files and a `.sln`. Prior to opening this solution you will need to [install the Visual Studio plugin](Installation.md).
 

@@ -20,6 +20,7 @@ namespace Test.BuildXL.Engine
     /// the engine and verify that a running time emitted by the process as <c>##bxl[runtimeSecs]=&lt;value&gt;</c> is
     /// scanned, injected into the scheduler, and surfaced downstream.
     /// </summary>
+    [TestClassIfSupported(requiresSandbox: true)]
     public class BuildXLHintEngineTests : BaseEngineTest
     {
         public BuildXLHintEngineTests(ITestOutputHelper output)

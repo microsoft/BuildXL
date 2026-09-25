@@ -17,6 +17,7 @@ namespace Processes {
     const testArgs : BuildXLSdk.TestArguments = {
         assemblyName: "Test.BuildXL.Processes",
         allowUnsafeBlocks: true,
+        skipTestRun: BuildXLSdk.isTargetRuntimeOsx,
         runTestArgs: {
             // These tests require Detours to run itself, so we won't detour the test runner process itself
             unsafeTestRunArguments: {

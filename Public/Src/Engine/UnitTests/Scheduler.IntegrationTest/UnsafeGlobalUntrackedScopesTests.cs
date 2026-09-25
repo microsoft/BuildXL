@@ -6,10 +6,12 @@ using BuildXL.Utilities.Core;
 using BuildXL.Scheduler.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
+    [TestClassIfSupported(requiresSandbox: true)]
     public class UnsafeGlobalUntrackedScopesTests : SchedulerIntegrationTestBase
     {
         public UnsafeGlobalUntrackedScopesTests(ITestOutputHelper output) : base(output)

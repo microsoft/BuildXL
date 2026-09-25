@@ -12,6 +12,7 @@ namespace Test.BuildXL.Engine
     /// <summary>
     /// Incremental build tests for <see cref="DirectoryArtifact" /> dependencies.
     /// </summary>
+    [TestClassIfSupported(requiresSandbox: true)]
     [Trait("Category", "DirectoryArtifactIncrementalBuildTests")]
     public sealed class DirectoryArtifactIncrementalBuildTests : IncrementalBuildTestBase
     {

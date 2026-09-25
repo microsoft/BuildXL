@@ -20,6 +20,7 @@ using Process = BuildXL.Pips.Operations.Process;
 namespace IntegrationTest.BuildXL.Scheduler
 {
     [Trait("Category", "AllowedUndeclaredReadsTests")]
+    [TestClassIfSupported(requiresSandbox: true)]
     public class AllowedUndeclaredReadsTests : SchedulerIntegrationTestBase
     {
         /// <summary>

@@ -32,6 +32,7 @@ namespace IntegrationTest.BuildXL.Scheduler
     /// Tests that validate basic functionality and caching behavior
     /// </summary>
     [Trait("Category", "BaselineTests")]
+    [TestClassIfSupported(requiresSandbox: true)]
     public class BaselineTests : SchedulerIntegrationTestBase
     {
 

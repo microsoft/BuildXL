@@ -26,6 +26,11 @@ export function createPublicDotNetRuntime(v3Runtime : StaticDirectory, v2Runtime
     // location and then do a final copy directory action since downstream consumers make static directory assertions on the resulting output
     // directory, and composite opaques are not supported for those yet
     const singleSource = v3Runtime === undefined || v2Runtime === undefined;
+
+    if (singleSource && Context.getCurrentHost().os === "macOS") {
+        return v3Runtime !== undefined ? v3Runtime : v2Runtime;
+    }
+
     const intermediateRoot = singleSource ? dotNetRuntimeRoot : Context.getNewOutputDirectory("DotNet-Runtime-Temp");
 
     if (v3Runtime !== undefined) {

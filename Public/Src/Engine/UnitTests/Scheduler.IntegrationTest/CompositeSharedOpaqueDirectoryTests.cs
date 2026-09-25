@@ -18,6 +18,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 {
     [Trait("Category", "SharedOpaqueDirectoryTests")]
     [Feature(Features.SharedOpaqueDirectory)]
+    [TestClassIfSupported(requiresSandbox: true)]
     public class CompositeSharedOpaqueDirectoryTests : SchedulerIntegrationTestBase
     {
         public CompositeSharedOpaqueDirectoryTests(ITestOutputHelper output) : base(output)

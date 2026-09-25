@@ -18,7 +18,7 @@ using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 namespace IntegrationTest.BuildXL.Scheduler
 {
     [Feature(Features.Symlink)]
-    [TestClassIfSupported(requiresSymlinkPermission: true)]
+    [TestClassIfSupported(requiresSymlinkPermission: true, requiresSandbox: true)]
     [Trait("Category", "ReparsePointTests")]
     public class ReparsePointTests : SchedulerIntegrationTestBase
     {

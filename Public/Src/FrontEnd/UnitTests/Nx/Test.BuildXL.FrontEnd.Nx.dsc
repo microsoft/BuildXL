@@ -8,6 +8,7 @@ import {Node} from "Sdk.NodeJs";
 import {Transformer} from "Sdk.Transformers";
 
 namespace Test.Nx {
+    export declare const qualifier: BuildXLSdk.Net8PlusQualifierWithoutMacOS;
     
     // Running for internal only
     const isRunningOnSupportedSystem = 

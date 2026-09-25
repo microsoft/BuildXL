@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace MemoizationStoreAdapter {
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472WithoutMacOSArm64;
 
     @@public
     export const dll = BuildXLSdk.cacheTest({

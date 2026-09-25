@@ -36,8 +36,12 @@ namespace Yarn {
             Sdk.dll,
             JavaScript.dll
         ],
-        runtimeContent:[
-            importFrom("BuildXL.Tools").JavaScript.YarnGraphBuilder.deployment 
+        runtimeContent: [
+            ...addIfLazy(Context.getCurrentHost().os !== "macOS", () => [
+                importFrom("BuildXL.Tools").withQualifier({
+                    targetRuntime: Context.getCurrentHost().os === "win" ? "win-x64" : "linux-x64"
+                }).JavaScript.YarnGraphBuilder.deployment
+            ])
         ],
         internalsVisibleTo: [
             "Test.BuildXL.FrontEnd.Yarn",

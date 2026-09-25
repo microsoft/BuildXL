@@ -154,6 +154,11 @@ namespace Test.BuildXL.Engine
                     }
             };
 
+            if (OperatingSystemHelper.IsMacOS)
+            {
+                Configuration.Sandbox.UnsafeSandboxConfigurationMutable.SandboxKind = SandboxKind.None;
+            }
+
             if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
             {
                 // Directory translation is needed here particularly when the test temporary directory
@@ -472,7 +477,7 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
             }
 
             // Make sure we honor EBPF sandboxing settings from the main config.
-            ((SandboxConfiguration)Configuration.Sandbox).EnableEBPFLinuxSandbox = UsingEBPFSandbox;
+            ((SandboxConfiguration)Configuration.Sandbox).EnableEBPFLinuxSandbox = OperatingSystemHelper.IsLinuxOS && UsingEBPFSandbox;
             if (Configuration.Sandbox.EnableEBPFLinuxSandbox)
             {
                 EBPFDaemon.AssumeEBPFDaemonTaskRunningForTesting();

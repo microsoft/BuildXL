@@ -46,6 +46,7 @@ using WriteFilePip = BuildXL.Pips.Operations.WriteFile;
 
 namespace Test.BuildXL.Scheduler
 {
+    [TestClassIfSupported(requiresSandbox: true)]
     [Trait("Category", "PipExecutorTest")]
     public sealed class PipExecutorTest : TemporaryStorageTestBase
     {

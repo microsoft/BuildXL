@@ -157,7 +157,7 @@ namespace Test.BuildXL.Engine
             XAssert.IsFalse(Directory.Exists(Path.Combine(nestedScrubbableMountPath, "D")));
         }
 
-        [Fact]
+        [FactIfSupported(requiresSandbox: true)]
         public void ScrubFileDirectoriesWithPipGraph()
         {
             string rootDirectory = Path.Combine(TemporaryDirectory, nameof(ScrubFileDirectoriesWithPipGraph));

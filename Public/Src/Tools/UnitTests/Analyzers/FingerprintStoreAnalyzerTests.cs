@@ -83,7 +83,7 @@ namespace Test.Tool.Analyzers
             RunAnalyzer(cacheHitBuild, cacheMissBuild).AssertPipMiss(pip, PipCacheMissType.MissForDescriptorsDueToWeakFingerprints, messages);
         }
 
-        [Fact]
+        [FactIfSupported(requiresSandbox: true)]
         public virtual void AbsentFileProbeReadOnlyMountStrongFingerprintMiss()
         {
             // Read only mount
@@ -121,7 +121,7 @@ namespace Test.Tool.Analyzers
                 build1.Session.RelatedId);
         }
 
-        [Fact]
+        [FactIfSupported(requiresSandbox: true)]
         public void DirectoryEnumerationReadOnlyMountStrongFingerprintMiss()
         {
             string[] messages;
@@ -168,7 +168,7 @@ namespace Test.Tool.Analyzers
                 messages);
         }
 
-        [Fact]
+        [FactIfSupported(requiresSandbox: true)]
         public void NonCacheableAllowlistPipMiss()
         {
             FileArtifact allowlistFile = CreateSourceFile();
@@ -196,7 +196,7 @@ namespace Test.Tool.Analyzers
                 messages);
         }
 
-        [Fact]
+        [FactIfSupported(requiresSandbox: true)]
         public void FileAccessViolationUncacheablePipMiss()
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = false;
@@ -385,7 +385,7 @@ namespace Test.Tool.Analyzers
                 messages);
         }
 
-        [Fact]
+        [FactIfSupported(requiresSandbox: true)]
         public void DirectoryMembershipFingerprintMissing()
         {
             DirectoryArtifact dir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory(ReadonlyRoot));
@@ -435,7 +435,7 @@ namespace Test.Tool.Analyzers
         /// before falling back on the pip semi stable hash.
         /// </summary>
         [Trait("Category", "SkipLinux")] // TODO flaky
-        [Fact]
+        [FactIfSupported(requiresSandbox: true)]
         public void VerifyStablePipUniqueOutputHash()
         {
             var outputFile = CreateOutputFileArtifact();
@@ -690,7 +690,7 @@ namespace Test.Tool.Analyzers
         /// Checks that <see cref="FingerprintStoreExecutionLogTarget.CacheLookupFingerprintStore"/> is used before the <see cref="FingerprintStoreExecutionLogTarget.ExecutionFingerprintStore"/>
         /// when looking for fingerprints from the newer build.
         /// </summary>
-        [Fact]
+        [FactIfSupported(requiresSandbox: true)]
         public void EnsureCacheLookupStoreIsFirst()
         {
             // Read only mount

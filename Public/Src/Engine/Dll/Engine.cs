@@ -31,6 +31,7 @@ using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Ide.Generator;
 using BuildXL.Native.IO;
+using BuildXL.Pips;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
@@ -988,6 +989,13 @@ namespace BuildXL.Engine
             if (mutableConfig.Sandbox.UnsafeSandboxConfiguration.DisableDetours())
             {
                 mutableConfig.Sandbox.UnsafeSandboxConfigurationMutable.MonitorFileAccesses = false;
+            }
+
+            if (OperatingSystemHelper.IsMacOS &&
+                mutableConfig.Sandbox.UnsafeSandboxConfigurationMutable.SandboxKind != SandboxKind.None)
+            {
+                Logger.Log.ConfigSandboxingNotSupportedOnMacOS(loggingContext);
+                success = false;
             }
 
             foreach (var variable in mutableConfig.AllowedEnvironmentVariables)
@@ -2995,6 +3003,11 @@ namespace BuildXL.Engine
                 {
                     engineSchedule = reuseResult.EngineSchedule;
                     reusedGraph = true;
+
+                    if (!ValidateSharedOpaqueDirectoriesRequireSandboxing(loggingContext, engineSchedule.PipTable))
+                    {
+                        return ConstructScheduleResult.Failure;
+                    }
                 }
 
                 if (engineSchedule == null)
@@ -3241,6 +3254,12 @@ namespace BuildXL.Engine
                             return ConstructScheduleResult.Failure;
                         }
 
+                        if (!ValidateSharedOpaqueDirectoriesRequireSandboxing(loggingContext, newlyEvaluatedGraph.PipTable))
+                        {
+                            dynamicEngineSchedule?.Dispose();
+                            return ConstructScheduleResult.Failure;
+                        }
+
                         m_enginePerformanceInfo.GraphConstructionDurationMs = sw.ElapsedMilliseconds;
 
                         if (Configuration.Engine.LogStatistics)
@@ -3418,6 +3437,33 @@ namespace BuildXL.Engine
             Logger.Log.ScheduleConstructedWithConfiguration(loggingContext, Configuration.GetStatistics().ResolverKinds);
 
             return reusedGraph ? ConstructScheduleResult.ReusedExistingGraph : ConstructScheduleResult.ConstructedNewGraph;
+        }
+
+        private bool ValidateSharedOpaqueDirectoriesRequireSandboxing(LoggingContext loggingContext, IPipTable pipTable)
+        {
+            if (Configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind == SandboxKind.None)
+            {
+                var producer = pipTable.Keys
+                    .Where(pipId => pipTable.GetPipType(pipId) == PipType.SealDirectory)
+                    .Select(pipId => pipTable.HydratePip(pipId, PipQueryContext.PipGraphPostValidation))
+                    .OfType<SealDirectory>()
+                    .FirstOrDefault(sealDirectory => sealDirectory.Directory.IsSharedOpaque);
+                if (producer != null)
+                {
+                    var provenance = producer.Provenance?.Token;
+                    Logger.Log.SharedOpaqueDirectoriesRequireSandboxing(
+                        loggingContext,
+                        producer.FormattedSemiStableHash,
+                        producer.GetDescription(Context),
+                        producer.Directory.Path.ToString(Context.PathTable),
+                        provenance?.Path.ToString(Context.PathTable) ?? "<unknown>",
+                        provenance?.Line ?? 0,
+                        provenance?.Position ?? 0);
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private IReadOnlyList<string> GetNonScrubbablePaths()

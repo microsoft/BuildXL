@@ -20,6 +20,7 @@ namespace Test.BuildXL.Engine
     /// Incremental build tests for <see cref="BuildXL.Utilities.DirectoryArtifact"/> dependencies that are partially-sealed
     /// (such that runtime monitoring may indicate disallowed accesses in a directory dependency).
     /// </summary>
+    [TestClassIfSupported(requiresSandbox: true)]
     public sealed class PartiallySealedDirectoryArtifactIncrementalBuildTests : IncrementalBuildTestBase
     {
         public PartiallySealedDirectoryArtifactIncrementalBuildTests(ITestOutputHelper output)

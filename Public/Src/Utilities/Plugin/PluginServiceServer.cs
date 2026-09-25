@@ -3,23 +3,36 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Net;
 using System.Threading.Tasks;
 using BuildXL.Plugin.Grpc;
 using BuildXL.Utilities.Core.Tasks;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
-using Grpc.Core.Logging;
+using GrpcLogger = Grpc.Core.Logging.ILogger;
+#if NET8_0_OR_GREATER
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+#endif
 
 namespace BuildXL.Plugin
 {
     /// <summary>
-    /// Abstrct class that implementes <see cref="PluginService.PluginServiceBase" />
-    /// It defines the how to handle Start, Stop and SupportedOperation and inherted class should implementd other abstract methods
+    /// Abstract class that implements <see cref="PluginService.PluginServiceBase" />.
+    /// It handles Start, Stop, and SupportedOperation; derived classes implement the remaining operations.
     /// </summary>
     public abstract class PluginServiceServer : PluginService.PluginServiceBase, IDisposable
     {
-        private readonly Server m_server;
+#if NET8_0_OR_GREATER
+        private IHost m_grpcDotNetServer;
+#endif
+        private readonly Server m_grpcCoreServer;
+        private readonly bool m_useGrpcDotNet;
 
         private readonly TaskSourceSlim<Unit> m_shutdownTask = TaskSourceSlim.Create<Unit>();
 
@@ -27,7 +40,7 @@ namespace BuildXL.Plugin
         public abstract IList<SupportedOperationResponse.Types.SupportedOperation> SupportedOperations { get; }
 
         /// <nodoc />
-        public ILogger Logger { get; }
+        public GrpcLogger Logger { get; }
         /// <nodoc />
         public int Port { get; }
         /// <nodoc />
@@ -40,25 +53,67 @@ namespace BuildXL.Plugin
         /// </summary>
         /// <param name="port"></param>
         /// <param name="logger"></param>
-        public PluginServiceServer(int port, ILogger logger)
+        /// <param name="useGrpcDotNet">Whether to host the service with gRPC.NET instead of gRPC Core.</param>
+        public PluginServiceServer(int port, GrpcLogger logger, bool useGrpcDotNet = false)
         {
             Port = port;
             Logger = logger;
+            m_useGrpcDotNet = useGrpcDotNet;
 
             Interceptor = new PluginGrpcInterceptor(Logger);
 
-            m_server = new Server(GrpcPluginSettings.GetChannelOptions())
+#if !NET8_0_OR_GREATER
+            Contract.Requires(!useGrpcDotNet, "gRPC.NET requires .NET 8 or newer.");
+#endif
+            if (!useGrpcDotNet)
             {
-                Services = { PluginService.BindService(this).Intercept(Interceptor) },
-                Ports = { new ServerPort(IPAddress.Loopback.ToString(), Port, ServerCredentials.Insecure) },
-            };
+                m_grpcCoreServer = new Server(GrpcPluginSettings.GetChannelOptions())
+                {
+                    Services = { PluginService.BindService(this).Intercept(Interceptor) },
+                    Ports = { new ServerPort(IPAddress.Loopback.ToString(), Port, ServerCredentials.Insecure) },
+                };
+            }
         }
 
         /// <nodoc />
         public void Start()
         {
             Logger.Info("Server started");
-            m_server.Start();
+#if NET8_0_OR_GREATER
+            if (m_useGrpcDotNet)
+            {
+                m_grpcDotNetServer = Host.CreateDefaultBuilder()
+                .ConfigureWebHostDefaults(webBuilder =>
+                {
+                    webBuilder.ConfigureLogging(logging => logging.ClearProviders());
+                    webBuilder.ConfigureKestrel(options =>
+                    {
+                        options.Limits.MaxRequestBodySize = null;
+                        options.Listen(IPAddress.Loopback, Port, listenOptions => listenOptions.Protocols = HttpProtocols.Http2);
+                    });
+                    webBuilder.ConfigureServices(services =>
+                    {
+                        services.AddSingleton(this);
+                        services.AddSingleton((PluginGrpcInterceptor)Interceptor);
+                        services.AddGrpc(options =>
+                        {
+                            options.MaxSendMessageSize = int.MaxValue;
+                            options.MaxReceiveMessageSize = int.MaxValue;
+                            options.Interceptors.Add<PluginGrpcInterceptor>();
+                        });
+                    });
+                    webBuilder.Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapGrpcService<PluginServiceServer>());
+                    });
+                })
+                    .Build();
+                m_grpcDotNetServer.StartAsync().GetAwaiter().GetResult();
+                return;
+            }
+#endif
+            m_grpcCoreServer.Start();
         }
 
         /// <nodoc />
@@ -72,7 +127,15 @@ namespace BuildXL.Plugin
         public void Dispose()
         {
             Logger.Info("Server Shutdown");
-            m_server.ShutdownAsync().Wait();
+#if NET8_0_OR_GREATER
+            if (m_useGrpcDotNet)
+            {
+                m_grpcDotNetServer?.StopAsync().GetAwaiter().GetResult();
+                m_grpcDotNetServer?.Dispose();
+                return;
+            }
+#endif
+            m_grpcCoreServer.ShutdownAsync().Wait();
         }
 
         /// <nodoc />

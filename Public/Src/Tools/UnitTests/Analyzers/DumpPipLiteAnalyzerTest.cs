@@ -7,6 +7,7 @@ using System.Text;
 using BuildXL.Execution.Analyzer;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.Executables.TestProcess;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using static BuildXL.ToolSupport.CommandLineUtilities;
 
@@ -23,7 +24,7 @@ namespace Test.Tool.Analyzers
         /// <summary>
         /// Tests basic functionality with any pip to ensure that is dumped by the analyzer.
         /// </summary>
-        [Theory]
+        [TheoryIfSupported(requiresSandbox: true)]
         [InlineData(true)]
         [InlineData(false)]
         public void TestDumpPipLite(bool logObservedFileAccesses)

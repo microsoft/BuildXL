@@ -1191,6 +1191,31 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigDisableDetours(LoggingContext context);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ConfigSandboxingNotSupportedOnMacOS,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Sandboxing is not currently implemented on macOS. Pass /sandboxKind:None to disable sandboxing.")]
+        public abstract void ConfigSandboxingNotSupportedOnMacOS(LoggingContext context);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.SharedOpaqueDirectoriesRequireSandboxing,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Engine,
+            Message = "At least one shared opaque directory requires file access monitoring and cannot be used when sandboxing is disabled. The first one found was '{directoryPath}', declared by pip '{pipDescription}' ({pipSemiStableHash}) at '{specPath}' ({line},{position}).")]
+        public abstract void SharedOpaqueDirectoriesRequireSandboxing(
+            LoggingContext context,
+            string pipSemiStableHash,
+            string pipDescription,
+            string directoryPath,
+            string specPath,
+            int line,
+            int position);
+
+        [GeneratedEvent(
             (ushort)LogEventId.ConfigPreserveOutputs,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

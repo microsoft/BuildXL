@@ -36,8 +36,12 @@ namespace Lage {
             Sdk.dll,
             JavaScript.dll
         ],
-        runtimeContent:[
-            importFrom("BuildXL.Tools").JavaScript.LageGraphBuilder.deployment 
+        runtimeContent: [
+            ...addIfLazy(Context.getCurrentHost().os !== "macOS", () => [
+                importFrom("BuildXL.Tools").withQualifier({
+                    targetRuntime: Context.getCurrentHost().os === "win" ? "win-x64" : "linux-x64"
+                }).JavaScript.LageGraphBuilder.deployment
+            ])
         ],
         internalsVisibleTo: [
             "Test.BuildXL.FrontEnd.Lage",

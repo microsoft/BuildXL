@@ -24,6 +24,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 {
     [Feature(Features.Symlink)]
     [Trait("Category", "ReparsePointTests")]
+    [TestClassIfSupported(requiresSandbox: true)]
     public class DirectorySymlinkTests : SchedulerIntegrationTestBase
     {
         public readonly struct LookupSpec

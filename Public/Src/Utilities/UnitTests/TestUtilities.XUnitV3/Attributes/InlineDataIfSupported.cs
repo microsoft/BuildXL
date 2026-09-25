@@ -36,6 +36,7 @@ namespace Test.BuildXL.TestUtilities.XUnit
             bool requiresMacOperatingSystem = false,
             bool requiresWindowsOrMacOperatingSystem = false,
             bool requiresWindowsOrLinuxOperatingSystem = false,
+            bool requiresSandbox = false,
             TestRequirements additionalRequirements = TestRequirements.None,
             params object[] data)
         {
@@ -50,6 +51,7 @@ namespace Test.BuildXL.TestUtilities.XUnit
                 requiresMacOperatingSystem: requiresMacOperatingSystem,
                 requiresWindowsOrMacOperatingSystem: requiresWindowsOrMacOperatingSystem,
                 requiresWindowsOrLinuxOperatingSystem: requiresWindowsOrLinuxOperatingSystem,
+                requiresSandbox: requiresSandbox,
                 additionalRequirements: additionalRequirements
             );
 

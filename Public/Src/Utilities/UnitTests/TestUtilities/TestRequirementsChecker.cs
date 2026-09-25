@@ -152,6 +152,12 @@ namespace Test.BuildXL.TestUtilities.Xunit
                     return null;
                 });
 
+            CheckRequirement(
+                requirements,
+                TestRequirements.Sandbox,
+                ref skip,
+                () => OperatingSystemHelper.IsMacOS ? "Test requires BuildXL sandboxing, which is not supported on macOS" : null);
+
             return skip;
         }
 
@@ -186,7 +192,8 @@ namespace Test.BuildXL.TestUtilities.Xunit
             bool requiresWindowsOrMacOperatingSystem = false,
             bool requiresWindowsOrLinuxOperatingSystem = false,
             bool requiresLinuxBasedOperatingSystem = false,
-            bool requiresEBPFEnabled = false)
+            bool requiresEBPFEnabled = false,
+            bool requiresSandbox = false)
         {
             var requirements = additionalRequirements;
             if (requiresAdmin) requirements |= TestRequirements.Admin;
@@ -199,6 +206,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             if (requiresWindowsOrLinuxOperatingSystem) requirements |= TestRequirements.WindowsOrLinuxOs;
             if (requiresLinuxBasedOperatingSystem) requirements |= TestRequirements.LinuxOs;
             if (requiresEBPFEnabled) requirements |= TestRequirements.EBPFEnabled;
+            if (requiresSandbox) requirements |= TestRequirements.Sandbox;
             return requirements;
         }
     }

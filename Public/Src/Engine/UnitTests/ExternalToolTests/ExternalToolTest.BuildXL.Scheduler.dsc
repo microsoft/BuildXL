@@ -11,6 +11,7 @@ namespace ExternalToolTest {
     @@public
     export const dll = BuildXLSdk.test({
         assemblyName: "ExternalToolTest.BuildXL.Scheduler",
+        skipTestRun: BuildXLSdk.isTargetRuntimeOsx,
         runTestArgs: {
             unsafeTestRunArguments: {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself

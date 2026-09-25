@@ -143,7 +143,7 @@ namespace TestHelpers {
 
         // Specify environment variables used by XUnit Assembly runner to filter tests from particular hash bucket
         // Tests are split into 'args.parallelBucketCount' buckets which are run in parallel
-        if (args.parallelBucketIndex && args.parallelBucketCount)
+        if (args.parallelBucketIndex !== undefined && args.parallelBucketCount)
         {
             execArguments = execArguments.merge<Transformer.ExecuteArguments>({
                 environmentVariables: [

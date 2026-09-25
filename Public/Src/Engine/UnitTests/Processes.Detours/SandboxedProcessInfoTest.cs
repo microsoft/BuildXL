@@ -14,6 +14,7 @@ using static BuildXL.Utilities.Core.BuildParameters;
 
 namespace Test.BuildXL.Processes.Detours
 {
+    [TestClassIfSupported(requiresSandbox: true)]
     public class SandboxedProcessInfoTest : XunitBuildXLTest
     {
         public SandboxedProcessInfoTest(ITestOutputHelper output)

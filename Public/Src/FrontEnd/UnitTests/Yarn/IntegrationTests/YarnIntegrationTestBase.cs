@@ -16,6 +16,7 @@ using BuildXL.Utilities.Core;
 using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities;
+using Test.BuildXL.TestUtilities.Xunit;
 using Test.DScript.Ast;
 using Xunit;
 
@@ -24,6 +25,7 @@ namespace Test.BuildXL.FrontEnd.Yarn
     /// <summary>
     /// Provides facilities to run the engine adding Yarn specific artifacts.
     /// </summary>
+    [TestClassIfSupported(requiresSandbox: true)]
     public abstract class YarnIntegrationTestBase : DsTestWithCacheBase
     {
         /// <summary>

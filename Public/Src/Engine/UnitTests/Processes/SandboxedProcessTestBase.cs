@@ -15,6 +15,7 @@ using Xunit;
 
 namespace Test.BuildXL.Processes
 {
+    [TestClassIfSupported(requiresSandbox: true)]
     public class SandboxedProcessTestBase : ProcessesTestBase, ISandboxedProcessFileStorage
     {
         protected static readonly HashSet<string> PotentiallyExternallyInjectedChildProcesses = new HashSet<string>(

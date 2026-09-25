@@ -4,6 +4,8 @@
 import * as ManagedSdk from "Sdk.Managed";
 
 namespace AppTest {
+    export declare const qualifier : BuildXLSdk.AllSupportedQualifiersWithoutMacOSArm64;
+
     @@public
     export const dll = BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.ContentStore.App.Test",

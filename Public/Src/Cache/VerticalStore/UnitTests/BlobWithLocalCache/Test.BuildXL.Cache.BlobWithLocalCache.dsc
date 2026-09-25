@@ -7,7 +7,7 @@ import { Transformer } from "Sdk.Transformers";
 import * as ContentStore from "BuildXL.Cache.ContentStore";
 
 namespace BlobWithLocalCache {
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472WithoutMacOSArm64;
 
     @@public
     export const dll = BuildXLSdk.cacheTest({

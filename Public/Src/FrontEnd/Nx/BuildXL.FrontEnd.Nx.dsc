@@ -36,8 +36,12 @@ namespace Nx {
             Sdk.dll,
             JavaScript.dll
         ],
-        runtimeContent:[
-            importFrom("BuildXL.Tools").JavaScript.NxGraphBuilder.deployment
+        runtimeContent: [
+            ...addIfLazy(Context.getCurrentHost().os !== "macOS", () => [
+                importFrom("BuildXL.Tools").withQualifier({
+                    targetRuntime: Context.getCurrentHost().os === "win" ? "win-x64" : "linux-x64"
+                }).JavaScript.NxGraphBuilder.deployment
+            ])
         ],
     });
 }

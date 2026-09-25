@@ -42,6 +42,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             bool requiresWindowsOrLinuxOperatingSystem = false,
             bool requiresLinuxBasedOperatingSystem = false,
             bool requiresEBPFEnabled = false,
+            bool requiresSandbox = false,
             TestRequirements additionalRequirements = TestRequirements.None)
         {
             Requirements = TestRequirementsChecker.BuildRequirements(
@@ -55,7 +56,8 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 requiresWindowsOrMacOperatingSystem,
                 requiresWindowsOrLinuxOperatingSystem,
                 requiresLinuxBasedOperatingSystem,
-                requiresEBPFEnabled);
+                requiresEBPFEnabled,
+                requiresSandbox);
 
             if (Skip != null)
             {

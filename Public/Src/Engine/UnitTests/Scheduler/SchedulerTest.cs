@@ -45,6 +45,7 @@ using PipLogEventId = BuildXL.Pips.Tracing.LogEventId;
 
 namespace Test.BuildXL.Scheduler
 {
+    [TestClassIfSupported(requiresSandbox: true)]
     [Trait("Category", "SchedulerTest")]
     [SuppressMessage("Microsoft.Design", "CA1001:TypesThatOwnDisposableFieldsShouldBeDisposable")]
     public sealed partial class SchedulerTest : PipTestBase

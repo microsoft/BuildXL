@@ -25,6 +25,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 {
     [Trait("Category", "AllowlistTests")]
     [Feature(Features.Allowlist)]
+    [TestClassIfSupported(requiresSandbox: true)]
     public class AllowlistTests : SchedulerIntegrationTestBase
     {
         /// <summary>

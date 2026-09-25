@@ -16,6 +16,7 @@ namespace Processes.Detours {
         const assemblyName = "Test.BuildXL.Processes.Detours";
 
         return BuildXLSdk.test({
+            skipTestRun: BuildXLSdk.isTargetRuntimeOsx,
             runTestArgs: {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself
                 unsafeTestRunArguments: {

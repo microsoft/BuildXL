@@ -1061,6 +1061,11 @@ namespace Test.BuildXL.FrontEnd.Core
                 collector: null,
                 collectMemoryAsSoonAsPossible: false);
 
+            if (OperatingSystemHelper.IsMacOS)
+            {
+                ((UnsafeSandboxConfiguration)config.Sandbox.UnsafeSandboxConfiguration).SandboxKind = SandboxKind.None;
+            }
+
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration((CommandLineConfiguration)config, PathTable, config.Layout.BuildEngineDirectory.ToString(PathTable), inTestMode: true);
 
             var engine = BuildXLEngine.Create(LoggingContext, engineContext, config, new LambdaBasedFrontEndControllerFactory((_, __) => controller), new BuildViewModel());

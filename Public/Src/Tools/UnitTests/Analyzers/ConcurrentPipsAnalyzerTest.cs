@@ -19,6 +19,7 @@ namespace Test.Tool.Analyzers
     /// It is hard to force the scheduler to run pips in parallel in a reliable way (the test infra has hooks to force pips to *not* run in parallel, but not the other way around).
     /// So these tests are more on the "smoke test" side of things.
     /// </summary>
+    [TestClassIfSupported(requiresSandbox: true)]
     public class ConcurrentPipsAnalyzerTest : AnalyzerTestBase
     {
         public ConcurrentPipsAnalyzerTest(ITestOutputHelper output) : base(output)

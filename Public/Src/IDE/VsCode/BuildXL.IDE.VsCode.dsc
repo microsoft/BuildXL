@@ -13,28 +13,39 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace VsCode.Client {
     // A new namespace with empty qualifier space to ensure the values inside are evaluated only once
+    // for all target runtimes. This avoids declaring the npm shared opaque separately for macOS,
+    // where shared opaque directories are not supported without file-access sandboxing.
     export declare const qualifier: {};
 
-    const clientSealDir = Transformer.sealDirectory(d`client`, globR(d`client`));
-
-    const clientCopyDir = Context.getNewOutputDirectory("client-copy");
-    const clientCopy: OpaqueDirectory = Deployment.copyDirectory(clientSealDir.root, clientCopyDir, clientSealDir);
-
-    // For internal builds, we need to add a local npmrc file pointing to our internal npm feed instead of npmjs.org
-    const npmRcCopy : DerivedFile = BuildXLSdk.Flags.isMicrosoftInternal
-        ? Transformer.copyFile(BuildXLSdk.NpmRc.getLocalNpmRc(), p`${clientCopyDir.path}/.npmrc`, /* tags */ [], "Copy VsCode Client .npmrc file")
-        : undefined;
+    export interface Outputs {
+        npmInstall: SharedOpaqueDirectory;
+        compileOutDir: OpaqueDirectory;
+    }
 
     @@public
-    export const npmInstall = Node.runNpmInstall(clientCopy.root, [clientCopy, npmRcCopy]);
+    export function build(): Outputs {
+        const clientSealDir = Transformer.sealDirectory(d`client`, globR(d`client`));
 
-    @@public
-    export const compileOutDir: OpaqueDirectory = Node.tscCompile(
-        clientCopy.root, 
-        [ clientCopy, npmInstall ]);
+        const clientCopyDir = Context.getNewOutputDirectory("client-copy");
+        const clientCopy: OpaqueDirectory = Deployment.copyDirectory(clientSealDir.root, clientCopyDir, clientSealDir);
+
+        // For internal builds, we need to add a local npmrc file pointing to our internal npm feed instead of npmjs.org
+        const npmRcCopy : DerivedFile = BuildXLSdk.Flags.isMicrosoftInternal
+            ? Transformer.copyFile(BuildXLSdk.NpmRc.getLocalNpmRc(), p`${clientCopyDir.path}/.npmrc`, /* tags */ [], "Copy VsCode Client .npmrc file")
+            : undefined;
+
+        const npmInstall = Node.runNpmInstall(clientCopy.root, [clientCopy, npmRcCopy]);
+        const compileOutDir: OpaqueDirectory = Node.tscCompile(
+            clientCopy.root,
+            [ clientCopy, npmInstall ]);
+
+        return { npmInstall, compileOutDir };
+    }
 }
 
-namespace LanguageService.Server {
+namespace LanguageService.Vsix {
+    export declare const qualifier: VsCodeExtensionQualifier;
+
     /**
      * Builds a VSIX for given version that packages the server assembly (with closure of its references)
      * as well as client resources
@@ -84,6 +95,8 @@ namespace LanguageService.Server {
      * means that any change to client/src/extension.ts needs to be recompiled and the checked-in file updated.
      */
     export function buildVsixDeploymentDefinition(serverAssembly: ManagedSdk.Assembly) : Deployment.Definition {
+        const client = VsCode.Client.build();
+
         // We have to publish the vsix to the Visual Studio MarketPlace which doesn't handle prerelease tags. 
         let version = Branding.versionNumberForToolsThatDontSupportPreReleaseTag;
         // Target platform strings are slightly different for some platforms from what dscript uses.
@@ -144,11 +157,11 @@ namespace LanguageService.Server {
                         },
                         {
                             subfolder: a`node_modules`,
-                            contents: [ Deployment.createDeployableOpaqueSubDirectory(VsCode.Client.npmInstall, r`node_modules`) ]
+                            contents: [ Deployment.createDeployableOpaqueSubDirectory(client.npmInstall, r`node_modules`) ]
                         },
                         {
                             subfolder: a`out`,
-                            contents: [ VsCode.Client.compileOutDir ]
+                            contents: [ client.compileOutDir ]
                         },
                         f`client/License.txt`,
                         f`client/package.nls.json`,

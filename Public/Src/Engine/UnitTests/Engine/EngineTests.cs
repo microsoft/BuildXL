@@ -14,6 +14,8 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Engine;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.EngineTestUtilities;
@@ -240,7 +242,7 @@ namespace Test.BuildXL.EngineTests
             }
         }
 
-        [Fact]
+        [FactIfSupported(requiresSandbox: true)]
         public void TestCleanOnlyArgument()
         {
             var spec0 = SpecWithOpaques();
@@ -271,6 +273,28 @@ namespace Test.BuildXL.EngineTests
             XAssert.IsTrue(Directory.Exists(exclusive));
             XAssert.IsFalse(File.Exists(fileUnderShared));
             XAssert.IsFalse(File.Exists(fileUnderExclusive));
+        }
+
+        [Fact]
+        public void SharedOpaqueDirectoriesRequireSandboxing()
+        {
+            AddModule("Module0", ("spec0.dsc", SpecWithOpaques()), placeInRoot: true);
+            ((UnsafeSandboxConfiguration)Configuration.Sandbox.UnsafeSandboxConfiguration).SandboxKind = SandboxKind.None;
+
+            using (var trackingEventListener = new TrackingEventListener(Events.Log))
+            {
+                trackingEventListener.RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
+                RunEngine(expectSuccess: false);
+
+                AssertErrorEventLogged(LogEventId.SharedOpaqueDirectoriesRequireSandboxing);
+                XAssert.AreEqual(1, trackingEventListener.UserErrorDetails.Count);
+                XAssert.AreEqual(0, trackingEventListener.InternalErrorDetails.Count);
+                XAssert.AreEqual(
+                    LogEventId.SharedOpaqueDirectoriesRequireSandboxing.ToString(),
+                    trackingEventListener.UserErrorDetails.FirstErrorName);
+                XAssert.Contains(trackingEventListener.UserErrorDetails.FirstErrorMessage, "Pip");
+                XAssert.Contains(trackingEventListener.UserErrorDetails.FirstErrorMessage, "spec0.dsc");
+            }
         }
 
         [Fact]

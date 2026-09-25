@@ -16,6 +16,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 {
     [Trait("Category", "SharedOpaqueDirectoryTests")]
     [Feature(Features.SharedOpaqueDirectory)]
+    [TestClassIfSupported(requiresSandbox: true)]
     public class DirectoryRenameTests : SchedulerIntegrationTestBase
     {
         private const string NestedDirSrc   = "nested-tmp";

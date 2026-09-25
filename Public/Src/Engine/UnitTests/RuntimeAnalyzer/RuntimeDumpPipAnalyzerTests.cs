@@ -10,6 +10,7 @@ using ProcessEventId = BuildXL.Processes.Tracing.LogEventId;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using Test.BuildXL.Scheduler;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Test.BuildXL.Executables.TestProcess;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
@@ -71,6 +72,8 @@ namespace Test.BuildXL.RuntimeAnalyzer
         [Fact]
         public void TestLogLimit()
         {
+            BaseSetup(Configuration);
+
             var failingCopyFile1 = new CopyFile(FileArtifact.CreateSourceFile(CreateUniqueSourcePath(SourceRootPrefix)), CreateOutputFileArtifact(), ReadOnlyArray<StringId>.Empty, PipProvenance.CreateDummy(Context));
             var failingCopyFile2 = new CopyFile(FileArtifact.CreateSourceFile(CreateUniqueSourcePath(SourceRootPrefix)), CreateOutputFileArtifact(), ReadOnlyArray<StringId>.Empty, PipProvenance.CreateDummy(Context));
             
@@ -92,7 +95,7 @@ namespace Test.BuildXL.RuntimeAnalyzer
         /// <summary>
         /// Tests dump pip lite with observed file access logging.
         /// </summary>
-        [Fact]
+        [FactIfSupported(requiresSandbox: true)]
         public void TestFailingPipDumpWithObservedFileAccesses()
         {
             Configuration.Logging.DumpFailedPipsWithDynamicData = true;
@@ -162,7 +165,7 @@ namespace Test.BuildXL.RuntimeAnalyzer
         /// <summary>
         /// Test DumpPipLite run for pips failed due to DFA
         /// </summary>
-        [Theory]
+        [TheoryIfSupported(requiresSandbox: true)]
         [InlineData(true)]
         [InlineData(false)]
         public void TestDumpPipLiteRunForDFAPips(bool failOnUnexpectedFileAccesses)
@@ -213,7 +216,7 @@ namespace Test.BuildXL.RuntimeAnalyzer
         /// This covers the scenario where ExecutionLevel stays Executed and
         /// NumFileAccessViolationsNotAllowlisted is 0, but DependencyViolationReported fires.
         /// </summary>
-        [Fact]
+        [FactIfSupported(requiresSandbox: true)]
         public void TestDumpPipForDependencyViolationInSharedOpaque()
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");

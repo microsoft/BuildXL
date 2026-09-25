@@ -2,6 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace GrpcTest {
+    export declare const qualifier : BuildXLSdk.AllSupportedQualifiersWithoutMacOSArm64;
+
     @@public
     export const dll = BuildXLSdk.cacheTest({
         assemblyName: "Microsoft.ContentStore.Grpc.Test",

@@ -19,6 +19,7 @@ using BuildXL.Utilities.Configuration.Mutable;
 
 namespace ExternalToolTest.BuildXL.Scheduler
 {
+    [TestClassIfSupported(requiresSandbox: true)]
     public class ExternalToolExecutionTests : SchedulerIntegrationTestBase
     {
         public ExternalToolExecutionTests(ITestOutputHelper output) : base(output)

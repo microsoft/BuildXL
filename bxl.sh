@@ -311,21 +311,28 @@ function setBxlCmdArgs {
         "/p:MINOR_KERNEL_VERSION=$MINOR_KERNEL_VERSION"
     )
 
+    if [[ "${OSTYPE}" == darwin* ]]; then
+        # BuildXL sandboxing is not implemented for macOS yet.
+        g_bxlCmdArgs+=("/sandboxKind:None")
+    fi
+
     # all other user-specified args
     g_bxlCmdArgs+=(
        "$@"
     )
 
-    # We want tests that spawn their own sandbox to follow the same sandbox configuration as the main bxl process.
-    # The ebpf sandbox is enabled by default. So check whether it is explicitly disabled (/EnableLinuxEBPFSandbox- (case-insensitive)).
-    # Set the EnableLinuxEBPFSandboxForTests property accordingly on the bxl command line so tests will honor the sandbox mode.
-    # TODO: this is temporary until we can retire interpose
-    last_match=$(echo "${g_bxlCmdArgs[@]}" | grep -io '/EnableLinuxEBPFSandbox[+-]\{0,1\}' | tail -1)
-    if [[ -n "$last_match" && "$last_match" =~ - ]]; then
-        # CODESYNC: Public/Sdk/Public/Managed/Testing/XUnit/xunit.dsc
-        g_bxlCmdArgs+=("/p:EnableLinuxEBPFSandboxForTests=0")
-    else
-        g_bxlCmdArgs+=("/p:EnableLinuxEBPFSandboxForTests=1")
+    if [[ "${OSTYPE}" == "linux-gnu" ]]; then
+        # We want tests that spawn their own sandbox to follow the same sandbox configuration as the main bxl process.
+        # The ebpf sandbox is enabled by default. So check whether it is explicitly disabled (/EnableLinuxEBPFSandbox- (case-insensitive)).
+        # Set the EnableLinuxEBPFSandboxForTests property accordingly on the bxl command line so tests will honor the sandbox mode.
+        # TODO: this is temporary until we can retire interpose
+        last_match=$(echo "${g_bxlCmdArgs[@]}" | grep -io '/EnableLinuxEBPFSandbox[+-]\{0,1\}' | tail -1)
+        if [[ -n "$last_match" && "$last_match" =~ - ]]; then
+            # CODESYNC: Public/Sdk/Public/Managed/Testing/XUnit/xunit.dsc
+            g_bxlCmdArgs+=("/p:EnableLinuxEBPFSandboxForTests=0")
+        else
+            g_bxlCmdArgs+=("/p:EnableLinuxEBPFSandboxForTests=1")
+        fi
     fi
 }
 
@@ -344,10 +351,32 @@ function setExecutablePermissions() {
     # missing from the deployment. This is the case, for example, on ADO
     # builds where the engine is deployed by downloading pipeline artifacts.
     # Make sure that the executables that we need in the build are indeed executable.
-    chmod u+rx "$BUILDXL_BIN/bxl"
-    chmod u+rx "$BUILDXL_BIN/NugetDownloader"
-    chmod u+rx "$BUILDXL_BIN/Downloader"
-    chmod u+rx "$BUILDXL_BIN/Extractor"
+    local executableFiles=(
+        "bxl"
+        "bxlanalyzer"
+        "bxlcacheanalyzer"
+        "bxlScriptAnalyzer"
+        "BxlPipGraphFragmentGenerator"
+        "AdoBuildRunner"
+        "ContentStoreApp"
+        "Downloader"
+        "Extractor"
+        "NugetDownloader"
+        "SandboxedProcessExecutor"
+        "tools/NinjaGraphBuilder/NinjaGraphBuilder"
+        "tools/MsBuildGraphBuilder/dotnetcore/ProjectGraphBuilder"
+    )
+
+    for executableFile in "${executableFiles[@]}"; do
+        if [[ -f "$BUILDXL_BIN/$executableFile" ]]; then
+            chmod u+rx "$BUILDXL_BIN/$executableFile"
+        fi
+    done
+
+    # Downloaded or copied macOS deployments may retain a quarantine attribute that prevents launch.
+    if [[ "${OSTYPE}" == darwin* ]] && command -v xattr &> /dev/null; then
+        xattr -dr com.apple.quarantine "$BUILDXL_BIN" 2>/dev/null || true
+    fi
 }
 
 function compileWithBxl() {
@@ -418,14 +447,22 @@ function deployBxl { # (fromDir, toDir)
     local fromDir="$1"
     local toDir="$2"
 
-    mkdir -p "$toDir"
-    /usr/bin/rsync -arhq "$fromDir/" "$toDir" --delete
+    if [[ "${OSTYPE}" == darwin* ]]; then
+        # ditto merges directories, so remove the prior deployment to avoid retaining stale files.
+        rm -rf "$toDir"
+        /usr/bin/ditto "$fromDir" "$toDir"
+    else
+        mkdir -p "$toDir"
+        /usr/bin/rsync -arhq "$fromDir/" "$toDir" --delete
+    fi
+
     print_info "Successfully deployed developer build from $fromDir to: $toDir; use it with the '--use-dev' flag now."
 }
 
 function installCredProvider() {
 
     local dotnetLocation="$(which dotnet)"
+    local credentialProviderVersion="2.0.4"
 
     if [[ -z $dotnetLocation ]]; then
         print_error "Did not find dotnet. Please ensure dotnet is installed per: https://docs.microsoft.com/en-us/dotnet/core/install/linux and is accessable in your PATH"
@@ -437,21 +474,31 @@ function installCredProvider() {
     local credentialProviderExe="$credentialProvider/CredentialProvider.Microsoft.exe"
 
     export NUGET_CREDENTIALPROVIDERS_PATH="$credentialProvider"
+    export NUGET_CREDENTIALPROVIDER_MSAL_ENABLED="${NUGET_CREDENTIALPROVIDER_MSAL_ENABLED:-true}"
+    export NUGET_CREDENTIALPROVIDER_FORCE_CANSHOWDIALOG_TO="${NUGET_CREDENTIALPROVIDER_FORCE_CANSHOWDIALOG_TO:-true}"
     
     # If not on ADO, do not install the cred provider if it is already installed.
     # On ADO, just make sure we have the right thing, the download time is not significant for a lab build
-    if [[ (! -n "$ADOBuild") && -f "$credentialProviderExe" ]];
+    if [[ (! -n "$ADOBuild") && -f "$credentialProviderExe" ]] &&
+        "$credentialProviderExe" -h 2>&1 | grep -q "Command-line v${credentialProviderVersion}";
     then
-        print_info "Credential provider already installed under $destinationFolder"
+        print_info "Credential provider v${credentialProviderVersion} already installed under $destinationFolder"
         return;
     fi
 
-    # Download the artifacts credential provider
+    # Download the artifacts credential provider. Prefer wget (used historically on Linux), but fall
+    # back to curl since wget is not installed by default on macOS.
+    rm -rf "$credentialProvider"
     mkdir -p "$destinationFolder"
-    wget -q -c https://github.com/microsoft/artifacts-credprovider/releases/download/v1.0.0/Microsoft.NuGet.CredentialProvider.tar.gz -O - | tar -xz -C "$destinationFolder"
+    local credProviderUrl="https://github.com/microsoft/artifacts-credprovider/releases/download/v${credentialProviderVersion}/Microsoft.Net8.NuGet.CredentialProvider.tar.gz"
+    if command -v wget &> /dev/null; then
+        wget -q -c "$credProviderUrl" -O - | tar -xz -C "$destinationFolder"
+    else
+        curl -sSL "$credProviderUrl" | tar -xz -C "$destinationFolder"
+    fi
 
-    # Remove the .exe, since we want to replace it with a script that runs on Linux
-    rm "$credentialProviderExe"
+    # Remove the .exe, since we want to replace it with a script that runs on this platform
+    rm -f "$credentialProviderExe"
 
     # Create a new .exe with the shape of a script that calls dotnet against the dotnetcore dll
     echo "#!/bin/bash" >  "$credentialProviderExe"
@@ -461,6 +508,7 @@ function installCredProvider() {
 }
 
 function launchCredProvider() {
+    local feed="$1"
     credProviderPath=$(find "$NUGET_CREDENTIALPROVIDERS_PATH" -name "CredentialProvider*.exe" -type f | head -n 1)
 
     if [[ -z $credProviderPath ]]; then
@@ -468,8 +516,7 @@ function launchCredProvider() {
         exit 1
     fi
 
-    # CODESYNC: config.dsc. The URI needs to match the (single) feed used for the internal build
-    $credProviderPath -U https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json -V Information -C -R
+    $credProviderPath -U "$feed" -V Information -C -R
 }
 
 function setAuthenticationTokenInNpmrc() {
@@ -502,7 +549,15 @@ function setAuthenticationTokenInNpmrc() {
 
     # output is in the format '{"Username":"VssSessionToken","Password":"token"}'
     token=$(echo $credProviderOutput | sed -E -e 's/.*\{"Username":"[a-zA-Z0-9]*","Password":"([a-zA-Z0-9]*)"\}.*/\1/')
+    lkgCredProviderOutput=$($credProviderPath -U https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json -C -F Json)
+    lkgToken=$(echo $lkgCredProviderOutput | sed -E -e 's/.*\{"Username":"[a-zA-Z0-9]*","Password":"([a-zA-Z0-9]*)"\}.*/\1/')
     b64token=$(echo -ne "$token" | base64 -w 0)
+
+    # Download resolver pips do not read .npmrc. Pass the same cached token through the
+    # credential provider environment used by authenticated Download resolvers.
+    if [[ -z "$VSS_NUGET_EXTERNAL_FEED_ENDPOINTS" ]]; then
+        export VSS_NUGET_EXTERNAL_FEED_ENDPOINTS="{\"endpointCredentials\":[{\"endpoint\":\"https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json\",\"password\":\"$lkgToken\"},{\"endpoint\":\"https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json\",\"password\":\"$token\"},{\"endpoint\":\"https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/yarn/-/yarn-1.22.19.tgz\",\"password\":\"$token\"}]}"
+    fi
 
     # write new token to file
     echo "" >> "$HOME/.npmrc"
@@ -565,7 +620,8 @@ fi
 # On ADO builds, the CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64 variable is set instead.
 # TF_BUILD is an environment variable that is always present on ADO builds. So we use it to detect that case.
 if [[ -n "$arg_Internal" &&  ! -n "$TF_BUILD" ]];then
-    launchCredProvider
+    launchCredProvider "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json"
+    launchCredProvider "https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json"
     setAuthenticationTokenInNpmrc
 fi
 
@@ -593,8 +649,8 @@ if [[ -n "$arg_Internal" && -n "$ADOBuild" && (! -n $VSS_NUGET_EXTERNAL_FEED_END
     export CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64=$(echo -ne "$PATCloudBuild" | base64)
 fi
 
-# For local builds we want to use the in-build Linux runtime (as opposed to the runtime.linux-x64.BuildXL package)
-if [[ -z "$TF_BUILD" ]];then
+# For local Linux builds we want to use the in-build Linux runtime (as opposed to the runtime.linux-x64.BuildXL package)
+if [[ "${OSTYPE}" == "linux-gnu" && -z "$TF_BUILD" ]];then
     arg_Positional+=("/p:[Sdk.BuildXL]validateLinuxRuntime=0")
 fi
 

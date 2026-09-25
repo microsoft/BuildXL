@@ -32,7 +32,7 @@ namespace Test.BuildXL.FrontEnd.Utilities
             PipEnvironment = new PipEnvironment(LoggingContext);
         }
 
-        [Fact]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void RunSandboxedToolHasAllExpectedAccesses()
         {
             var input = GetFullPath("input");

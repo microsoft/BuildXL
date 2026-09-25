@@ -63,6 +63,11 @@ namespace LanguageService.Server {
         ],
     });
 
+}
+
+namespace LanguageService.Vsix {
     @@public
-    export const vsix = buildVsix(artifact);
+    export function build(): DerivedFile {
+        return buildVsix(LanguageService.Server.artifact);
+    }
 }

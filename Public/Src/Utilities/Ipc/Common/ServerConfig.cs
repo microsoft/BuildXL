@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Ipc.Common
 {
@@ -21,5 +22,10 @@ namespace BuildXL.Ipc.Common
 
         /// <inheritdoc />
         public bool StopOnFirstFailure { get; set; } = false;
+
+        /// <summary>
+        /// Whether to host the IPC service with gRPC.NET instead of gRPC Core.
+        /// </summary>
+        public bool UseGrpcDotNet { get; set; } = OperatingSystemHelper.IsMacOS;
     }
 }

@@ -15,6 +15,7 @@ using Xunit;
 
 namespace Test.BuildXL.Engine
 {
+    [TestClassIfSupported(requiresSandbox: true)]
     public class SharedOpaqueEngineTests : BaseEngineTest, IDisposable
     {
         private readonly TestCache m_testCache = new TestCache();

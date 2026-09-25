@@ -18,6 +18,7 @@ namespace IntegrationTest.BuildXL.Scheduler
     /// <summary>
     /// Tests for counters related to scheduling or pip execution.
     /// </summary>
+    [TestClassIfSupported(requiresSandbox: true)]
     public class SchedulerCounterTests : SchedulerIntegrationTestBase
     {
         public SchedulerCounterTests(ITestOutputHelper output) : base(output)

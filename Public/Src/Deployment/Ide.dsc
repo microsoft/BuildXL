@@ -22,14 +22,14 @@ namespace Ide {
                     file: importFrom("BuildXL.Ide").withQualifier({
                         targetFramework: BuildXLSdk.TargetFrameworks.DefaultTargetFramework,
                         targetRuntime: "win-x64"}
-                        ).LanguageService.Server.vsix,
+                        ).LanguageService.Vsix.build(),
                     targetFileName: a`BuildXL.vscode.win.vsix`,
                 },
                 {
                     file: importFrom("BuildXL.Ide").withQualifier({
                         targetFramework: BuildXLSdk.TargetFrameworks.DefaultTargetFramework,
                         targetRuntime: "osx-x64"}
-                        ).LanguageService.Server.vsix,
+                        ).LanguageService.Vsix.build(),
                     targetFileName: a`BuildXL.vscode.osx.vsix`,
                 }
             ]),
@@ -40,7 +40,7 @@ namespace Ide {
                     file: importFrom("BuildXL.Ide").withQualifier({
                         targetFramework: BuildXLSdk.TargetFrameworks.DefaultTargetFramework,
                         targetRuntime: "linux-x64"}
-                        ).LanguageService.Server.vsix,
+                        ).LanguageService.Vsix.build(),
                     targetFileName: a`BuildXL.vscode.linux.vsix`,
                 }
             ]),

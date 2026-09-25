@@ -41,7 +41,7 @@ namespace Test.Tool.Analyzers
         /// <summary>
         /// Test that the analyzer runs for pips succeed with file monitoring violations 
         /// </summary>
-        [Fact]
+        [FactIfSupported(requiresSandbox: true)]
         public void AnalyzerRunForPipsWithDX0268()
         {
             FileArtifact unexpectedFile = CreateSourceFile();

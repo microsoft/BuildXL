@@ -24,6 +24,7 @@ namespace IntegrationTest.BuildXL.Scheduler
     /// </summary>
     [Feature(Features.NonStandardOptions)]
     [Trait("Category", "NonStandardOptionsTests")]
+    [TestClassIfSupported(requiresSandbox: true)]
     public class NonStandardOptionsTests : SchedulerIntegrationTestBase
     {
         public NonStandardOptionsTests(ITestOutputHelper output) : base(output)

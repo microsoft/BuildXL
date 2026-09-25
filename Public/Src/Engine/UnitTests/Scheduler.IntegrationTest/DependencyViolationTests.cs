@@ -22,6 +22,7 @@ namespace IntegrationTest.BuildXL.Scheduler
     /// 
     /// These tests also don't get wrapped by an IncrementalScheduling version because they are about runtime
     /// </remarks>
+    [TestClassIfSupported(requiresSandbox: true)]
     public class DependencyViolationTests : SchedulerIntegrationTestBase
     {
         public DependencyViolationTests(ITestOutputHelper output) : base(output)

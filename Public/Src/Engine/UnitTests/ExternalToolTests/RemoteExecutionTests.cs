@@ -12,6 +12,7 @@ using Xunit;
 
 namespace ExternalToolTest.BuildXL.Scheduler
 {
+    [TestClassIfSupported(requiresSandbox: true)]
     public sealed class RemoteExecutionTests : SchedulerIntegrationTestBase
     {
         public RemoteExecutionTests(ITestOutputHelper output) : base(output)

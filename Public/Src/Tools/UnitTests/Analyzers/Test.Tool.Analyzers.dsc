@@ -9,6 +9,7 @@ namespace Test.Tool.Analyzers {
 
     @@public
     export const dll = BuildXLSdk.test({
+        skipTestRun: BuildXLSdk.isTargetRuntimeOsx,
         // These tests require Detours to run itself, so we won't detour the test runner process itself
         runTestArgs: {
             unsafeTestRunArguments: {

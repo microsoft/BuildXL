@@ -138,6 +138,11 @@ namespace Test.BuildXL.Scheduler
             // Disable currently enabled unsafe option.
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreCreateProcessReport = false;
 
+            if (OperatingSystemHelper.IsMacOS)
+            {
+                Configuration.Sandbox.UnsafeSandboxConfigurationMutable.SandboxKind = SandboxKind.None;
+            }
+
             // Honor the test infra regarding the use of the EBPF sandbox
             Configuration.Sandbox.EnableEBPFLinuxSandbox = UsingEBPFSandbox;
 

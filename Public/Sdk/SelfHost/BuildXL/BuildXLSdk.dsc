@@ -231,7 +231,7 @@ namespace Flags {
     * Whether tests are configured to run with QTest. Not whether QTest gets bundled with the BuildXL deployment
     */
     @@public
-    export const isQTestEnabled = isMicrosoftInternal && Environment.getFlag(envVarNamePrefix + "useQTest");
+    export const isQTestEnabled = isMicrosoftInternal && Context.getCurrentHost().os !== "macOS" && Environment.getFlag(envVarNamePrefix + "useQTest");
 
     /**
      * Whether we are generating VS solution.

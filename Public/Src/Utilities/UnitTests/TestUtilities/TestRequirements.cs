@@ -80,5 +80,10 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// Requires EBPF to be enabled on Linux
         /// </summary>
         EBPFEnabled = 1 << 13,
+
+        /// <summary>
+        /// Requires BuildXL sandboxing and file access monitoring
+        /// </summary>
+        Sandbox = 1 << 14,
     }
 }

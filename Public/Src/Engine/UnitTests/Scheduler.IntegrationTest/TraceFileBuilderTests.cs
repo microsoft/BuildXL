@@ -18,6 +18,7 @@ using Xunit;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
+    [TestClassIfSupported(requiresSandbox: true)]
     public class TraceFileBuilderTests : SchedulerIntegrationTestBase
     {
         public TraceFileBuilderTests(ITestOutputHelper output) : base(output)

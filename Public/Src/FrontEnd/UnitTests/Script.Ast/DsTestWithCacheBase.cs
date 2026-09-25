@@ -121,7 +121,13 @@ namespace Test.DScript.Ast
                                                     })
             {
                 // Make sure we honor EBPF sandboxing settings from the main config.
-                ((SandboxConfiguration)config.Sandbox).EnableEBPFLinuxSandbox = UsingEBPFSandbox;
+                ((SandboxConfiguration)config.Sandbox).EnableEBPFLinuxSandbox = OperatingSystemHelper.IsLinuxOS && UsingEBPFSandbox;
+
+                if (OperatingSystemHelper.IsMacOS)
+                {
+                    // macos-missing: Frontend cache tests cannot use file-access sandboxing on macOS yet.
+                    ((UnsafeSandboxConfiguration)config.Sandbox.UnsafeSandboxConfiguration).SandboxKind = SandboxKind.None;
+                }
 
                 engine = CreateEngine(config, appDeployment, testRootDirectory, rememberAllChangedTrackedInputs, verifyEngineTestHooksData);
 

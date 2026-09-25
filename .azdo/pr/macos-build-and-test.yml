@@ -4,9 +4,17 @@
 trigger: none # Explicitly scheduled for PRs
 
 jobs:
-- job: buildMinimal
-  displayName: BuildXL minimal self-host validation on macOS
+- job: buildAndTest
+  displayName: Build and test BuildXL on macOS
   timeoutInMinutes: 120
+  strategy:
+    matrix:
+      Debug:
+        configurationArgument: ''
+        qualifierArgument: '/q:DebugDotNetCoreMacArm64'
+      Release:
+        configurationArgument: '--release'
+        qualifierArgument: '/q:ReleaseDotNetCoreMacArm64'
   pool:
     name: GitHub-hosted Agents
     vmImage: macos-26-arm64
@@ -20,14 +28,16 @@ jobs:
   - task: Cache@2
     displayName: Restore BuildXL cache
     inputs:
-      key: '"buildxl-local-v1" | "$(Agent.OS)" | "ReleaseDotNetCoreMacArm64" | "$(Build.SourceVersion)"'
+      key: '"buildxl-local-v1" | "$(Agent.OS)" | "$(qualifierArgument)" | "$(Build.SourceVersion)"'
       restoreKeys: |
-        "buildxl-local-v1" | "$(Agent.OS)" | "ReleaseDotNetCoreMacArm64"
+        "buildxl-local-v1" | "$(Agent.OS)" | "$(qualifierArgument)"
       path: '$(Build.SourcesDirectory)/Out/Cache.noindex'
       cacheHitVar: BUILDXL_CACHE_RESTORED
 
+  # Use a pipeline-specific 5 GiB cache instead of BuildXL's 10 GiB default to bound the
+  # archive size transferred and retained by the Azure Pipelines Cache@2 task.
   - task: Bash@3
-    displayName: Build and deploy minimal BuildXL
+    displayName: Build and deploy BuildXL
     inputs:
       targetType: inline
       script: |
@@ -40,9 +50,9 @@ jobs:
 
         bash bxl.sh \
           --internal \
-          --minimal \
           --deploy-dev \
-          --release \
+          --cache-config-file "$(Build.SourcesDirectory)/.azdo/pr/macos-cache-config.json" \
+          $(configurationArgument) \
           /sandboxKind:None \
           /useHistoricalRamUsageInfo- \
           /logsDirectory:"Out/Logs/Bootstrap" \
@@ -56,18 +66,20 @@ jobs:
       PATCloudBuild: $(BuildXL-Pipeline-AccessToken)
 
   - task: Bash@3
-    displayName: Validate minimal BuildXL with deployed bits
+    displayName: Run unit tests with deployed BuildXL
     inputs:
       targetType: inline
       script: |
         bash bxl.sh \
           --internal \
-          --minimal \
           --use-dev \
-          --release \
+          --cache-config-file "$(Build.SourcesDirectory)/.azdo/pr/macos-cache-config.json" \
+          $(configurationArgument) \
+          $(qualifierArgument) \
+          "/f:tag='test'" \
           /sandboxKind:None \
           /useHistoricalRamUsageInfo- \
-          /logsDirectory:"Out/Logs/Selfhost" \
+          /logsDirectory:"Out/Logs/Tests" \
           /server-
       workingDirectory: $(Build.SourcesDirectory)
     env:
@@ -79,5 +91,5 @@ jobs:
     condition: always()
     inputs:
       PathtoPublish: $(Build.SourcesDirectory)/Out/Logs
-      ArtifactName: macos-minimal-build-logs-$(Build.BuildId)
+      ArtifactName: macos-build-test-logs-$(Build.BuildId)-$(System.JobName)
       publishLocation: Container

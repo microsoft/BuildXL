@@ -67,7 +67,7 @@ namespace Test.Tool.Analyzers
                 ArtifactToString(srcFile));
         }
 
-        [Fact]
+        [FactIfSupported(requiresSandbox: true)]
         public void DirectoryEnumerationReadOnlyMountStrongFingerprintMiss()
         {
             DirectoryArtifact dir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory(ReadonlyRoot));
@@ -104,7 +104,7 @@ namespace Test.Tool.Analyzers
                 ArtifactToString(addedFile));
         }
 
-        [Fact]
+        [FactIfSupported(requiresSandbox: true)]
         public void NonCacheableAllowelistPipMiss()
         {
             FileArtifact allowlistFile = CreateSourceFile();
@@ -130,7 +130,7 @@ namespace Test.Tool.Analyzers
                 "disallowed file accesses in the previous build");
         }
 
-        [Fact]
+        [FactIfSupported(requiresSandbox: true)]
         public void FileAccessViolationUncacheablePipMiss()
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = false;

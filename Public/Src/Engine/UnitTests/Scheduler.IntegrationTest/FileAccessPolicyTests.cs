@@ -21,6 +21,7 @@ namespace IntegrationTest.BuildXL.Scheduler
     /// Tests that validate file access policies and caching behavior
     /// </summary>
     [Trait("Category", "FileAccessPolicyTests")]
+    [TestClassIfSupported(requiresSandbox: true)]
     public class FileAccessPolicyTests : SchedulerIntegrationTestBase
     {
         public FileAccessPolicyTests(ITestOutputHelper output) : base(output)

@@ -8,6 +8,7 @@ import * as Node from "Sdk.NodeJs";
 import {Transformer} from "Sdk.Transformers";
 
 namespace Test.Yarn {
+    export declare const qualifier: BuildXLSdk.Net8PlusQualifierWithoutMacOS;
     
     // TODO: to enable this, we should use an older version of NodeJs for Linux
     // Yarn is not easily available in the hosted machines that run the public build. So excluding these tests for now outside of the internal build

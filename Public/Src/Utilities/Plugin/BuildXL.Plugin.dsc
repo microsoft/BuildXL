@@ -11,7 +11,7 @@ namespace Plugin {
         sources: globR(d`.`, "*.cs"),
         references: [
             ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(false),
-            ...importFrom("BuildXL.Cache.ContentStore").getGrpcDotNetPackages(),
+            ...addIfLazy(BuildXLSdk.isDotNetCore, () => importFrom("BuildXL.Cache.ContentStore").getGrpcAspNetCorePackages()),
             $.dll,
             $.Ipc.dll,
             $.Ipc.Providers.dll,

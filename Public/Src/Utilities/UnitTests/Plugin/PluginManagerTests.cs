@@ -131,7 +131,7 @@ namespace Test.BuildXL.Plugin
                 {
                     try
                     {
-                        using (var pluginServer = new MockPluginServer(m_port, new MockLogger()))
+                        using (var pluginServer = new MockPluginServer(m_port, new MockLogger(), useGrpcDotNet: OperatingSystemHelper.IsMacOS))
                         {
                             pluginServer.Start();
 

@@ -15,6 +15,12 @@ using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using Grpc.Core;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using IpcResult = BuildXL.Ipc.Common.IpcResult;
 
 namespace BuildXL.Ipc.GrpcBasedIpc
@@ -26,7 +32,8 @@ namespace BuildXL.Ipc.GrpcBasedIpc
     internal sealed class GrpcIpcServer : IpcServer.IpcServerBase, IServer
     {
         private IIpcOperationExecutor m_executor;
-        private Server m_server;
+        private Server m_grpcCoreServer;
+        private IHost m_grpcDotNetServer;
         private readonly int m_port;
         private int m_lastOperationId = -1;
         private readonly TaskSourceSlim<string> m_connectionString;
@@ -42,6 +49,8 @@ namespace BuildXL.Ipc.GrpcBasedIpc
         }
 
         public IServerConfig Config { get; }
+
+        private bool UseGrpcDotNet => Config is ServerConfig { UseGrpcDotNet: true };
 
         public Task<string> ConnectionString => m_connectionString.Task;
 
@@ -99,7 +108,7 @@ namespace BuildXL.Ipc.GrpcBasedIpc
         void IDisposable.Dispose()
         {
             Logger.Verbose("Disposing...");
-            if (m_server is not null && !Completion.IsCompleted)
+            if ((m_grpcCoreServer is not null || m_grpcDotNetServer is not null) && !Completion.IsCompleted)
             {
                 throw new IpcException(IpcException.IpcExceptionKind.DisposeBeforeCompletion);
             }
@@ -116,7 +125,15 @@ namespace BuildXL.Ipc.GrpcBasedIpc
             try
             {
                 Logger.Verbose("[GrpcIpcServer] Stopping....");
-                await (m_server?.ShutdownAsync() ?? Task.CompletedTask); 
+                if (UseGrpcDotNet && m_grpcDotNetServer is not null)
+                {
+                    await m_grpcDotNetServer.StopAsync();
+                    m_grpcDotNetServer.Dispose();
+                }
+                else if (m_grpcCoreServer is not null)
+                {
+                    await m_grpcCoreServer.ShutdownAsync();
+                }
             }
             catch (InvalidOperationException)
             {
@@ -141,25 +158,62 @@ namespace BuildXL.Ipc.GrpcBasedIpc
             }
 
             m_executor = executor;
-            var serviceDefinition = IpcServer.BindService(this);
-
-            var channelOptions = new ChannelOption[]
+            if (!UseGrpcDotNet)
             {
-                new ChannelOption(ChannelOptions.MaxSendMessageLength, -1), // -1 == unbounded 
-                new ChannelOption(ChannelOptions.MaxReceiveMessageLength, -1) 
-            };
+                var serviceDefinition = IpcServer.BindService(this);
+                var channelOptions = new[]
+                {
+                    new ChannelOption(ChannelOptions.MaxSendMessageLength, -1),
+                    new ChannelOption(ChannelOptions.MaxReceiveMessageLength, -1),
+                };
 
-            m_server = new Server(channelOptions)
+                m_grpcCoreServer = new Server(channelOptions)
+                {
+                    Services = { serviceDefinition },
+                    Ports = { new ServerPort(IPAddress.Loopback.ToString(), m_port, ServerCredentials.Insecure) },
+                };
+            }
+            else
             {
-                Services = { serviceDefinition },
-                Ports = { new ServerPort(IPAddress.Loopback.ToString(), m_port, ServerCredentials.Insecure) },
-            };
+                m_grpcDotNetServer = Host.CreateDefaultBuilder()
+                .ConfigureWebHostDefaults(webBuilder =>
+                {
+                    webBuilder.ConfigureLogging(logging => logging.ClearProviders());
+                    webBuilder.ConfigureKestrel(options =>
+                    {
+                        options.Limits.MaxRequestBodySize = null;
+                        options.Listen(IPAddress.Loopback, m_port, listenOptions => listenOptions.Protocols = HttpProtocols.Http2);
+                    });
+                    webBuilder.ConfigureServices(services =>
+                    {
+                        services.AddSingleton(this);
+                        services.AddGrpc(options =>
+                        {
+                            options.MaxSendMessageSize = int.MaxValue;
+                            options.MaxReceiveMessageSize = int.MaxValue;
+                        });
+                    });
+                    webBuilder.Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapGrpcService<GrpcIpcServer>());
+                    });
+                })
+                .Build();
+            }
 
             try
             {
-                m_server.Start();
-                // The server has started, so the port (we only specified one) must have been bound by now.
-                m_connectionString.TrySetResult(m_server.Ports.Single().BoundPort.ToString());
+                if (UseGrpcDotNet)
+                {
+                    m_grpcDotNetServer.StartAsync().GetAwaiter().GetResult();
+                    m_connectionString.TrySetResult(m_port.ToString());
+                }
+                else
+                {
+                    m_grpcCoreServer.Start();
+                    m_connectionString.TrySetResult(m_grpcCoreServer.Ports.Single().BoundPort.ToString());
+                }
             }
             catch (IOException e)
             {

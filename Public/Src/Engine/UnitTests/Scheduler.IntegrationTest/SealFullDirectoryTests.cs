@@ -15,6 +15,7 @@ using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
+    [TestClassIfSupported(requiresSandbox: true)]
     public class SealFullDirectoryTests : SchedulerIntegrationTestBase
     {
         public SealFullDirectoryTests(ITestOutputHelper output) : base(output)

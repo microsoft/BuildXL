@@ -5,6 +5,9 @@ import * as Managed from "Sdk.Managed";
 import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace Test.Ninja {
+    // The Ninja integration tests require sandboxing and a macOS-specific Ninja tool package.
+    export declare const qualifier : BuildXLSdk.Net8PlusQualifierWithoutMacOS;
+
     @@public
     export const dll = BuildXLSdk.test({
         runTestArgs: {

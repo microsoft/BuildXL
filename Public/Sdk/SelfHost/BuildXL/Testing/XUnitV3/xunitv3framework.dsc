@@ -256,7 +256,8 @@ function runStandaloneV3(args : Managed.TestRunArguments) : File[] {
         // fails, flooding ADO logs with hundreds of irrelevant skip messages.
         errorRegex: "^(?!.*\\[SKIP\\])(?!\\s+Test filtered out by hash bucket)",
         workingDirectory: testDeployment.contents.root,
-        retryExitCodes: Environment.getFlag("RetryXunitTests") ? [1, 3] : [],
+        // xUnit v3 uses bit flags: 1 means failed tests, 2 means an execution error, and 3 means both.
+        retryExitCodes: Environment.getFlag("RetryXunitTests") ? [1, 2, 3] : [],
         processRetries: Environment.hasVariable("NumXunitRetries") ? Environment.getNumberValue("NumXunitRetries") : undefined,
         unsafe: unsafeArgs,
         privilegeLevel: args.privilegeLevel,

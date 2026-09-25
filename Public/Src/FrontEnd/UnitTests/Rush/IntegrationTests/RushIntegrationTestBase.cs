@@ -15,6 +15,7 @@ using BuildXL.Utilities.Core;
 using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities;
+using Test.BuildXL.TestUtilities.Xunit;
 using Test.DScript.Ast;
 using Xunit;
 
@@ -23,6 +24,7 @@ namespace Test.BuildXL.FrontEnd.Rush
     /// <summary>
     /// Provides facilities to run the engine adding Rush specific artifacts.
     /// </summary>
+    [TestClassIfSupported(requiresSandbox: true)]
     public abstract class RushIntegrationTestBase : DsTestWithCacheBase
     {
         /// <summary>

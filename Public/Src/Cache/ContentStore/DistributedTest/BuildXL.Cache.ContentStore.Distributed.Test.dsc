@@ -5,7 +5,7 @@ import * as ManagedSdk from "Sdk.Managed";
 import { Transformer } from "Sdk.Transformers";
 
 namespace DistributedTest {
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472WithoutMacOSArm64;
 
     const storageKeyEnvVar = "TestEventHub_StorageAccountKey";
     const storageNameEnvVar = "TestEventHub_StorageAccountName";

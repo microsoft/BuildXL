@@ -28,6 +28,7 @@ using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.FingerprintStore
 {
+    [TestClassIfSupported(requiresSandbox: true)]
     public class FingerprintStoreTests : SchedulerIntegrationTestBase
     {
         public FingerprintStoreTests(ITestOutputHelper output)

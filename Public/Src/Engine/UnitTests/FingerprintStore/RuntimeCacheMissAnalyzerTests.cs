@@ -31,6 +31,7 @@ using System.Threading.Tasks;
 
 namespace Test.BuildXL.FingerprintStore
 {
+    [TestClassIfSupported(requiresSandbox: true)]
     public class RuntimeCacheMissAnalyzerTests : SchedulerIntegrationTestBase
     {
         private string m_cacheMissAnalysisDetail;

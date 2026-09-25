@@ -18,6 +18,7 @@ using LogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
+    [TestClassIfSupported(requiresSandbox: true)]
     public class MinimalGraphWithAlienFileTests : SchedulerIntegrationTestBase
     {
         public MinimalGraphWithAlienFileTests(ITestOutputHelper output) : base(output)

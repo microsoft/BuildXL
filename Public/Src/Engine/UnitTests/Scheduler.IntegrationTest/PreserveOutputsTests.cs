@@ -23,6 +23,7 @@ using Xunit;
 namespace IntegrationTest.BuildXL.Scheduler
 {
     [Trait("Category", "PreserveOutputsTests")]
+    [TestClassIfSupported(requiresSandbox: true)]
     public class PreserveOutputsTests : SchedulerIntegrationTestBase
     {
         // Content we will be testing below in the output file

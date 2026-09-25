@@ -30,7 +30,7 @@ namespace Test.BuildXL.Processes
             ReparsePointResolver = new ReparsePointResolver(Context.PathTable, directoryTranslator);
         }
 
-        [FactIfSupported(requiresSymlinkPermission: true)]
+        [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestAllReparsePointsAreResolved()
         {
             // Create 'folder/nestedFolder/nestedFile', a directory symlink that points to 'folder' and a nested
@@ -58,7 +58,7 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(AbsolutePath.Create(Context.PathTable, nestedFile), result);
         }
 
-        [FactIfSupported(requiresSymlinkPermission: true)]
+        [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestLastAtomIsNeverResolved()
         {
             // Create 'folder/nestedFile', a file symlink that points to 'nestedFile'

@@ -4,9 +4,10 @@
 import {Transformer} from "Sdk.Transformers";
 import * as Deployment from "Sdk.Deployment";
 import {Node} from "Sdk.NodeJs";
+import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace JavaScript.RushGraphBuilder {
-    export declare const qualifier: {};
+    export declare const qualifier: BuildXLSdk.AllSupportedQualifiersWithoutMacOS;
 
     const rushToolSrc = Transformer.sealDirectory(d`src`, globR(d`src`));
     const output = Node.tscBuild({

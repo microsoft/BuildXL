@@ -80,7 +80,7 @@ namespace Test.BuildXL.Scheduler
             }
         }
 
-        [Fact]
+        [FactIfSupported(requiresSandbox: true)]
         [SuppressMessage("AsyncUsage", "AsyncFixer02", Justification = "ReadAllText and WriteAllText have async versions in .NET Standard which cannot be used in full framework.")]
         public async Task Stress()
         {

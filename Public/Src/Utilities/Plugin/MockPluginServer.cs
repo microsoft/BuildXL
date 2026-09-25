@@ -19,7 +19,7 @@ namespace BuildXL.Plugin
         };
 
         /// <nodoc />
-        public MockPluginServer(int port, ILogger logger): base(port, logger)
+        public MockPluginServer(int port, ILogger logger, bool useGrpcDotNet = false): base(port, logger, useGrpcDotNet)
         {
         }
 

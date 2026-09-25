@@ -36,8 +36,12 @@ namespace Rush {
             Sdk.dll,
             JavaScript.dll
         ],
-        runtimeContent:[
-            importFrom("BuildXL.Tools").JavaScript.RushGraphBuilder.deployment
+        runtimeContent: [
+            ...addIfLazy(Context.getCurrentHost().os !== "macOS", () => [
+                importFrom("BuildXL.Tools").withQualifier({
+                    targetRuntime: Context.getCurrentHost().os === "win" ? "win-x64" : "linux-x64"
+                }).JavaScript.RushGraphBuilder.deployment
+            ])
         ],
         internalsVisibleTo: [
             "Test.BuildXL.FrontEnd.Rush",

@@ -7,6 +7,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.FrontEnd.Core;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
 [assembly: CollectionBehavior(MaxParallelThreads = 1)]
@@ -122,7 +123,7 @@ namespace Test.BuildXL.FrontEnd.Download
             Assert.Contains("data on the server has been altered", error);
         }
 
-        [Fact]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void ExtractionGetsProperlyExposed()
         {
             var data = GetSampleData(TestServer + "file.zip", DownloadArchiveType.Zip);

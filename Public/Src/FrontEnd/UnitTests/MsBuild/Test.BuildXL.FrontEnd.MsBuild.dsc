@@ -7,6 +7,9 @@ import * as Frameworks from "Sdk.Managed.Frameworks";
 import * as XUnitV3 from "Sdk.Managed.Testing.XUnitV3";
 
 namespace Test.MsBuild {
+    // The MSBuild integration tests require sandboxed process execution, which is not supported on macOS.
+    export declare const qualifier : BuildXLSdk.Net8PlusQualifierWithoutMacOS;
+
     @@public
     export const dll = BuildXLSdk.test({
         runTestArgs: {

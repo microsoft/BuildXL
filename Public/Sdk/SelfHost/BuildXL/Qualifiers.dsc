@@ -24,6 +24,16 @@ export interface DefaultQualifier extends Qualifier {
 }
 
 /**
+ * Qualifier for projects that support DotNetCore, but do not support macOS ARM64
+ */
+@@public
+export interface DefaultQualifierWithoutMacOSArm64 extends Qualifier {
+    configuration: "debug" | "release";
+    targetFramework: "net8.0" | "net9.0" | "net10.0";
+    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
+}
+
+/**
  * Qualifier for projects that support DotNetCore and .NET472
  */
 @@public
@@ -34,6 +44,16 @@ export interface DefaultQualifierWithNet472 extends Qualifier {
 }
 
 /**
+ * Qualifier for projects that support DotNetCore and .NET472, but do not support macOS ARM64
+ */
+@@public
+export interface DefaultQualifierWithNet472WithoutMacOSArm64 extends Qualifier {
+    configuration: "debug" | "release";
+    targetFramework: "net8.0" | "net9.0" | "net10.0" | "net472";
+    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
+}
+
+/**
  * Qualifier for projects that support DotNetCore, .NET472 and NetStandard2.0
  */
 @@public
@@ -41,6 +61,26 @@ export interface AllSupportedQualifiers extends Qualifier {
     configuration: "debug" | "release";
     targetFramework: "net8.0" | "net9.0" | "net10.0" | "net472" | "netstandard2.0";
     targetRuntime: "win-x64" | "osx-x64" | "osx-arm64" | "linux-x64";
+}
+
+/**
+ * Qualifier for projects that support all target frameworks, but do not support macOS ARM64
+ */
+@@public
+export interface AllSupportedQualifiersWithoutMacOSArm64 extends Qualifier {
+    configuration: "debug" | "release";
+    targetFramework: "net8.0" | "net9.0" | "net10.0" | "net472" | "netstandard2.0";
+    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
+}
+
+/**
+ * Qualifier for projects that support all target frameworks, but do not support macOS
+ */
+@@public
+export interface AllSupportedQualifiersWithoutMacOS extends Qualifier {
+    configuration: "debug" | "release";
+    targetFramework: "net8.0" | "net9.0" | "net10.0" | "net472" | "netstandard2.0";
+    targetRuntime: "win-x64" | "linux-x64";
 }
 
 /**
@@ -59,6 +99,16 @@ export interface Net8PlusQualifier extends Qualifier {
     targetRuntime: "win-x64" | "osx-x64" | "osx-arm64" | "linux-x64";
 }
 
+/**
+ * .NET 8+ qualifier for projects that do not support macOS
+ */
+@@public
+export interface Net8PlusQualifierWithoutMacOS extends Qualifier {
+    configuration: "debug" | "release";
+    targetFramework: "net8.0" | "net9.0" | "net10.0";
+    targetRuntime: "win-x64" | "linux-x64";
+}
+
 @@public
 export interface Net8Qualifier extends Qualifier {
     configuration: "debug" | "release";
@@ -71,6 +121,16 @@ export interface Net10Qualifier extends Qualifier {
     configuration: "debug" | "release";
     targetFramework: "net10.0";
     targetRuntime: "win-x64" | "osx-x64" | "osx-arm64" | "linux-x64";
+}
+
+/**
+ * .NET 10 qualifier for projects that do not support macOS
+ */
+@@public
+export interface Net10QualifierWithoutMacOS extends Qualifier {
+    configuration: "debug" | "release";
+    targetFramework: "net10.0";
+    targetRuntime: "win-x64" | "linux-x64";
 }
 
 @@public

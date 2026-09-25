@@ -2,7 +2,7 @@
 
 * BuildXL is fully supported for Windows.
 * Linux: see [Readme.md](../../README.md) for supported distros.
-* macOS is not currently supported.
+* macOS support is experimental. See [macOS Support](macOS-Support.md) for current capabilities and test status.
 
 ## Linux Support
 
@@ -33,7 +33,11 @@ BuildXL will check for these libraries at startup and report a clear error messa
 The following features are not supported on the PTrace sandbox.
 - Blocking disallowed file accesses
 
-## macOS Support History
+## macOS Support
+
+BuildXL can currently bootstrap, build, and run selected tests on macOS with file-access sandboxing disabled. This mode does not provide BuildXL's normal cache-correctness guarantees and requires inputs and output to be correctly specified. See [macOS Support](macOS-Support.md) for the capability matrix, known exclusions, and validation workflow.
+
+### History
 In the past there was a push to bring BuildXL to macOS to provide cached and distributed builds to the a number of Microsoft teams. BuildXL moved to .netcore and scrubbed the codebase to add Unix support. The core bxl executable can be cross compiled on Windows to run on macOS. The major component that needed to be rewritten for macOS is the file access monitoring layer. This is what allows BuildXL to provide reliable caching.
 
 There are a number of options for monitoring process trees and the files they access on unix platforms, and slightly fewer on macOS. Thorough analysis and prototyping was performed and all existing frameworks had issues that prevented their use. The last resort was writing a custom Kernel Extension (KEXT). This was able to satisfy the requirements for high performance and lossless file access tracking for child process trees. It enabled moving forward with macOS support but it came with the risk of of using a technology that might not be supported long term.

@@ -15,6 +15,7 @@ using Xunit;
 namespace IntegrationTest.BuildXL.Scheduler
 {
     /// <nodoc />
+    [TestClassIfSupported(requiresSandbox: true)]
     public class ReclassificationRulesTests : ReclassificationRulesTestsBase
     {
         public ReclassificationRulesTests(ITestOutputHelper output) : base(output)

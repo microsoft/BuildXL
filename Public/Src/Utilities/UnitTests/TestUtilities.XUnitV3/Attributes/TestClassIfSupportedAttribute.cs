@@ -49,6 +49,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             bool requiresWindowsOrLinuxOperatingSystem = false,
             bool requiresLinuxBasedOperatingSystem = false,
             bool requiresEBPFEnabled = false,
+            bool requiresSandbox = false,
             TestRequirements additionalRequirements = TestRequirements.None)
         {
             // Use same logic and underlying static state to determine whether to Skip tests
@@ -62,6 +63,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 requiresWindowsOrLinuxOperatingSystem: requiresWindowsOrLinuxOperatingSystem,
                 requiresLinuxBasedOperatingSystem: requiresLinuxBasedOperatingSystem,
                 requiresEBPFEnabled: requiresEBPFEnabled,
+                requiresSandbox: requiresSandbox,
                 additionalRequirements: additionalRequirements
             );
 

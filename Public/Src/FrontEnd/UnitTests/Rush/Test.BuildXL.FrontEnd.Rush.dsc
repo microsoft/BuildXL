@@ -8,7 +8,7 @@ import {Node} from "Sdk.NodeJs";
 import {Transformer} from "Sdk.Transformers";
 
 namespace Test.Rush {
-    export declare const qualifier: BuildXLSdk.Net10Qualifier;
+    export declare const qualifier: BuildXLSdk.Net10QualifierWithoutMacOS;
     
     // Install Rush for tests
     const rushTest = Context.getNewOutputDirectory(a`rush-test`);

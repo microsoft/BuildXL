@@ -1,6 +1,6 @@
-# Exclude directories where intermediate downloads are stored from component detection. False positives have been observed in these directories for artifacts that
-# are only downloaded but not used. Any file that is actually used will be copied to another location outside of these directories.
+# Exclude intermediate downloads and generated JavaScript unit-test tool trees from component detection. These artifacts are either unused downloads or tools used
+# only during tests. Product dependencies are copied to locations outside these directories and remain covered by component detection.
 variables:
-# Exclusions for the native ADO Component Detection task (semicolon-separated absolute paths)
+# Exclusions for the native ADO Component Detection task (semicolon-separated globs matched against drive-relative paths)
 - name: ComponentDetection.DirectoryExclusionPatterns
-  value: $(Build.SourcesDirectory)/Out/frontend/Download*;$(Build.SourcesDirectory)/Out/NodeJsForUnitTests*
+  value: '**/Out/frontend/Download*;**/Out/NodeJsForUnitTests*;**/Out/Objects/**/testRun/**;**/Out/Objects/**/nx-test/**;**/Out/Objects/**/lage-test/**;**/Out/Objects/**/rush-test/**;**/Out/Objects/**/rushlib-test/**;**/Out/Objects/**/t_*/BuildXL-RushUserProfile-*/**'

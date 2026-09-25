@@ -19,6 +19,7 @@ trigger:
 variables:
 - group: "BuildXL Common variables"
 - template: variables.yml
+- template: /.azdo/common/component-detection-exclusions.yml
 - name: isPublishingBranch
   # We only want to run the publishing stage for main and releases/* branch
   # This condition is to avoid publishing binaries from test runs of the pipeline from custom branches
@@ -49,9 +50,6 @@ extends:
       autoBaseline: false
       incrementalSDLBinaryAnalysis: true
     sdl:
-      componentgovernance:
-        # CODESYNC: .azdo/common/component-detection-exclusions.yml
-        ignoreDirectories: 'Out/frontend/Download,Out/NodeJsForUnitTests'
       sourceAnalysisPool:
         name: Windows-SDL-Agents
         os: windows

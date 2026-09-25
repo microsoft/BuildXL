@@ -16,6 +16,7 @@ resources:
 
 variables:
   - group: "BuildXL Common variables"
+  - template: /.azdo/common/component-detection-exclusions.yml
   - name: Codeql.Enabled
     value: false
 

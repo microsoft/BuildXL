@@ -3,6 +3,9 @@
 
 trigger: none # Explicitly scheduled for PRs
 
+variables:
+- template: /.azdo/common/component-detection-exclusions.yml
+
 jobs:
 - job: buildAndTest
   displayName: Build and test BuildXL on macOS

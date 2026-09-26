@@ -507,6 +507,7 @@ namespace BuildXL.Engine
                     serializer,
                     loggingContext,
                     engineState,
+                    Configuration.Engine.DirectedGraphMode,
                     m_console).GetAwaiter().GetResult();
             }
             catch (BuildXLException e)
@@ -518,6 +519,14 @@ namespace BuildXL.Engine
             {
                 return GraphReuseResult.CreateForNoReuse(inputChanges);
             }
+
+            // EngineState retains ownership of its graph; a graph loaded from disk belongs to this reuse attempt.
+            bool isOwnedByEngineState =
+                EngineState.IsUsable(engineState)
+                && ReferenceEquals(engineState.PipGraph.DataflowGraph, t.Item1.DataflowGraph);
+            using var directedGraphOwnership = new DirectedGraphOwnership(
+                t.Item1.DataflowGraph,
+                ownsGraph: !isOwnedByEngineState);
 
             var newContext = t.Item2;
             if (!ShouldReuseReloadedEngineContextGivenHistoricData(loggingContext, newContext.NextHistoricTableSizes))
@@ -551,7 +560,9 @@ namespace BuildXL.Engine
 
             FrontEndController.ParseConfig(configurationEngine, m_initialCommandLineConfiguration);
 
-            return GraphReuseResult.CreateForPartialReuse(t.Item1, inputChanges);
+            var reuseResult = GraphReuseResult.CreateForPartialReuse(t.Item1, inputChanges, directedGraphOwnership.IsOwned);
+            directedGraphOwnership.RelinquishOwnership();
+            return reuseResult;
         }
 
         private static bool ShouldReuseReloadedEngineContextGivenHistoricData(LoggingContext loggingContext, HistoricTableSizes historicTableSizes)
@@ -652,10 +663,11 @@ namespace BuildXL.Engine
     /// <summary>
     /// Result of graph reuse check.
     /// </summary>
-    public sealed class GraphReuseResult
+    public sealed class GraphReuseResult : IDisposable
     {
         private readonly PipGraph m_pipGraph;
         private readonly EngineSchedule m_engineSchedule;
+        private readonly DirectedGraphOwnership m_directedGraphOwnership;
 
         /// <summary>
         /// 'FullReuse' means that no spec changed and everything was successfully reloaded.
@@ -734,7 +746,10 @@ namespace BuildXL.Engine
         /// Factory method for the case when pip graph can be reused for graph patching.
         /// A non-null pip graph must be provided; input changes may optionally be provided too.
         /// </summary>
-        internal static GraphReuseResult CreateForPartialReuse(PipGraph pipGraph, InputTracker.InputChanges inputChanges)
+        internal static GraphReuseResult CreateForPartialReuse(
+            PipGraph pipGraph,
+            InputTracker.InputChanges inputChanges,
+            bool ownsDirectedGraph)
         {
             Contract.Requires(pipGraph != null);
             Contract.Requires(inputChanges != null);
@@ -743,17 +758,29 @@ namespace BuildXL.Engine
             return new GraphReuseResult(
                 pipGraph: pipGraph,
                 engineSchedule: null,
-                inputChanges: inputChanges);
+                inputChanges: inputChanges,
+                ownsDirectedGraph: ownsDirectedGraph);
         }
 
-        private GraphReuseResult(PipGraph pipGraph, EngineSchedule engineSchedule, InputTracker.InputChanges inputChanges)
+        private GraphReuseResult(
+            PipGraph pipGraph,
+            EngineSchedule engineSchedule,
+            InputTracker.InputChanges inputChanges,
+            bool ownsDirectedGraph = false)
         {
             m_pipGraph = pipGraph;
             m_engineSchedule = engineSchedule;
+            m_directedGraphOwnership = new DirectedGraphOwnership(pipGraph?.DataflowGraph, ownsDirectedGraph);
             InputChanges = inputChanges;
 
             // Calling invariant method explicitely because this is the only way to check it at least once.
             CheckInvariants();
+        }
+
+        /// <inheritdoc />
+        public void Dispose()
+        {
+            m_directedGraphOwnership.Dispose();
         }
 
         private void CheckInvariants()

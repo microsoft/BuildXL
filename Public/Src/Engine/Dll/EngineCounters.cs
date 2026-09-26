@@ -48,6 +48,12 @@ namespace BuildXL.Engine
         RecordingBuildsInUserFolderDuration,
 
         /// <summary>
+        /// Time spent replacing a newly constructed directed graph with its memory-mapped representation.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        MemoryMappedDirectedGraphReplacementDuration,
+
+        /// <summary>
         /// Flag indicating that performance data was received from the cache
         /// </summary>
         HistoricPerfDataStoredToCache,

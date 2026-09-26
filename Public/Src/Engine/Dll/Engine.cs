@@ -2266,6 +2266,12 @@ namespace BuildXL.Engine
                                     {
                                         var isTransferred = regularEngineSchedule.TransferPipTableOwnership(TestHooks.Scheduler.Value.PipGraph.PipTable);
                                         Contract.Assume(isTransferred);
+
+                                        var directedGraph = TestHooks.Scheduler.Value.PipGraph.DataflowGraph;
+                                        if (regularEngineSchedule.TryTransferDirectedGraphOwnership(directedGraph))
+                                        {
+                                            TestHooks.TakeDirectedGraphOwnership(directedGraph);
+                                        }
                                     }
 
                                     // Dispose engineSchedule before disposing EngineCache
@@ -2979,24 +2985,26 @@ namespace BuildXL.Engine
                     : null;
             }
 
-            GraphReuseResult reuseResult = null;
             var phase = Configuration.Engine.Phase;
-            if (phase.HasFlag(EnginePhases.Schedule)
+            using GraphReuseResult reuseResult = phase.HasFlag(EnginePhases.Schedule)
                 &&
                 ((IsGraphCacheConsumptionAllowed() && graphFingerprint != null) ||
-                 Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker))
-            {
-                reuseResult = AttemptToReuseGraph(
+                 Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker)
+                ? AttemptToReuseGraph(
                     loggingContext,
                     maxDegreeOfParallelism,
                     graphFingerprint,
                     m_initialCommandLineConfiguration.Startup.Properties,
                     cacheInitializationTask,
                     journalState,
-                    engineState);
+                    engineState)
+                : null;
+
+            if (reuseResult != null)
+            {
                 if (TestHooks != null)
                 {
-                    TestHooks.GraphReuseResult = reuseResult;
+                    TestHooks.CaptureGraphReuseResult(reuseResult);
                 }
 
                 if (reuseResult.IsFullReuse)
@@ -3720,7 +3728,10 @@ namespace BuildXL.Engine
                     }
 
                     // We do not want to concurrently execute the serialization tasks and pips because pips can add new stuff to the PathTable, SymbolTable, and StringTable.
-                    var success = engineSchedule.SaveToDiskAsync(serializer, Context).GetAwaiter().GetResult();
+                    var success = engineSchedule.SaveToDiskAsync(
+                        serializer,
+                        Context,
+                        Configuration.Engine.DirectedGraphMode).GetAwaiter().GetResult();
                     saveStats.SerializationMilliseconds = (int)sw.ElapsedMilliseconds;
 
                     // BuildXL should proceed immediately after we are done with saving files to disk. The rest can asynchronously happen with pip execution.

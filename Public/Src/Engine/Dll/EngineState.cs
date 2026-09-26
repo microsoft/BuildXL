@@ -327,7 +327,13 @@ namespace BuildXL.Engine
         /// </summary>
         public void Dispose()
         {
+            if (IsDisposed)
+            {
+                return;
+            }
+
             IsDisposed = true;
+            (m_pipGraph?.DataflowGraph as IDisposable)?.Dispose();
             m_pipTable?.Dispose();
             m_schedulerState?.Dispose();
             m_stringTable = null;

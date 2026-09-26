@@ -26,7 +26,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
         public readonly AnalysisModel ConvertedNewModel;
         public readonly AnalysisModel OldModel;
 
-        public bool AreGraphsSame => OldGraph == NewGraph;
+        public bool AreGraphsSame => OldGraph.PipGraph.GraphId == NewGraph.PipGraph.GraphId;
 
         private readonly ConcurrentBigMap<AbsolutePath, AbsolutePath> m_pathMap = new ConcurrentBigMap<AbsolutePath, AbsolutePath>();
 

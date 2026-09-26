@@ -487,13 +487,13 @@ namespace BuildXL.Pips.Graph
         }
 
         /// <summary>
-        /// Deserializes
+        /// Deserializes.
         /// </summary>
         public static async Task<PipGraph> DeserializeAsync(
             BuildXLReader reader,
             LoggingContext loggingContext,
             Task<IPipTable> pipTableTask,
-            Task<DeserializedDirectedGraph> directedGraphTask,
+            Task<BuildXL.Pips.DirectedGraph.DirectedGraph> directedGraphTask,
             Task<PipExecutionContext> contextTask,
             Task<SemanticPathExpander> semanticPathExpanderTask)
         {

@@ -2880,7 +2880,7 @@ namespace Test.BuildXL.Scheduler
             PipQueue queue = new PipQueue(LoggingContext, configuration);
             var testQueue = new TestPipQueue(queue, LoggingContext, true);
             var context = Task.FromResult<PipExecutionContext>(new SchedulerContext(Context));
-            DeserializedDirectedGraph directedGraph = await DeserializedDirectedGraph.DeserializeAsync(reader);
+            DirectedGraph directedGraph = await DeserializedDirectedGraph.DeserializeAsync(reader);
             PipGraph graph = await PipGraph.DeserializeAsync(
                 reader,
                 LoggingContext,

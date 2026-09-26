@@ -135,6 +135,22 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
+        public void TestFilteredGraphPreservesTopologicalHeights()
+        {
+            CreateGraph(out MutableDirectedGraph graph, out NodeId[] nodes);
+            graph.Seal();
+
+            var nodeFilter = new VisitationTracker(graph);
+            nodeFilter.MarkVisited(nodes[5]);
+            nodeFilter.MarkVisited(nodes[0]);
+
+            IReadonlyDirectedGraph filteredGraph = new FilteredDirectedGraph(graph, nodeFilter);
+            XAssert.AreEqual(graph.GetNodeHeight(nodes[5]), filteredGraph.GetNodeHeight(nodes[5]));
+            XAssert.AreEqual(graph.GetNodeHeight(nodes[0]), filteredGraph.GetNodeHeight(nodes[0]));
+            XAssert.IsTrue(filteredGraph.GetNodeHeight(nodes[5]) < filteredGraph.GetNodeHeight(nodes[0]));
+        }
+
+        [Fact]
         public async Task TestGraphSerialization()
         {
             using (var stream = new MemoryStream())
@@ -161,6 +177,155 @@ namespace Test.BuildXL.Scheduler
 
                 TestGraphSerializationPerformCommonValidations(newImmutableDirectedGraph, nodes, graph);
                 TestGraphSerializationPerformCommonValidations(newMutableGraph, nodes, graph);
+            }
+        }
+
+        /// <summary>
+        /// Verifies mapped traversal, incoming-sidecar construction and reuse, concurrent sidecar publication,
+        /// sidecar replacement after the outgoing graph changes, and rejection of a truncated artifact.
+        /// </summary>
+        [Fact]
+        public void TestMemoryMappedReadOnlyGraphSerialization()
+        {
+            MutableDirectedGraph graph;
+            NodeId[] nodes;
+            CreateGraphWithLightEdges(out graph, out nodes);
+            graph.Seal();
+
+            string outgoingFile = Path.Combine(TestOutputDirectory, "SplitOutgoingDirectedGraph.bin");
+            string incomingFile = MemoryMappedReadOnlyDirectedGraph.GetIncomingPath(outgoingFile);
+            FileEnvelopeId envelopeId = FileEnvelopeId.Create();
+            graph.WriteMemoryMappedOutgoingFile(outgoingFile, envelopeId);
+
+            string abandonedIncomingFile = incomingFile + ".tmp.0.abandoned";
+            File.WriteAllText(abandonedIncomingFile, "incomplete");
+
+            using (var mappedGraph = MemoryMappedReadOnlyDirectedGraph.Deserialize(outgoingFile, envelopeId))
+            {
+                VerifyEquivalentGraph(mappedGraph, graph);
+            }
+
+            XAssert.IsFalse(File.Exists(abandonedIncomingFile));
+
+            using (var mappedGraph = MemoryMappedReadOnlyDirectedGraph.Deserialize(outgoingFile, envelopeId))
+            {
+                VerifyEquivalentGraph(mappedGraph, graph);
+            }
+
+            File.Delete(incomingFile);
+            Task.WhenAll(
+                Task.Run(
+                    () =>
+                    {
+                        using var mappedGraph = MemoryMappedReadOnlyDirectedGraph.Deserialize(outgoingFile, envelopeId);
+                        VerifyEquivalentGraph(mappedGraph, graph);
+                    }),
+                Task.Run(
+                    () =>
+                    {
+                        using var mappedGraph = MemoryMappedReadOnlyDirectedGraph.Deserialize(outgoingFile, envelopeId);
+                        VerifyEquivalentGraph(mappedGraph, graph);
+                    })).GetAwaiter().GetResult();
+
+            envelopeId = FileEnvelopeId.Create();
+            graph.WriteMemoryMappedOutgoingFile(outgoingFile, envelopeId);
+            using (var mappedGraph = MemoryMappedReadOnlyDirectedGraph.Deserialize(outgoingFile, envelopeId))
+            {
+                VerifyEquivalentGraph(mappedGraph, graph);
+            }
+
+            using (var file = new FileStream(outgoingFile, FileMode.Open, FileAccess.Write, FileShare.Read))
+            {
+                file.SetLength(file.Length - 1);
+            }
+
+            Assert.Throws<InvalidDataException>(
+                () => MemoryMappedReadOnlyDirectedGraph.Deserialize(outgoingFile, envelopeId));
+        }
+
+        /// <summary>
+        /// Verifies that corrupt packed edge payloads fail during lazy traversal rather than producing invalid node IDs.
+        /// </summary>
+        [Fact]
+        public void TestMemoryMappedReadOnlyGraphRejectsCorruptEdgeDuringTraversal()
+        {
+            CreateGraphWithLightEdges(out MutableDirectedGraph graph, out _);
+            graph.Seal();
+
+            string outgoingFile = Path.Combine(TestOutputDirectory, "CorruptSplitOutgoingDirectedGraph.bin");
+            string incomingFile = MemoryMappedReadOnlyDirectedGraph.GetIncomingPath(outgoingFile);
+            FileEnvelopeId envelopeId = FileEnvelopeId.Create();
+            graph.WriteMemoryMappedOutgoingFile(outgoingFile, envelopeId);
+
+            using (MemoryMappedReadOnlyDirectedGraph.Deserialize(outgoingFile, envelopeId))
+            {
+            }
+
+            using (var file = new FileStream(incomingFile, FileMode.Open, FileAccess.Write, FileShare.Read))
+            {
+                file.Position = file.Length - 1;
+                file.WriteByte(byte.MaxValue);
+            }
+
+            using var mappedGraph = MemoryMappedReadOnlyDirectedGraph.Deserialize(outgoingFile, envelopeId);
+            Assert.Throws<InvalidDataException>(
+                () =>
+                {
+                    foreach (NodeId node in mappedGraph.Nodes)
+                    {
+                        foreach (Edge edge in mappedGraph.GetIncomingEdges(node))
+                        {
+                        }
+                    }
+                });
+        }
+        /// <summary>
+        /// Verifies that variable-width packed edges preserve node IDs above 16 bits and the light-edge flag.
+        /// </summary>
+        [Fact]
+        public void TestMemoryMappedReadOnlyGraphWithLargeNodeIds()
+        {
+            var graph = new MutableDirectedGraph();
+            NodeId first = graph.CreateNode();
+            NodeId middle = NodeId.Invalid;
+            NodeId last = NodeId.Invalid;
+
+            for (int i = 1; i < 70_000; i++)
+            {
+                NodeId node = graph.CreateNode();
+                if (i == 65_535)
+                {
+                    middle = node;
+                }
+
+                last = node;
+            }
+
+            graph.AddEdge(last, middle, isLight: true);
+            graph.AddEdge(last, first);
+            graph.Seal();
+
+            string outgoingFile = Path.Combine(TestOutputDirectory, "LargeSplitOutgoingDirectedGraph.bin");
+            FileEnvelopeId envelopeId = FileEnvelopeId.Create();
+            graph.WriteMemoryMappedOutgoingFile(outgoingFile, envelopeId);
+            using (var mappedGraph = MemoryMappedReadOnlyDirectedGraph.Deserialize(outgoingFile, envelopeId))
+            {
+                XAssert.IsTrue(EdgeSetEqual(
+                    new HashSet<Edge>(mappedGraph.GetOutgoingEdges(last)),
+                    new HashSet<Edge> { new Edge(middle, isLight: true), new Edge(first) }));
+            }
+        }
+
+        private static void VerifyEquivalentGraph(DirectedGraph actual, IReadonlyDirectedGraph expected)
+        {
+            XAssert.AreEqual(expected.NodeCount, actual.NodeCount);
+            XAssert.AreEqual(expected.EdgeCount, actual.EdgeCount);
+
+            foreach (var node in expected.Nodes)
+            {
+                XAssert.AreEqual(expected.GetNodeHeight(node), actual.GetNodeHeight(node));
+                XAssert.IsTrue(EdgeSetEqual(new HashSet<Edge>(expected.GetOutgoingEdges(node)), new HashSet<Edge>(actual.GetOutgoingEdges(node))));
+                XAssert.IsTrue(EdgeSetEqual(new HashSet<Edge>(expected.GetIncomingEdges(node)), new HashSet<Edge>(actual.GetIncomingEdges(node))));
             }
         }
 

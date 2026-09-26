@@ -7,7 +7,9 @@ using System.IO;
 using System.Linq;
 using BuildXL.Engine;
 using BuildXL.Native.IO;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Storage.FileContentTableAccessor;
+using BuildXL.Utilities.Configuration;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
@@ -39,6 +41,34 @@ namespace Test.BuildXL.Engine
             XAssert.IsTrue(EngineState.IsUsable(lastEngineState));
             XAssert.IsFalse(EngineState.IsUsable(previousEngineState));
             XAssert.AreNotSame(previousEngineState, lastEngineState);
+        }
+
+        [Theory]
+        [InlineData(DirectedGraphMode.Legacy, false)]
+        [InlineData(DirectedGraphMode.MemoryMapped, true)]
+        public void NewlyConstructedGraphUsesConfiguredRepresentation(DirectedGraphMode directedGraphMode, bool expectMemoryMapped)
+        {
+            SetupHelloWorld();
+            SetUpConfig();
+            Configuration.Engine.DirectedGraphMode = directedGraphMode;
+
+            EngineState engineState = RunEngine();
+
+            XAssert.IsTrue(EngineState.IsUsable(engineState));
+            XAssert.AreEqual(
+                expectMemoryMapped,
+                engineState.PipGraph.DataflowGraph is MemoryMappedReadOnlyDirectedGraph);
+        }
+
+        [Fact]
+        public void MemoryMappedModeRejectsMutableEngineStateGraph()
+        {
+            var mutableGraph = new MutableDirectedGraph();
+
+            XAssert.IsTrue(EngineSchedule.IsDirectedGraphRepresentationCompatible(mutableGraph, DirectedGraphMode.Legacy));
+            XAssert.IsFalse(EngineSchedule.IsDirectedGraphRepresentationCompatible(mutableGraph, DirectedGraphMode.MemoryMapped));
+            Assert.Throws<ArgumentOutOfRangeException>(
+                () => EngineSchedule.IsDirectedGraphRepresentationCompatible(mutableGraph, (DirectedGraphMode)int.MaxValue));
         }
 
         [Fact]

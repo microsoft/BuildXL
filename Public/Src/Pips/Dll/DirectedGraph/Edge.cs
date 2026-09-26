@@ -22,7 +22,7 @@ namespace BuildXL.Pips.DirectedGraph
 
         private const byte EdgeTypeShift = 31;
 
-        private const uint LightEdgeBit = 1U << EdgeTypeShift;
+        internal const uint LightEdgeBit = 1U << EdgeTypeShift;
 
         private const uint NodeIdMask = (1U << EdgeTypeShift) - 1;
 

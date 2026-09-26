@@ -269,10 +269,51 @@ namespace BuildXL.Pips.DirectedGraph
             Contract.Requires(writer != null, "Argument writer cannot be null");
 
             // ComputeNodeHeights takes up half of the time of serialization.
-            // By starting early, we effectively but serialization time in half
+            // By starting early, we effectively cut serialization time in half
             var computeNodeHeights = Task.Run(() => ComputeNodeHeights());
             base.Serialize(writer);
             computeNodeHeights.GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Writes the memory-mapped outgoing artifact using the supplied graph-cache correlation identifier.
+        /// </summary>
+        public void WriteMemoryMappedOutgoingFile(string path, FileEnvelopeId envelopeId)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(path));
+            Contract.Requires(m_state == MutableGraphState.Sealed, "The graph must be sealed before writing a read-only representation.");
+            Contract.Requires(envelopeId.IsValid);
+
+            var nodeHeightsReady = Task.Run(() => ComputeNodeHeights());
+            MemoryMappedReadOnlyDirectedGraph.WriteOutgoing(path, this, nodeHeightsReady, envelopeId);
+        }
+
+        /// <summary>
+        /// Gets the sealed incoming or outgoing edge count for a node without taking a graph lock.
+        /// </summary>
+        internal int GetSealedEdgeCount(uint node, bool isIncoming)
+        {
+            Contract.Requires(m_state == MutableGraphState.Sealed);
+            return (isIncoming ? InEdges[node] : OutEdges[node]).Count;
+        }
+
+        /// <summary>
+        /// Enumerates the sealed outgoing edges for a node without taking a graph lock.
+        /// </summary>
+        internal Enumerator GetSealedOutgoingEdges(uint node)
+        {
+            Contract.Requires(m_state == MutableGraphState.Sealed);
+            return GetOutgoingEdges(OutEdges[node]);
+        }
+
+        /// <summary>
+        /// Gets a node height after the caller has waited for height computation to complete.
+        /// This avoids repeating synchronization for every node during bulk serialization.
+        /// </summary>
+        internal int GetComputedNodeHeight(uint node)
+        {
+            Contract.Requires(m_state == MutableGraphState.Sealed);
+            return NodeHeights[node];
         }
 
         /// <summary>

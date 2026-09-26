@@ -143,7 +143,10 @@ namespace BuildXL.Pips.DirectedGraph
             return GetOutgoingEdges(edges);
         }
 
-        private Enumerator GetOutgoingEdges(NodeEdgeListHeader edges)
+        /// <summary>
+        /// Gets outgoing edges from a previously retrieved edge-list header.
+        /// </summary>
+        protected Enumerator GetOutgoingEdges(NodeEdgeListHeader edges)
         {
             return new Enumerator(this, edges.FirstIndex, edges.Count, m_enumeratorVerificationObject, isIncoming: false);
         }

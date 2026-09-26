@@ -54,6 +54,13 @@ namespace BuildXL.Engine.Serialization
             return base.OpenReadStream(path);
         }
 
+        /// <inheritdoc />
+        public override bool RequiresFileMaterialization(string path)
+        {
+            // The exact zip path identifies the physical archive. Only synthetic child paths identify archive entries.
+            return path.StartsWith(ZipFilePath + Path.DirectorySeparatorChar, OperatingSystemHelper.PathComparison);
+        }
+
         /// <summary>
         /// Opens the zip archive
         /// </summary>

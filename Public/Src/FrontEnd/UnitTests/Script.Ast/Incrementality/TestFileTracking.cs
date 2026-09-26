@@ -300,8 +300,8 @@ export const s = Directory.exists(d`{fooRoot}/non-existent-dir`);";
                     null, 
                     true,
                     engineTestHooksData => {
-                        XAssert.IsTrue(ContainsFileName(engineTestHooksData.GraphReuseResult.InputChanges.ChangedPaths, SpecFile));
-                        XAssert.IsFalse(ContainsFileName(engineTestHooksData.GraphReuseResult.InputChanges.UnchangedPaths.Keys, SpecFile));
+                        XAssert.IsTrue(ContainsFileName(engineTestHooksData.GraphReuseResult.ChangedPaths, SpecFile));
+                        XAssert.IsFalse(ContainsFileName(engineTestHooksData.GraphReuseResult.UnchangedPaths, SpecFile));
                     });
                 AssertLogged(LogEventId.EndSerializingPipGraph);
                 hostController.Dispose();

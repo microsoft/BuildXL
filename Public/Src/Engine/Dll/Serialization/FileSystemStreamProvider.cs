@@ -32,5 +32,10 @@ namespace BuildXL.Engine.Serialization
                             FileOptions.SequentialScan),
                 null);
         }
+
+        /// <summary>
+        /// Indicates whether a consumer that requires a physical file must first materialize the supplied path.
+        /// </summary>
+        public virtual bool RequiresFileMaterialization(string path) => false;
     }
 }

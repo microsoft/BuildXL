@@ -10,6 +10,7 @@ using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Core;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using Xunit;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
 using System.IO;
@@ -147,6 +148,18 @@ namespace Test.BuildXL.Engine
         }
 
         [Fact]
+        public void DirectedGraphFingerprintUsesRepresentation()
+        {
+            WriteFile("config.ds", "SampleConfig");
+            var configPath = Path.Combine(TemporaryDirectory, "config.ds");
+
+            var legacyFingerprint = GenerateRandomTopLevelHash(configPath, "1", false, DirectedGraphMode.Legacy);
+            var mappedFingerprint = GenerateRandomTopLevelHash(configPath, "1", false, DirectedGraphMode.MemoryMapped);
+
+            Assert.Equal(GraphCacheMissReason.FingerprintChanged, legacyFingerprint.CompareFingerprint(mappedFingerprint));
+        }
+
+        [Fact]
         public void GenerateHashWithDifferentEvaluationFilters()
         {
             WriteFile("config.ds", "SampleConfig");
@@ -209,7 +222,11 @@ namespace Test.BuildXL.Engine
             };
         }
 
-        private CompositeGraphFingerprint GenerateRandomTopLevelHash(string configPath, string index, bool flag)
+        private CompositeGraphFingerprint GenerateRandomTopLevelHash(
+            string configPath,
+            string index,
+            bool flag,
+            DirectedGraphMode directedGraphMode = DirectedGraphMode.MemoryMapped)
         {
             var context1 = BuildXLContext.CreateInstanceForTesting();
 
@@ -230,6 +247,7 @@ namespace Test.BuildXL.Engine
             configuration1.Layout.SourceDirectory = AbsolutePath.Create(context1.PathTable, Path.Combine(TemporaryDirectory, $"SourceDirectory{index}"));
             configuration1.Logging.SubstTarget = AbsolutePath.Create(context1.PathTable, Path.Combine(TemporaryDirectory, $"SubstTarget{index}"));
             configuration1.Engine.CompressGraphFiles = flag;
+            configuration1.Engine.DirectedGraphMode = directedGraphMode;
             configuration1.Schedule.SkipHashSourceFile = flag;
             configuration1.Schedule.ComputePipStaticFingerprints = flag;
 

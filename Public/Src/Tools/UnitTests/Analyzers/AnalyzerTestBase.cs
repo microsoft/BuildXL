@@ -8,6 +8,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using BuildXL.Execution.Analyzer;
 using Xunit;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using System.Collections.Generic;
 using BuildXL.Utilities.Core;
 using System.IO;
@@ -81,7 +82,8 @@ namespace Test.Tool.Analyzers
                 PipTable,
                 result.Graph,
                 Expander,
-                dummyHistoricTableSizes);
+                dummyHistoricTableSizes,
+                DirectedGraphMode.MemoryMapped);
         }
 
         /// <summary>

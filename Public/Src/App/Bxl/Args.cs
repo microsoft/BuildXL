@@ -1294,6 +1294,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "useHardlinks",
                             sign => engineConfiguration.UseHardlinks = sign),
+                        OptionHandlerFactory.CreateOption(
+                            "directedGraphMode",
+                            opt => engineConfiguration.DirectedGraphMode = CommandLineUtilities.ParseEnumOption<DirectedGraphMode>(opt)),
                         OptionHandlerFactory.CreateBoolOption(
                             "useHistoricalCpuThrottling",
                             sign => schedulingConfiguration.UseHistoricalCpuThrottling = sign),

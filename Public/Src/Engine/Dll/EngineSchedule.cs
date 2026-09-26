@@ -17,6 +17,7 @@ using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Distribution;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Processes;
@@ -118,6 +119,7 @@ namespace BuildXL.Engine
         internal const int PipTableInitialBufferSize = 16384;
 
         private readonly ConfigFileState m_configFileState;
+        private readonly DirectedGraphOwnership m_directedGraphOwnership;
 
         /// <summary>
         /// File content table
@@ -150,7 +152,8 @@ namespace BuildXL.Engine
             MountPathExpander mountPathExpander,
             TempCleaner tempCleaner,
             ConfigFileState configFileState,
-            int maxDegreeOfParallelism)
+            int maxDegreeOfParallelism,
+            bool ownsDirectedGraph)
         {
             Contract.Requires(context != null);
             Contract.Requires(fileContentTable != null);
@@ -172,6 +175,7 @@ namespace BuildXL.Engine
             m_configFileState = configFileState;
             m_cache = cache;
             m_maxDegreeOfParallelism = maxDegreeOfParallelism;
+            m_directedGraphOwnership = new DirectedGraphOwnership(scheduler.PipGraph.DataflowGraph, ownsDirectedGraph);
         }
 
         /// <summary>
@@ -378,7 +382,8 @@ namespace BuildXL.Engine
             PipQueue pipQueue,
             TempCleaner tempCleaner,
             ConfigFileState configFileState,
-            int maxDegreeOfParallelism)
+            int maxDegreeOfParallelism,
+            bool ownsDirectedGraph = false)
         {
             Contract.Requires(context != null);
             Contract.Requires(fileContentTable != null);
@@ -412,7 +417,8 @@ namespace BuildXL.Engine
                        mountPathExpander,
                        tempCleaner,
                        configFileState,
-                       maxDegreeOfParallelism);
+                       maxDegreeOfParallelism,
+                       ownsDirectedGraph);
         }
 
         /// <summary>
@@ -1488,6 +1494,8 @@ namespace BuildXL.Engine
 
             Context.EngineCounters.MeasuredDispose(Scheduler, EngineCounter.SchedulerDisposeDuration);
 
+            m_directedGraphOwnership.Dispose();
+
             // Make sure to dispose the scheduler before the TempCleaner so we make sure no pips are still
             // registering their temp directories to be cleaned.
             Context.EngineCounters.MeasuredDispose(m_tempCleaner, EngineCounter.TempCleanerDisposeDuration);
@@ -1640,7 +1648,12 @@ namespace BuildXL.Engine
             IConsole console)
         {
             // journal may be null, in the event that journal usage is not enabled.
-            var graphLoaderAndFingerprint = await ReadGraphFingerprintAndCreateGraphLoader(oldContext, serializer, loggingContext, engineState);
+            var graphLoaderAndFingerprint = await ReadGraphFingerprintAndCreateGraphLoader(
+                oldContext,
+                serializer,
+                loggingContext,
+                engineState,
+                configuration.Engine.DirectedGraphMode);
 
             if (graphLoaderAndFingerprint == null)
             {
@@ -1657,12 +1670,16 @@ namespace BuildXL.Engine
             var pipExecutionContextTask = loadingGraph.GetOrLoadPipExecutionContextAsync();
             var historicTableSizesTask = loadingGraph.GetOrLoadHistoricDataAsync();
             var pipTableTask = loadingGraph.GetOrLoadPipTableAsync();
+            var directedGraphTask = loadingGraph.GetOrLoadDirectedGraphAsync();
             var pipGraphTask = loadingGraph.GetOrLoadPipGraphAsync();
 
             // DeserializeFromFile() performs all exception handling so accessing Result is safe and will either return a valid object or null
             var configFileStateTask = serializer.DeserializeFromFileAsync<ConfigFileState>(
                 GraphCacheFile.ConfigState,
                 reader => ConfigFileState.DeserializeAsync(reader, pipExecutionContextTask));
+            using var directedGraphOwnership = new DirectedGraphOwnership(
+                await directedGraphTask,
+                loadingGraph.OwnsLoadedDirectedGraph);
 
             EngineContext newContext;
 
@@ -1823,7 +1840,8 @@ namespace BuildXL.Engine
                     pipQueue,
                     tempCleaner,
                     await configFileStateTask,
-                    configuration.FrontEnd.MaxFrontEndConcurrency());
+                    configuration.FrontEnd.MaxFrontEndConcurrency(),
+                    ownsDirectedGraph: directedGraphOwnership.IsOwned);
 
                 if (engineSchedule == null)
                 {
@@ -1832,6 +1850,7 @@ namespace BuildXL.Engine
                     return null;
                 }
 
+                directedGraphOwnership.RelinquishOwnership();
                 return Tuple.Create(engineSchedule, newContext, newConfiguration);
             }
 
@@ -1849,9 +1868,15 @@ namespace BuildXL.Engine
             EngineSerializer serializer,
             LoggingContext loggingContext,
             EngineState engineState,
+            DirectedGraphMode directedGraphMode,
             IConsole console)
         {
-            var graphLoaderAndFingerprint = await ReadGraphFingerprintAndCreateGraphLoader(oldContext, serializer, loggingContext, engineState);
+            var graphLoaderAndFingerprint = await ReadGraphFingerprintAndCreateGraphLoader(
+                oldContext,
+                serializer,
+                loggingContext,
+                engineState,
+                directedGraphMode);
 
             if (graphLoaderAndFingerprint == null)
             {
@@ -1859,14 +1884,20 @@ namespace BuildXL.Engine
             }
 
             CachedGraphLoader loadingGraph = graphLoaderAndFingerprint.Item1;
+            var pipExecutionContextTask = loadingGraph.GetOrLoadPipExecutionContextAsync();
+            var directedGraphTask = loadingGraph.GetOrLoadDirectedGraphAsync();
+            var pipGraphTask = loadingGraph.GetOrLoadPipGraphAsync();
+            using var directedGraphOwnership = new DirectedGraphOwnership(
+                await directedGraphTask,
+                loadingGraph.OwnsLoadedDirectedGraph);
 
-            PipExecutionContext pipExecutionContext = await loadingGraph.GetOrLoadPipExecutionContextAsync();
+            PipExecutionContext pipExecutionContext = await pipExecutionContextTask;
             if (pipExecutionContext == null)
             {
                 return null;
             }
 
-            PipGraph pipGraph = await loadingGraph.GetOrLoadPipGraphAsync();
+            PipGraph pipGraph = await pipGraphTask;
             if (pipGraph == null)
             {
                 return null;
@@ -1884,6 +1915,7 @@ namespace BuildXL.Engine
                 historicTableSizes: historicTableSizes,
                 console: console);
 
+            directedGraphOwnership.RelinquishOwnership();
             return Tuple.Create(pipGraph, newContext);
         }
 
@@ -1891,7 +1923,8 @@ namespace BuildXL.Engine
             EngineContext oldContext,
             EngineSerializer serializer,
             LoggingContext loggingContext,
-            EngineState engineState)
+            EngineState engineState,
+            DirectedGraphMode directedGraphMode)
         {
             // Just read the graphId guid, which is the first entry of PipGraph file after header.
             // It will not load the whole file to the memory as the eagerIO parameter is false.
@@ -1905,13 +1938,41 @@ namespace BuildXL.Engine
 
             var graphIdOfGraphToReload = graphIdAndSemistableFingerprintOfGraphToReload.Item1;
 
-            CachedGraphLoader loadingGraph = engineState?.TryLoad(loggingContext, oldContext.CancellationToken, graphIdOfGraphToReload);
+            bool engineStateIsUsable = EngineState.IsUsable(engineState);
+            // Representation participates in the graph fingerprint, but explicit graph-path loads and workers can
+            // bypass local fingerprint evaluation, so also verify the representation retained by EngineState.
+            bool engineStateMatchesRequestedGraph =
+                engineStateIsUsable
+                && IsDirectedGraphRepresentationCompatible(engineState.PipGraph.DataflowGraph, directedGraphMode);
+            if (engineStateIsUsable && !engineStateMatchesRequestedGraph)
+            {
+                engineState.Dispose();
+            }
+
+            CachedGraphLoader loadingGraph = engineStateMatchesRequestedGraph
+                ? engineState?.TryLoad(loggingContext, oldContext.CancellationToken, graphIdOfGraphToReload)
+                : null;
             if (loadingGraph == null)
             {
-                loadingGraph = CachedGraphLoader.CreateFromDisk(oldContext.CancellationToken, serializer);
+                loadingGraph = CachedGraphLoader.CreateFromDisk(
+                    oldContext.CancellationToken,
+                    serializer,
+                    directedGraphMode);
             }
 
             return Tuple.Create(loadingGraph, graphIdAndSemistableFingerprintOfGraphToReload.Item2);
+        }
+
+        internal static bool IsDirectedGraphRepresentationCompatible(
+            IReadonlyDirectedGraph directedGraph,
+            DirectedGraphMode directedGraphMode)
+        {
+            return directedGraphMode switch
+            {
+                DirectedGraphMode.Legacy => directedGraph is MutableDirectedGraph || directedGraph is DeserializedDirectedGraph,
+                DirectedGraphMode.MemoryMapped => directedGraph is MemoryMappedReadOnlyDirectedGraph,
+                _ => throw new ArgumentOutOfRangeException(nameof(directedGraphMode), directedGraphMode, "Unsupported directed graph mode."),
+            };
         }
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
@@ -1936,8 +1997,24 @@ namespace BuildXL.Engine
 
             bool isPipTableTransferred = TransferPipTableOwnership(engineState.PipTable);
             Contract.Assert(isPipTableTransferred);
+            bool isDirectedGraphTransferred = TransferDirectedGraphOwnership(engineState.PipGraph.DataflowGraph);
+            Contract.Assert(isDirectedGraphTransferred);
 
             return engineState;
+        }
+
+        private bool TransferDirectedGraphOwnership(IReadonlyDirectedGraph directedGraph)
+        {
+            return !m_directedGraphOwnership.IsOwned
+                || m_directedGraphOwnership.TryRelinquishOwnership(directedGraph);
+        }
+
+        /// <summary>
+        /// Transfers directed graph ownership when this schedule owns the specified graph.
+        /// </summary>
+        internal bool TryTransferDirectedGraphOwnership(IReadonlyDirectedGraph directedGraph)
+        {
+            return m_directedGraphOwnership.TryRelinquishOwnership(directedGraph);
         }
 
         EngineState IEngineSchedule.GetOrCreateNewEngineState(EngineState previousEngineState) =>
@@ -1966,20 +2043,31 @@ namespace BuildXL.Engine
         /// Synchronously saves the schedule to disk for reuse in a future run
         /// </summary>
         /// <returns>whether the operation succeeded</returns>
-        internal async Task<bool> SaveToDiskAsync(EngineSerializer serializer, EngineContext context)
+        internal async Task<bool> SaveToDiskAsync(
+            EngineSerializer serializer,
+            EngineContext context,
+            DirectedGraphMode directedGraphMode)
         {
-            var executionStateTasks = SaveExecutionStateToDiskAsync(
+            var executionStateTask = SaveExecutionStateToDiskCoreAsync(
                 serializer,
                 context,
                 PipTable,
                 Scheduler.PipGraph,
                 MountPathExpander,
-                context.NextHistoricTableSizes);
+                context.NextHistoricTableSizes,
+                directedGraphMode);
 
             // EngineSchedule specific state
-            var result = await serializer.SerializeToFileAsync(GraphCacheFile.ConfigState, m_configFileState.Serialize);
+            var configStateTask = serializer.SerializeToFileAsync(GraphCacheFile.ConfigState, m_configFileState.Serialize);
+            var executionStateResult = await executionStateTask;
+            if (executionStateResult.Success && directedGraphMode == DirectedGraphMode.MemoryMapped)
+            {
+                ReplaceDirectedGraphWithMemoryMapped(
+                    serializer,
+                    executionStateResult.DirectedGraphSerialization.FullPath);
+            }
 
-            return (await executionStateTasks) && result.Success;
+            return executionStateResult.Success && (await configStateTask).Success;
         }
 
         /// <summary>
@@ -1991,8 +2079,49 @@ namespace BuildXL.Engine
             IPipTable pipTable,
             PipGraph pipGraph,
             MountPathExpander mountPathExpander,
-            HistoricTableSizes historicTableSizes)
+            HistoricTableSizes historicTableSizes,
+            DirectedGraphMode directedGraphMode = DirectedGraphMode.Legacy)
         {
+            return (await SaveExecutionStateToDiskCoreAsync(
+                serializer,
+                context,
+                pipTable,
+                pipGraph,
+                mountPathExpander,
+                historicTableSizes,
+                directedGraphMode)).Success;
+        }
+
+        private static async Task<ExecutionStateSerializationResult> SaveExecutionStateToDiskCoreAsync(
+            EngineSerializer serializer,
+            BuildXLContext context,
+            IPipTable pipTable,
+            PipGraph pipGraph,
+            MountPathExpander mountPathExpander,
+            HistoricTableSizes historicTableSizes,
+            DirectedGraphMode directedGraphMode)
+        {
+            Task<EngineSerializer.SerializationResult> directedGraphSerializationTask;
+            switch (directedGraphMode)
+            {
+                case DirectedGraphMode.Legacy:
+                    directedGraphSerializationTask = serializer.SerializeToFileAsync(
+                        GraphCacheFile.DirectedGraph,
+                        pipGraph.DirectedGraph.Serialize);
+                    break;
+                case DirectedGraphMode.MemoryMapped:
+                    var mutableDirectedGraph = pipGraph.DataflowGraph as MutableDirectedGraph;
+                    Contract.Assume(
+                        mutableDirectedGraph != null,
+                        "The split memory-mapped graph must be serialized from the sealed mutable graph.");
+                    directedGraphSerializationTask = serializer.SerializeToFileAsync(
+                        GraphCacheFile.DirectedGraph,
+                        (path, envelopeId) => mutableDirectedGraph.WriteMemoryMappedOutgoingFile(path, envelopeId));
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(directedGraphMode), directedGraphMode, "Unsupported directed graph mode.");
+            }
+
             var tasks = new[]
                 {
                     serializer.SerializeToFileAsync(GraphCacheFile.PathTable, context.PathTable.Serialize),
@@ -2007,14 +2136,63 @@ namespace BuildXL.Engine
                         disableCompression: pipTable.RequiresUncompressedSerialization),
                     serializer.SerializeToFileAsync(GraphCacheFile.PipGraph, pipGraph.Serialize),
                     serializer.SerializeToFileAsync(GraphCacheFile.PipGraphId, pipGraph.SerializeGraphId),
-                    serializer.SerializeToFileAsync(GraphCacheFile.DirectedGraph, pipGraph.DirectedGraph.Serialize),
+                    directedGraphSerializationTask,
                     serializer.SerializeToFileAsync(GraphCacheFile.MountPathExpander, mountPathExpander.Serialize),
                     serializer.SerializeToFileAsync(GraphCacheFile.HistoricTableSizes, historicTableSizes.Serialize),
                 };
 
             var results = await Task.WhenAll(tasks);
 
-            return results.All(a => a.Success);
+            return new ExecutionStateSerializationResult(
+                results.All(a => a.Success),
+                await directedGraphSerializationTask);
+        }
+
+        /// <summary>
+        /// Transitions a newly constructed mutable pip graph to its memory-mapped representation after serialization.
+        /// </summary>
+        private void ReplaceDirectedGraphWithMemoryMapped(
+            EngineSerializer serializer,
+            string outgoingPath)
+        {
+            using (Context.EngineCounters.StartStopwatch(EngineCounter.MemoryMappedDirectedGraphReplacementDuration))
+            {
+                var pipGraph = Scheduler.PipGraph;
+                Contract.Assume(
+                    pipGraph.DataflowGraph is MutableDirectedGraph,
+                    "Only a newly constructed sealed graph can be replaced after serialization.");
+                Contract.Assume(!m_directedGraphOwnership.IsOwned);
+
+                MemoryMappedReadOnlyDirectedGraph mappedGraph;
+                try
+                {
+                    mappedGraph = MemoryMappedReadOnlyDirectedGraph.Deserialize(
+                        outgoingPath,
+                        serializer.CorrelationId);
+                }
+                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                {
+                    throw new BuildXLException("Failed to replace the constructed directed graph with its memory-mapped representation.", ex);
+                }
+
+                m_directedGraphOwnership.TakeOwnership(mappedGraph);
+                pipGraph.DataflowGraph = mappedGraph;
+            }
+        }
+
+        private readonly struct ExecutionStateSerializationResult
+        {
+            internal bool Success { get; }
+
+            internal EngineSerializer.SerializationResult DirectedGraphSerialization { get; }
+
+            internal ExecutionStateSerializationResult(
+                bool success,
+                EngineSerializer.SerializationResult directedGraphSerialization)
+            {
+                Success = success;
+                DirectedGraphSerialization = directedGraphSerialization;
+            }
         }
 
         /// <summary>

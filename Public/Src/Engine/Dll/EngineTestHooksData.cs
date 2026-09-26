@@ -2,9 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using BuildXL.Engine.Cache;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Processes;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Scheduler;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
@@ -17,6 +20,8 @@ namespace BuildXL.Engine
     /// </summary>
     public sealed class EngineTestHooksData : IDisposable
     {
+        private readonly DirectedGraphOwnership m_directedGraphOwnership = new DirectedGraphOwnership(graph: null, ownsGraph: false);
+
         /// <summary>
         /// Constructor
         /// </summary>
@@ -63,7 +68,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// Result of graph reuse check.
         /// </summary>
-        public GraphReuseResult GraphReuseResult { get; set; } = null;
+        public GraphReuseResultSnapshot GraphReuseResult { get; private set; } = null;
 
         /// <summary>
         /// Whether BuildXL should warn about directories that have virus scanned enabled
@@ -86,7 +91,67 @@ namespace BuildXL.Engine
         /// <inheritdoc />
         public void Dispose()
         {
+            m_directedGraphOwnership.Dispose();
             Scheduler?.Value?.PipGraph.PipTable.Dispose();
+        }
+
+        internal void TakeDirectedGraphOwnership(IReadonlyDirectedGraph graph)
+        {
+            // Release a graph retained by an earlier engine run before accepting the new graph.
+            m_directedGraphOwnership.Dispose();
+            m_directedGraphOwnership.TakeOwnership(graph);
+        }
+
+        internal void CaptureGraphReuseResult(GraphReuseResult result)
+        {
+            GraphReuseResult = new GraphReuseResultSnapshot(result);
+        }
+    }
+
+    /// <summary>
+    /// Graph reuse information retained by test hooks without retaining the graph or schedule.
+    /// </summary>
+    public sealed class GraphReuseResultSnapshot
+    {
+        internal GraphReuseResultSnapshot(GraphReuseResult result)
+        {
+            IsFullReuse = result.IsFullReuse;
+            IsPartialReuse = result.IsPartialReuse;
+            IsNoReuse = result.IsNoReuse;
+            ChangedPaths = CopyPaths(result.InputChanges?.ChangedPaths);
+            UnchangedPaths = CopyPaths(result.InputChanges?.UnchangedPaths.Keys);
+        }
+
+        /// <summary>
+        /// Whether the complete engine schedule was reused.
+        /// </summary>
+        public bool IsFullReuse { get; }
+
+        /// <summary>
+        /// Whether the prior pip graph was reused for graph patching.
+        /// </summary>
+        public bool IsPartialReuse { get; }
+
+        /// <summary>
+        /// Whether no graph state was reused.
+        /// </summary>
+        public bool IsNoReuse { get; }
+
+        /// <summary>
+        /// Paths known to have changed since the previous build.
+        /// </summary>
+        public IReadOnlyList<string> ChangedPaths { get; }
+
+        /// <summary>
+        /// Paths known not to have changed since the previous build.
+        /// </summary>
+        public IReadOnlyList<string> UnchangedPaths { get; }
+
+        private static IReadOnlyList<string> CopyPaths(IEnumerable<string> paths)
+        {
+            return paths == null
+                ? Array.Empty<string>()
+                : Array.AsReadOnly(paths.ToArray());
         }
     }
 }

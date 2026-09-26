@@ -137,6 +137,18 @@ namespace BuildXL.Engine
         internal LoggingContext LoggingContext { get; }
 
         /// <summary>
+        /// Gets the correlation ID shared by the graph-cache artifacts handled by this serializer.
+        /// </summary>
+        internal FileEnvelopeId CorrelationId
+        {
+            get
+            {
+                Contract.Assume(m_correlationId is FileEnvelopeId, "EngineSerializer must have a valid correlation id");
+                return (FileEnvelopeId)m_correlationId;
+            }
+        }
+
+        /// <summary>
         /// Moves the PreviousInputs file from the temp location to its final location.
         /// </summary>
         internal bool FinalizePreviousInputsFile()
@@ -312,6 +324,107 @@ namespace BuildXL.Engine
         }
 
         /// <summary>
+        /// Deserializes an artifact that requires a physical file path, materializing virtual stream-provider entries when necessary.
+        /// </summary>
+        internal Task<TObject> DeserializeFromFileAsync<TObject>(
+            GraphCacheFile file,
+            Func<string, FileEnvelopeId, bool, TObject> deserializer)
+        {
+            var task = Task.Run(
+                () =>
+                {
+                    string path = GetFullPath(file);
+                    string materializedPath = null;
+                    var result = default(TObject);
+
+                    try
+                    {
+                        Stopwatch sw = Stopwatch.StartNew();
+                        string deserializationPath = path;
+                        if (m_readStreamProvider.RequiresFileMaterialization(path))
+                        {
+                            // A zip entry is a stream, not an operating-system file, so it cannot be memory mapped
+                            // directly. Materialize only for the duration of graph construction; the mapping retains
+                            // the file section after the temporary path is deleted.
+                            materializedPath = Path.Combine(
+                                Path.GetTempPath(),
+                                $"BuildXL.{GetFileName(file)}.{Guid.NewGuid():N}");
+                            using (var source = m_readStreamProvider.OpenReadStream(path))
+                            using (var destination = FileUtilities.CreateFileStream(
+                                materializedPath,
+                                FileMode.CreateNew,
+                                FileAccess.Write,
+                                FileShare.None,
+                                FileOptions.SequentialScan))
+                            {
+                                source.Value.CopyTo(destination);
+                            }
+
+                            deserializationPath = materializedPath;
+                        }
+
+                        FileEnvelopeId persistedCorrelationId =
+                            MemoryMappedReadOnlyDirectedGraph.ReadEnvelopeId(deserializationPath);
+
+                        if (m_correlationId == null)
+                        {
+                            Interlocked.CompareExchange(ref m_correlationId, persistedCorrelationId, null);
+                        }
+
+                        FileEnvelope.CheckCorrelationIds(persistedCorrelationId, (FileEnvelopeId)m_correlationId);
+
+                        result = deserializer(
+                            deserializationPath,
+                            persistedCorrelationId,
+                            materializedPath != null);
+                        Tracing.Logger.Log.DeserializedFile(LoggingContext, path, sw.ElapsedMilliseconds);
+                        return result;
+                    }
+                    catch (BuildXLException ex)
+                    {
+                        if (ex.InnerException is FileNotFoundException)
+                        {
+                            Tracing.Logger.Log.FailedToDeserializeDueToFileNotFound(LoggingContext, path);
+                            return result;
+                        }
+
+                        Tracing.Logger.Log.FailedToDeserializePipGraph(LoggingContext, path, ex.LogEventMessage);
+                        return result;
+                    }
+                    catch (IOException ex)
+                    {
+                        Tracing.Logger.Log.FailedToDeserializePipGraph(LoggingContext, path, ex.Message);
+                        return result;
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        ExceptionRootCause rootCause = ExceptionUtilities.AnalyzeExceptionRootCause(ex);
+                        BuildXL.Tracing.UnexpectedCondition.Log(LoggingContext, ex.ToStringDemystified() + Environment.NewLine + rootCause);
+                        Tracing.Logger.Log.FailedToDeserializePipGraph(LoggingContext, path, ex.Message);
+                        return result;
+                    }
+                    finally
+                    {
+                        if (materializedPath != null)
+                        {
+                            _ = FileUtilities.TryDeleteFile(materializedPath, retryOnFailure: true).Succeeded;
+                        }
+                    }
+                });
+
+            lock (m_deserializationSyncObject)
+            {
+                m_deserializationTasks.Add(task);
+            }
+
+            return task;
+        }
+
+        /// <summary>
         /// Creates and starts a task to serialize an object.
         /// </summary>
         /// <param name="fileType">Type for the object to serialize. This will become the filename</param>
@@ -328,89 +441,67 @@ namespace BuildXL.Engine
             string overrideName = null,
             bool disableCompression = false)
         {
-            var task = SerializeToFileInternalAsync(fileType, serializer, overrideName, disableCompression);
+            var task = SerializeToFileInternalAsync(
+                fileType,
+                overrideName,
+                path => SerializeToStream(path, fileType, serializer, disableCompression));
             SerializationTasks.Add(task);
             return task;
         }
 
-        private async Task<SerializationResult> SerializeToFileInternalAsync(GraphCacheFile fileType, Action<BuildXLWriter> serializer, string overrideName, bool disableCompression)
+        /// <summary>
+        /// Serializes an artifact directly to its physical cache path without stream compression.
+        /// </summary>
+        internal Task<SerializationResult> SerializeToFileAsync(
+            GraphCacheFile fileType,
+            Action<string, FileEnvelopeId> serializer)
         {
-            // Unblock the caller
+            var task = SerializeToFileInternalAsync(
+                fileType,
+                overrideName: null,
+                path =>
+                {
+                    serializer(path, CorrelationId);
+                    return new FileInfo(path).Length;
+                },
+                prepare: path => FileUtilities.DeleteFile(
+                    MemoryMappedReadOnlyDirectedGraph.GetIncomingPath(path),
+                    tempDirectoryCleaner: m_tempDirectoryCleaner));
+            SerializationTasks.Add(task);
+            return task;
+        }
+
+        private async Task<SerializationResult> SerializeToFileInternalAsync(
+            GraphCacheFile fileType,
+            string overrideName,
+            Func<string, long> serializer,
+            Action<string> prepare = null)
+        {
+            // Unblock the caller.
             await Task.Yield();
 
             FileUtilities.CreateDirectory(m_engineCacheLocation);
 
             string fileName = overrideName ?? GetFileName(fileType);
             string path = Path.Combine(m_engineCacheLocation, fileName);
-            SerializationResult serializationResult = new SerializationResult()
+            var serializationResult = new SerializationResult
             {
                 Success = false,
                 FileType = fileType,
                 FullPath = path,
             };
 
-            var fileEnvelope = GetFileEnvelope(fileType);
-            Contract.Assume(m_correlationId is FileEnvelopeId, "EngineSerializer must be initialized with a valid correlation id");
-            var correlationId = (FileEnvelopeId)m_correlationId;
-
             try
             {
                 // We must delete the existing file in case it was hardlinked from the cache. Opening a filestream
                 // that truncates the existing file will fail if it is a hardlink.
                 FileUtilities.DeleteFile(path, tempDirectoryCleaner: m_tempDirectoryCleaner);
-                using (
-                    FileStream fileStream = FileUtilities.CreateFileStream(
-                        path,
-                        FileMode.Create,
-                        FileAccess.Write,
-                        FileShare.Delete,
-                        // Do not write the file with SequentialScan since it will be reread in the subsequent build
-                        FileOptions.None))
-                {
-                    Stopwatch sw = Stopwatch.StartNew();
-
-                    fileEnvelope.WriteHeader(fileStream, correlationId);
-
-                    // Compression is configured for the graph as a whole, but an individual file format may require
-                    // byte-addressable persisted content and therefore override that setting.
-                    bool useCompression = m_useCompression && !disableCompression;
-                    fileStream.WriteByte(useCompression ? (byte)1 : (byte)0);
-
-                    long uncompressedLength = 0;
-
-                    if (useCompression)
-                    {
-
-                        
-                        using (var writer = new BuildXLWriter(m_debug, new TrackedStream(new BufferedStream(new CompressionStream(fileStream, level: 2, leaveOpen: true), bufferSize: 64 << 10)), false, false))
-                        {
-                            // TODO: We can improve performance significantly by parallelizing the compression.
-                            // There's no setting to do that, but given you have the entire file content upfront in a memory stream,
-                            // it shouldn't be particularly complicated to split the memory stream into reasonably sized chunks (say 100MB)
-                            // and compress each of them into separate MemoryStream backed DeflateStreams in separate threads.
-                            // Then just write those out to a file. Of course you'll need to write out the position of those streams
-                            // into the header when you write out the actual file.
-                            serializer(writer);
-                            uncompressedLength = writer.BaseStream.Length;
-                        }
-                    }
-                    else
-                    {
-                        using (var writer = new BuildXLWriter(m_debug, new BufferedStream(fileStream, 65536), leaveOpen: true, logStats: false))
-                        {
-                            serializer(writer);
-                            uncompressedLength = writer.BaseStream.Length;
-                        }
-                    }
-
-                    Interlocked.Add(ref m_bytesSavedDueToCompression, uncompressedLength - fileStream.Length);
-
-                    fileEnvelope.FixUpHeader(fileStream, correlationId);
-
-                    Tracing.Logger.Log.SerializedFile(LoggingContext, fileName, sw.ElapsedMilliseconds);
-                    serializationResult.Success = true;
-                    Interlocked.Add(ref m_bytesSerialized, fileStream.Position);
-                }
+                prepare?.Invoke(path);
+                Stopwatch sw = Stopwatch.StartNew();
+                long length = serializer(path);
+                Tracing.Logger.Log.SerializedFile(LoggingContext, fileName, sw.ElapsedMilliseconds);
+                serializationResult.Success = true;
+                Interlocked.Add(ref m_bytesSerialized, length);
             }
             catch (BuildXLException ex)
             {
@@ -422,6 +513,65 @@ namespace BuildXL.Engine
             }
 
             return serializationResult;
+        }
+
+        private long SerializeToStream(
+            string path,
+            GraphCacheFile fileType,
+            Action<BuildXLWriter> serializer,
+            bool disableCompression)
+        {
+            var fileEnvelope = GetFileEnvelope(fileType);
+            Contract.Assume(m_correlationId is FileEnvelopeId, "EngineSerializer must be initialized with a valid correlation id");
+            var correlationId = (FileEnvelopeId)m_correlationId;
+
+            using (
+                FileStream fileStream = FileUtilities.CreateFileStream(
+                    path,
+                    FileMode.Create,
+                    FileAccess.Write,
+                    FileShare.Delete,
+                    // Do not write the file with SequentialScan since it will be reread in the subsequent build
+                    FileOptions.None))
+            {
+                fileEnvelope.WriteHeader(fileStream, correlationId);
+
+                // Compression is configured for the graph as a whole, but an individual file format may require
+                // byte-addressable persisted content and therefore override that setting.
+                bool useCompression = m_useCompression && !disableCompression;
+                fileStream.WriteByte(useCompression ? (byte)1 : (byte)0);
+
+                long uncompressedLength = 0;
+
+                if (useCompression)
+                {
+                    using (var writer = new BuildXLWriter(m_debug, new TrackedStream(new BufferedStream(new CompressionStream(fileStream, level: 2, leaveOpen: true), bufferSize: 64 << 10)), false, false))
+                    {
+                        // TODO: We can improve performance significantly by parallelizing the compression.
+                        // There's no setting to do that, but given you have the entire file content upfront in a memory stream,
+                        // it shouldn't be particularly complicated to split the memory stream into reasonably sized chunks (say 100MB)
+                        // and compress each of them into separate MemoryStream backed DeflateStreams in separate threads.
+                        // Then just write those out to a file. Of course you'll need to write out the position of those streams
+                        // into the header when you write out the actual file.
+                        serializer(writer);
+                        uncompressedLength = writer.BaseStream.Length;
+                    }
+                }
+                else
+                {
+                    using (var writer = new BuildXLWriter(m_debug, new BufferedStream(fileStream, 65536), leaveOpen: true, logStats: false))
+                    {
+                        serializer(writer);
+                        uncompressedLength = writer.BaseStream.Length;
+                    }
+                }
+
+                Interlocked.Add(ref m_bytesSavedDueToCompression, uncompressedLength - fileStream.Length);
+
+                fileEnvelope.FixUpHeader(fileStream, correlationId);
+
+                return fileStream.Position;
+            }
         }
 
         private static FileEnvelope GetFileEnvelope(GraphCacheFile fileType)

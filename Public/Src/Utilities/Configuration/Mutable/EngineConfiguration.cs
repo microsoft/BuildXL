@@ -32,6 +32,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ScrubDirectories = new List<AbsolutePath>();
             CompressGraphFiles = false;
             MemoryMappedPipTable = true;
+            DirectedGraphMode = BuildXL.Utilities.Configuration.DirectedGraphMode.Legacy;
             CompressExecutionLog = true;
             FileChangeTrackerInitializationMode = FileChangeTrackerInitializationMode.ResumeExisting;
             LogStatistics = true;
@@ -81,6 +82,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ScrubDirectories = pathRemapper.Remap(template.ScrubDirectories);
             CompressGraphFiles = template.CompressGraphFiles;
             MemoryMappedPipTable = template.MemoryMappedPipTable;
+            DirectedGraphMode = template.DirectedGraphMode;
             CompressExecutionLog = template.CompressExecutionLog;
             FileChangeTrackerInitializationMode = template.FileChangeTrackerInitializationMode;
             LogStatistics = template.LogStatistics;
@@ -185,6 +187,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool MemoryMappedPipTable { get; set; }
+
+        /// <inheritdoc />
+        public DirectedGraphMode DirectedGraphMode { get; set; }
 
         /// <inheritdoc />
         public bool CompressExecutionLog { get; set; }        

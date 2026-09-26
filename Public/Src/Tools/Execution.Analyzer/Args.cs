@@ -496,6 +496,12 @@ namespace BuildXL.Execution.Analyzer
             {
                 m_analyzer?.Dispose();
                 m_analyzerOther?.Dispose();
+                m_analysisInput.CachedGraph?.Dispose();
+                if (!ReferenceEquals(m_analysisInput.CachedGraph, m_analysisInputOther.CachedGraph))
+                {
+                    m_analysisInputOther.CachedGraph?.Dispose();
+                }
+
                 TelemetryShutdown();
             }
         }

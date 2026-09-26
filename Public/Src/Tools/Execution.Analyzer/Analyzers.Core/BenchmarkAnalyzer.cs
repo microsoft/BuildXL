@@ -839,7 +839,7 @@ namespace BuildXL.Execution.Analyzer
             Console.WriteLine($"Loading cached graph from {graphDir}...");
             var loggingContext = new LoggingContext("Benchmark.FilterGraph");
             var swLoad = Stopwatch.StartNew();
-            var cachedGraph = CachedGraph.LoadAsync(graphDir, loggingContext, preferLoadingEngineCacheInMemory: false).GetAwaiter().GetResult();
+            using var cachedGraph = CachedGraph.LoadAsync(graphDir, loggingContext, preferLoadingEngineCacheInMemory: false).GetAwaiter().GetResult();
             swLoad.Stop();
 
             if (cachedGraph == null)

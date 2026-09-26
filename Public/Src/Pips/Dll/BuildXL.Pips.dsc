@@ -9,6 +9,7 @@ const includeCredScan = BuildXLSdk.Flags.isMicrosoftInternal && BuildXLSdk.isDot
 export const dll = BuildXLSdk.library({
     assemblyName: "BuildXL.Pips",
     generateLogs: true,
+    allowUnsafeBlocks: true,
     sources: globR(d`.`, "*.cs"),
     addPolySharpAttributes: false,
     embeddedResources: [

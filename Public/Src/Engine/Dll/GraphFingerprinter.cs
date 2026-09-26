@@ -181,6 +181,7 @@ namespace BuildXL.Engine
                     AddText(topLevelHasher, "substTarget", logging.SubstTarget.IsValid ? logging.SubstTarget.ToString(pathTable) : "::null::");
                     AddText(topLevelHasher, "IsCompressed", config.Engine.CompressGraphFiles ? "true" : "false");
                     AddText(topLevelHasher, "MemoryMappedPipTable", config.Engine.MemoryMappedPipTable ? "true" : "false");
+                    AddText(topLevelHasher, "DirectedGraphRepresentation", config.Engine.DirectedGraphMode == DirectedGraphMode.Legacy ? "Legacy" : "MemoryMapped");
                     AddText(topLevelHasher, "IsSkipHashSourceFile", config.Schedule.SkipHashSourceFile ? "true" : "false");
                     AddText(topLevelHasher, "GraphSemistableFingerprint", config.Schedule.GraphSemistableFingerprint ?? string.Empty);
 

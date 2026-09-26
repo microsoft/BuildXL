@@ -36,15 +36,12 @@ namespace BuildXL.Scheduler.Graph
         /// </summary>
         private readonly Func<Edge, bool> m_edgePredicate;
 
-        private readonly Lazy<Dictionary<NodeId, int>> m_nodeHeights;
-
         public FilteredDirectedGraph(IReadonlyDirectedGraph graph, VisitationTracker nodeFilter)
         {
             m_graph = graph;
             m_nodeFilter = nodeFilter;
             m_nodePredicate = node => nodeFilter.WasVisited(node);
             m_edgePredicate = edge => nodeFilter.WasVisited(edge.OtherNode);
-            m_nodeHeights = Lazy.Create(ComputeHeights);
         }
 
         /// <inheritdoc />
@@ -125,7 +122,9 @@ namespace BuildXL.Scheduler.Graph
         int IReadonlyDirectedGraph.GetNodeHeight(NodeId node)
         {
             Contract.Requires(ContainsNode(node), "Cannot get height of a non-existent node id");
-            return m_nodeHeights.Value[node];
+            // Filtering can leave gaps in the original heights, but every retained edge still goes from a lower
+            // height to a higher height. That ordering is all priority assignment requires.
+            return m_graph.GetNodeHeight(node);
         }
 
         /// <inheritdoc />
@@ -195,55 +194,5 @@ namespace BuildXL.Scheduler.Graph
             throw new NotImplementedException();
         }
 
-        private Dictionary<NodeId, int> ComputeHeights()
-        {
-            const int Visited = -1;
-            var heights = new Dictionary<NodeId, int>();
-
-            var stack = new Stack<NodeId>();
-
-            foreach (var sinkNode in GetSinkNodes())
-            {
-                stack.Clear();
-                stack.Push(sinkNode);
-                while (stack.Count > 0)
-                {
-                    var node = stack.Pop();
-                    int height;
-                    if (!heights.TryGetValue(node, out height))
-                    {
-                        // Unvisited.
-                        heights.Add(node, Visited);
-                        stack.Push(node);
-                        foreach (var incoming in GetIncomingEdges(node))
-                        {
-                            stack.Push(incoming.OtherNode);
-                        }
-                    }
-                    else
-                    {
-                        if (height == Visited)
-                        {
-                            height = 0;
-
-                            // Node was already visited, so update based on dependencies
-                            foreach (var incoming in GetIncomingEdges(node))
-                            {
-                                var incomingNodeHeight = heights[incoming.OtherNode];
-                                height = Math.Max(incomingNodeHeight + 1, height);
-                            }
-
-                            heights[node] = height;
-                        }
-                        else
-                        {
-                            Contract.Assume(height >= 0);
-                        }
-                    }
-                }
-            }
-
-            return heights;
-        }
     }
 }

@@ -207,6 +207,11 @@ namespace BuildXL.Utilities.Configuration
         bool MemoryMappedPipTable { get; }
 
         /// <summary>
+        /// Selects the directed graph serialization and loading implementation.
+        /// </summary>
+        DirectedGraphMode DirectedGraphMode { get; }
+
+        /// <summary>
         /// Compresses the execution log. Enabled by default.
         /// </summary>
         bool CompressExecutionLog { get; }

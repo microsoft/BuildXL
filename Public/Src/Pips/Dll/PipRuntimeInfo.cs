@@ -122,6 +122,28 @@ namespace BuildXL.Pips
 
         internal TimeSpan CriticalPath => TimeSpan.FromMilliseconds(CriticalPathDurationMs);
 
+        /// <summary>
+        /// Sentinel for sequence numbers that have not yet been reserved.
+        /// </summary>
+        /// <remarks>
+        /// Dynamic scheduling uses two globally ordered publication points to assign each dependency edge to
+        /// exactly one side. If child initialization is published after the parent starts scheduling dependents,
+        /// admission owns propagation for that edge; otherwise the parent's dependent traversal owns it.
+        /// The owning side propagates the completed parent snapshot before decrementing the child's ref count.
+        /// </remarks>
+        internal const int UninitializedSequenceNo = int.MaxValue;
+
+        /// <summary>
+        /// Global sequence number reserved when this pip begins admission-time dependency initialization.
+        /// </summary>
+        internal int StartInitializationSequenceNo = UninitializedSequenceNo;
+
+        /// <summary>
+        /// Global sequence number reserved after this pip's completion snapshot is finalized and before its
+        /// dependents are traversed.
+        /// </summary>
+        internal int StartDependentsSequenceNo = UninitializedSequenceNo;
+
         #endregion
 
         #region State
@@ -247,6 +269,11 @@ namespace BuildXL.Pips
         }
 
         /// <summary>
+        /// Whether every dependency completion has been propagated and another thread may already own scheduling.
+        /// </summary>
+        public bool HasNoPendingDependencies => Volatile.Read(ref m_refCount) <= 0;
+
+        /// <summary>
         /// Decrement the reference count.
         /// </summary>
         /// <returns>True if the pip is now unlocked; false if it is still locked.</returns>
@@ -309,47 +336,75 @@ namespace BuildXL.Pips
         #region Packed flags
 
         /// <summary>
-        /// Bit flags backing <see cref="IsUncacheableImpacted"/>, <see cref="IsFrontierMissCandidate"/>, and
-        /// <see cref="IsMissingContentImpacted"/>. Packed into a single byte instead of three separate
-        /// <see cref="bool"/> fields to reduce the per-pip memory footprint.
+        /// Boolean runtime state tracked compactly per pip, including properties accumulated from dependencies and
+        /// completion properties published for propagation to dependents.
         /// </summary>
         [Flags]
-        private enum Flags : byte
+        internal enum Flags : byte
         {
             None = 0,
             UncacheableImpacted = 1 << 0,
             FrontierMissCandidate = 1 << 1,
             MissingContentImpacted = 1 << 2,
+            DisableChildFrontierCacheMiss = 1 << 3,
+            ShouldSkipDependents = 1 << 4,
+            DisableCacheLookup = 1 << 5
         }
 
-        private Flags m_flags = Flags.FrontierMissCandidate;
+        private int m_flags = (int)Flags.FrontierMissCandidate;
 
         /// <summary>
         /// Whether the pip is impacted by uncacheability
         /// </summary>
-        public bool IsUncacheableImpacted
+        internal bool IsUncacheableImpacted
         {
-            get => (m_flags & Flags.UncacheableImpacted) != 0;
-            set => m_flags = value ? (m_flags | Flags.UncacheableImpacted) : (m_flags & ~Flags.UncacheableImpacted);
+            get => GetFlag(Flags.UncacheableImpacted);
+            set => SetFlag(Flags.UncacheableImpacted, value);
         }
 
         /// <summary>
         /// Whether the pip is a frontier miss candidate.
         /// All pips start as candidates.
         /// </summary>
-        public bool IsFrontierMissCandidate
+        internal bool IsFrontierMissCandidate
         {
-            get => (m_flags & Flags.FrontierMissCandidate) != 0;
-            set => m_flags = value ? (m_flags | Flags.FrontierMissCandidate) : (m_flags & ~Flags.FrontierMissCandidate);
+            get => GetFlag(Flags.FrontierMissCandidate);
+            set => SetFlag(Flags.FrontierMissCandidate, value);
         }
 
         /// <summary>
         /// Whether the pip is potentially impacted by a cache miss caused by missing content.
         /// </summary>
-        public bool IsMissingContentImpacted
+        internal bool IsMissingContentImpacted
         {
-            get => (m_flags & Flags.MissingContentImpacted) != 0;
-            set => m_flags = value ? (m_flags | Flags.MissingContentImpacted) : (m_flags & ~Flags.MissingContentImpacted);
+            get => GetFlag(Flags.MissingContentImpacted);
+            set => SetFlag(Flags.MissingContentImpacted, value);
+        }
+
+        /// <summary>
+        /// Atomically sets or clears the specified flags without losing concurrent updates to other flags.
+        /// </summary>
+        internal void SetFlag(Flags flag, bool value)
+        {
+            int currentFlags;
+            int updatedFlags;
+            do
+            {
+                currentFlags = Volatile.Read(ref m_flags);
+                updatedFlags = value
+                    ? currentFlags | (int)flag
+                    : currentFlags & ~(int)flag;
+            }
+            while (currentFlags != updatedFlags &&
+                   Interlocked.CompareExchange(ref m_flags, updatedFlags, currentFlags) != currentFlags);
+        }
+
+        /// <summary>
+        /// Returns whether any of the specified flags are set.
+        /// </summary>
+        internal bool GetFlag(Flags flag)
+        {
+            return (Volatile.Read(ref m_flags) & (int)flag) != 0;
         }
 
         #endregion

@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Core;
@@ -12,6 +13,7 @@ using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
+using ProcessEventId = BuildXL.Processes.Tracing.LogEventId;
 using SchedulerEventId = BuildXL.Scheduler.Tracing.LogEventId;
 
 namespace Test.BuildXL.EngineTests
@@ -28,70 +30,26 @@ namespace Test.BuildXL.EngineTests
         [Fact]
         public void ChildExecutesBeforeGraphConstructionCompletes()
         {
-            IgnoreWarnings();
+            ConfigureDynamicGraph();
 
-            Configuration.Engine.UnsafeEnableDynamicGraph = true;
-            Configuration.Schedule.IncrementalScheduling = false;
-            Configuration.Cache.CacheGraph = false;
-            EnableTestSleepAmbient();
-
-            var tool = GetOsShellCmdToolDefinition();
-            var spec = $@"
-import {{Artifact, Cmd, Transformer}} from 'Sdk.Transformers';
-
-const tool = {tool};
+            string spec = CreateSpec($@"
 const parentPath = p`obj/parent.txt`;
 const child1Path = p`obj/child1.txt`;
 const child2Path = p`obj/child2.txt`;
 const child1Probe = f`obj/child1.txt`;
 
-export const outputs = (() => {{
-    const parent = Transformer.execute({{
-        tool: tool,
-        workingDirectory: d`.`,
-        arguments: [
-            Cmd.argument('/d'),
-            Cmd.argument('/c'),
-            Cmd.rawArgument('""'),
-            Cmd.args(['echo', 'parent', '>', Artifact.output(parentPath)]),
-            Cmd.rawArgument('""'),
-        ],
-    }}).getOutputFile(parentPath);
-
-    const child1 = Transformer.execute({{
-        tool: tool,
-        workingDirectory: d`.`,
-        arguments: [
-            Cmd.argument('/d'),
-            Cmd.argument('/c'),
-            Cmd.rawArgument('""'),
-            Cmd.args(['type', Artifact.input(parent), '>', Artifact.output(child1Path)]),
-            Cmd.rawArgument('""'),
-        ],
-    }}).getOutputFile(child1Path);
+{CreateProcess("parent", "parentPath", "'echo', 'parent', '>', Artifact.output(parentPath)")}
+{CreateProcess("child1", "child1Path", "'type', Artifact.input(parent), '>', Artifact.output(child1Path)")}
 
     // Graph construction cannot proceed to child 2 until child 1 has executed.
-    while (!File.exists(child1Probe)) {{
-        Debug.sleep(100);
-    }}
+{WaitForFile("child1Probe")}
 
     Contract.assert(File.exists(child1Probe), 'Child 1 did not execute while graph construction was in progress.');
 
-    const child2 = Transformer.execute({{
-        tool: tool,
-        workingDirectory: d`.`,
-        arguments: [
-            Cmd.argument('/d'),
-            Cmd.argument('/c'),
-            Cmd.rawArgument('""'),
-            Cmd.args(['type', Artifact.input(parent), '>', Artifact.output(child2Path)]),
-            Cmd.rawArgument('""'),
-        ],
-    }}).getOutputFile(child2Path);
+{CreateProcess("child2", "child2Path", "'type', Artifact.input(parent), '>', Artifact.output(child2Path)")}
 
     return [parent, child1, child2];
-}})();
-";
+");
 
             AddModule("DynamicGraphMiniBuild", ("spec.dsc", spec), placeInRoot: true);
             ConfigureInMemoryCache(new TestCache());
@@ -103,6 +61,181 @@ export const outputs = (() => {{
             Assert.Equal("parent", File.ReadAllText(Path.Combine(objectDirectory, "parent.txt")).Trim());
             Assert.Equal("parent", File.ReadAllText(Path.Combine(objectDirectory, "child1.txt")).Trim());
             Assert.Equal("parent", File.ReadAllText(Path.Combine(objectDirectory, "child2.txt")).Trim());
+        }
+
+        [Fact]
+        public void LateChildrenOfFailedParentAreSkippedTransitively()
+        {
+            ConfigureDynamicGraph();
+            Configuration.Schedule.StopOnFirstError = false;
+
+            string spec = CreateSpec($@"
+const parentPath = p`obj/failed-parent.txt`;
+const childPath = p`obj/skipped-child.txt`;
+const grandchildPath = p`obj/skipped-grandchild.txt`;
+const parentProbe = f`obj/failed-parent.txt`;
+
+{CreateProcess(
+    "parent",
+    "parentPath",
+    "'echo', 'failed-parent', '>', Artifact.output(parentPath)",
+    successExitCodes: "1")}
+
+    // Admit the children only after the parent has run and produced its output.
+{WaitForFile("parentProbe")}
+
+    // The direct child must be skipped because its parent failed; the grandchild must then be skipped transitively.
+{CreateProcess("child", "childPath", "'echo', 'child-ran', '>', Artifact.output(childPath)", dependencies: "parent")}
+{CreateProcess(
+    "grandchild",
+    "grandchildPath",
+    "'echo', 'grandchild-ran', '>', Artifact.output(grandchildPath)",
+    dependencies: "child")}
+
+    return [parent, child, grandchild];
+");
+
+            AddModule("DynamicGraphFailedParent", ("spec.dsc", spec), placeInRoot: true);
+            ConfigureInMemoryCache(new TestCache());
+
+            RunEngine(expectSuccess: false);
+            AssertErrorEventLogged(ProcessEventId.PipProcessError, count: 1);
+
+            string objectDirectory = Configuration.Layout.ObjectDirectory.ToString(Context.PathTable);
+            Assert.True(File.Exists(Path.Combine(objectDirectory, "failed-parent.txt")));
+            Assert.False(File.Exists(Path.Combine(objectDirectory, "skipped-child.txt")));
+            Assert.False(File.Exists(Path.Combine(objectDirectory, "skipped-grandchild.txt")));
+        }
+
+        [Fact]
+        public void LateChildOfCompletedWriteFilePipExecutes()
+        {
+            ConfigureDynamicGraph();
+
+            string spec = CreateSpec($@"
+const parentPath = p`obj/write-file-parent.txt`;
+const childPath = p`obj/write-file-child.txt`;
+const parentProbe = f`obj/write-file-parent.txt`;
+
+    const parent = Transformer.writeFile(parentPath, 'non-process-parent');
+
+    // Ensure the non-process parent completes before its child is admitted.
+{WaitForFile("parentProbe")}
+
+{CreateProcess("child", "childPath", "'echo', 'child', '>', Artifact.output(childPath)", dependencies: "parent")}
+
+    return [parent, child];
+");
+
+            AddModule("DynamicGraphWriteFileParent", ("spec.dsc", spec), placeInRoot: true);
+            ConfigureInMemoryCache(new TestCache());
+
+            RunEngine();
+            AssertInformationalEventLogged(SchedulerEventId.ProcessPipCacheMiss, count: 1);
+
+            string objectDirectory = Configuration.Layout.ObjectDirectory.ToString(Context.PathTable);
+            Assert.Equal("non-process-parent", File.ReadAllText(Path.Combine(objectDirectory, "write-file-parent.txt")).Trim());
+            Assert.Equal("child", File.ReadAllText(Path.Combine(objectDirectory, "write-file-child.txt")).Trim());
+        }
+
+        [Fact]
+        public void HighFanInLateChildExecutesExactlyOnce()
+        {
+            const int ParentCount = 32;
+
+            ConfigureDynamicGraph();
+
+            string parentDeclarations = string.Join(
+                Environment.NewLine,
+                Enumerable.Range(0, ParentCount).Select(
+                    i => $@"
+const parent{i}Path = p`obj/fan-in-parent-{i}.txt`;
+{CreateProcess($"parent{i}", $"parent{i}Path", $"'echo', 'parent-{i}', '>', Artifact.output(parent{i}Path)")}
+"));
+            string parentDependencies = string.Join(", ", Enumerable.Range(0, ParentCount).Select(i => $"parent{i}"));
+
+            string spec = CreateSpec($@"
+{parentDeclarations}
+
+    const firstParentProbe = f`obj/fan-in-parent-0.txt`;
+{WaitForFile("firstParentProbe")}
+
+    const childPath = p`obj/fan-in-child.txt`;
+{CreateProcess(
+    "child",
+    "childPath",
+    "'echo', 'child', '>', Artifact.output(childPath)",
+    dependencies: parentDependencies)}
+
+    return [child];
+");
+
+            AddModule("DynamicGraphHighFanIn", ("spec.dsc", spec), placeInRoot: true);
+            ConfigureInMemoryCache(new TestCache());
+
+            RunEngine();
+            AssertInformationalEventLogged(SchedulerEventId.ProcessPipCacheMiss, count: ParentCount + 1);
+
+            string objectDirectory = Configuration.Layout.ObjectDirectory.ToString(Context.PathTable);
+            Assert.Equal("child", File.ReadAllText(Path.Combine(objectDirectory, "fan-in-child.txt")).Trim());
+        }
+
+        private string CreateSpec(string body)
+        {
+            return $@"
+import {{Artifact, Cmd, Transformer}} from 'Sdk.Transformers';
+
+const tool = {GetOsShellCmdToolDefinition()};
+
+export const outputs = (() => {{
+{body}
+}})();
+";
+        }
+
+        private static string CreateProcess(
+            string pipName,
+            string outputPath,
+            string commandArguments,
+            string dependencies = null,
+            string successExitCodes = null)
+        {
+            string dependenciesProperty = dependencies == null
+                ? string.Empty
+                : $"        dependencies: [{dependencies}],{Environment.NewLine}";
+            string successExitCodesProperty = successExitCodes == null
+                ? string.Empty
+                : $"        successExitCodes: [{successExitCodes}],{Environment.NewLine}";
+
+            return $@"    const {pipName} = Transformer.execute({{
+        tool: tool,
+        workingDirectory: d`.`,
+        arguments: [
+            Cmd.argument('/d'),
+            Cmd.argument('/c'),
+            Cmd.rawArgument('""'),
+            Cmd.args([{commandArguments}]),
+            Cmd.rawArgument('""'),
+        ],
+{dependenciesProperty}{successExitCodesProperty}    }}).getOutputFile({outputPath});
+";
+        }
+
+        private static string WaitForFile(string path)
+        {
+            return $@"    while (!File.exists({path})) {{
+        Debug.sleep(100);
+    }}";
+        }
+
+        private void ConfigureDynamicGraph()
+        {
+            IgnoreWarnings();
+
+            Configuration.Engine.UnsafeEnableDynamicGraph = true;
+            Configuration.Schedule.IncrementalScheduling = false;
+            Configuration.Cache.CacheGraph = false;
+            EnableTestSleepAmbient();
         }
 
         /// <summary>

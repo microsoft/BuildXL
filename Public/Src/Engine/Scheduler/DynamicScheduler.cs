@@ -267,7 +267,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Enumerates the remote workers
         /// </summary>
-        private RemoteWorkerBase[] m_remoteWorkers = new RemoteWorkerBase[0];
+        private readonly RemoteWorkerBase[] m_remoteWorkers = new RemoteWorkerBase[0];
 
         /// <summary>
         /// Encapsulates data and logic for choosing a worker for cpu queue in a distributed build
@@ -276,6 +276,22 @@ namespace BuildXL.Scheduler
 
         private readonly ChooseWorkerCacheLookup m_chooseWorkerCacheLookup;
         private readonly ChooseWorkerIpc m_chooseWorkerIpc;
+
+        /// <summary>
+        /// Serializes sequence-number reservation and provides the memory barrier that publishes parent completion
+        /// snapshots and child initialization before the other side determines dependency-edge ownership.
+        /// </summary>
+#if NET9_0_OR_GREATER
+        private readonly System.Threading.Lock m_sequenceNoLock = new();
+#else
+        private readonly object m_sequenceNoLock = new();
+#endif
+
+        /// <summary>
+        /// Next globally ordered sequence number used by the dynamic dependency-edge ownership handshake.
+        /// Access is protected by <see cref="m_sequenceNoLock"/>.
+        /// </summary>
+        private int m_nextSequenceNo = 0;
 
         /// <summary>
         /// Local worker
@@ -538,7 +554,7 @@ namespace BuildXL.Scheduler
 
         /// <summary>
         /// The total estimated slots for all pending (non-completed) process pips, based on historic CPU usage.
-        /// Initialized in PrioritizeAndSchedule for all process pips and decremented on pip completion.
+        /// Initialized in PrioritizeAndScheduleAsync for all process pips and decremented on pip completion.
         /// Used by the early worker release algorithm when historical CPU usage information is enabled.
         /// </summary>
         private long m_pendingProcessPipExpectedSlots;
@@ -702,11 +718,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// The pip runtime information
         /// </summary>
-        private PipRuntimeInfo[] m_pipRuntimeInfos;
-        
-        // DYNAMIC-GRAPH: Protects resizing m_pipRuntimeInfos as pips are admitted after initialization.
-        // TODO: revisit, we need structures that can grow in a better way
-        private readonly object m_pipRuntimeInfosLock = new object();
+        private readonly ConcurrentDenseIndex<PipRuntimeInfo> m_pipRuntimeInfos = new(debug: false);
         private int m_initialPipCount;
 
         // DYNAMIC-GRAPH: Replaces the one-shot scheduling pass with a consumer that stays alive until
@@ -4172,7 +4184,8 @@ namespace BuildXL.Scheduler
                 {
                     using (runnablePip.OperationContext.StartOperation(PipExecutorCounter.ScheduleDependentsDuration))
                     {
-                        await ScheduleDependents(result, succeeded, runnablePip, pipRuntimeInfo);
+                        PublishCompletionForDependents(result, succeeded, runnablePip, pipRuntimeInfo);
+                        await ScheduleDependents(runnablePip, pipRuntimeInfo);
                     }
                 }
 
@@ -4199,19 +4212,42 @@ namespace BuildXL.Scheduler
             });
         }
 
-        private async Task ScheduleDependents(PipResult result, bool succeeded, RunnablePip runnablePip, PipRuntimeInfo pipRuntimeInfo)
+        /// <summary>
+        /// Captures the completed pip properties that must be propagated to its dependents and publishes that
+        /// snapshot by reserving <see cref="PipRuntimeInfo.StartDependentsSequenceNo"/>.
+        /// </summary>
+        /// <remarks>
+        /// All snapshot fields must be finalized before the sequence number is reserved. The sequence-number
+        /// handshake then assigns each dependency edge to either this parent's traversal or late child admission,
+        /// ensuring the owning side propagates the complete snapshot before decrementing the child's ref count.
+        /// </remarks>
+        private void PublishCompletionForDependents(PipResult result, bool succeeded, RunnablePip runnablePip, PipRuntimeInfo pipRuntimeInfo)
         {
             var pipId = runnablePip.PipId;
-            var nodeId = pipId.ToNodeId();
             var processPip = (runnablePip.Pip as Process);
             var isSucceedFastPip = PipGraph.IsSucceedFast(pipId);
 
-            bool shouldSkipDownstreamPipsDueToSucccessFast = isSucceedFastPip && processPip.SucceedFastExitCodes.Contains(result.ExitCode);
+            // CriticalPathTracker records Result for execution statuses before this method is called.
+            // Skipped pips have no PipExecutionLevel and propagate through ShouldSkipDependents instead.
+            if (!pipRuntimeInfo.IsFrontierMissCandidate ||
+                (runnablePip.PipType == PipType.Process && result.Status == PipResultStatus.Succeeded))
+            {
+                // Dependents cannot be frontier candidates when the parent is not one, or when the parent executed.
+                pipRuntimeInfo.SetFlag(PipRuntimeInfo.Flags.DisableChildFrontierCacheMiss, true);
+            }
+
+            bool shouldSkipDownstreamPipsDueToSucccessFast =
+                isSucceedFastPip &&
+                processPip?.SucceedFastExitCodes.Contains(result.ExitCode) == true;
             if (shouldSkipDownstreamPipsDueToSucccessFast)
             {
                 Interlocked.Increment(ref m_pipSkippingDownstreamDueToSuccessFast);
                 Logger.Log.SkipDownstreamPipsDueToPipSuccess(m_executePhaseLoggingContext, runnablePip.Description);
             }
+
+#if false
+            // DYNAMIC-GRAPH: Incremental scheduling is unsupported, so completed pips do not update a dirty-node tracker.
+            var nodeId = pipId.ToNodeId();
 
             // The dependents are marked direct dirty if the current pip executes or deploys its outputs from the cache.
             // This is analogous to a pip gets dirty because one of its inputs is modified/touched.
@@ -4235,10 +4271,29 @@ namespace BuildXL.Scheduler
                     }
                 }
             }
+#endif
 
-            // DYNAMIC-GRAPH: This only observes dependents admitted before the parent completes. A child
-            // admitted afterward will never receive this completion decrement. Admission must atomically either
-            // register with an unfinished parent or observe and apply the parent's terminal result.
+            if (!succeeded || result.Status == PipResultStatus.Skipped || shouldSkipDownstreamPipsDueToSucccessFast)
+            {
+                pipRuntimeInfo.SetFlag(PipRuntimeInfo.Flags.ShouldSkipDependents, true);
+            }
+
+            if (processPip?.DisableCacheLookup == true)
+            {
+                // Do not increment length for pips that depends on disable cache lookup
+                pipRuntimeInfo.SetFlag(PipRuntimeInfo.Flags.DisableCacheLookup, true);
+            }
+
+            // Publish the completed parent snapshot only after every property needed by a late child is finalized.
+            TryReserveSequenceNo(ref pipRuntimeInfo.StartDependentsSequenceNo);
+        }
+
+        private async Task ScheduleDependents(RunnablePip runnablePip, PipRuntimeInfo pipRuntimeInfo)
+        {
+            var nodeId = runnablePip.PipId.ToNodeId();
+
+            // StartDependentsSequenceNo determines whether this traversal or late admission owns
+            // propagation for each edge. The parent snapshot was published before this traversal started.
             foreach (Edge outEdge in ScheduledGraph.GetOutgoingEdges(nodeId))
             {
                 // Light edges do not propagate failure or ref-count changes.
@@ -4265,95 +4320,8 @@ namespace BuildXL.Scheduler
                     continue;
                 }
 
-                // Mark the dependent as uncacheable impacted if the parent was marked as impacted
-                if (pipRuntimeInfo.IsUncacheableImpacted)
-                {
-                    dependentPipRuntimeInfo.IsUncacheableImpacted = true;
-                }
-
-                if (pipRuntimeInfo.IsMissingContentImpacted)
-                {
-                    dependentPipRuntimeInfo.IsMissingContentImpacted = true;
-                }
-
-                if (pipRuntimeInfo.IsFrontierMissCandidate)
-                {
-                    // if the current pip is a process pip that was executed, its dependents cannot be frontier pips
-                    if (runnablePip.PipType == PipType.Process && result.Status == PipResultStatus.Succeeded)
-                    {
-                        dependentPipRuntimeInfo.IsFrontierMissCandidate = false;
-                    }
-                }
-                else
-                {
-                    // if the current pip is not a frontier miss candidate, its dependents cannot be candidates
-                    dependentPipRuntimeInfo.IsFrontierMissCandidate = false;
-                }
-
-                if (!succeeded || result.Status == PipResultStatus.Skipped || shouldSkipDownstreamPipsDueToSucccessFast)
-                {
-                    // The current pip failed, so skip the dependent pip.
-                    // Note that we decrement the ref count; this dependent pip will eventually have ref count == 0
-                    // at which point we will 'run' the pip in ReportSkippedPip (simply to unwind the stack and then
-                    // skip further transitive dependents).
-                    if (currentDependentState == PipState.Waiting)
-                    {
-                        do
-                        {
-                            // There can be a race on calling TryTransition. One thread may lose on Interlocked.CompareExchange
-                            // in PipRunTimeInfo.TryTransitionInternal, but before the other thread finishes the method, the former thread
-                            // checks in the Contract.Assert below if the state is PipState.Skipped. One need to ensure that both threads
-                            // end up with PipState.Skipped.
-                            bool transitionToSkipped = dependentPipRuntimeInfo.TryTransition(
-                                m_pipStateCounters,
-                                m_pipTable.GetPipType(dependentPipId),
-                                currentDependentState,
-                                PipState.Skipped);
-
-                            if (transitionToSkipped && dependentPipRuntimeInfo.State != PipState.Skipped)
-                            {
-                                Contract.Assert(
-                                    false,
-                                    I($"Transition to {nameof(PipState.Skipped)} is successful, but the state of dependent is {dependentPipRuntimeInfo.State}"));
-                            }
-
-                            currentDependentState = dependentPipRuntimeInfo.State;
-                        }
-                        while (currentDependentState != PipState.Skipped);
-                    }
-                    else
-                    {
-                        Contract.Assert(
-                            dependentPipRuntimeInfo.State.IsTerminal(),
-                            "Upon failure, dependent pips must be in a terminal failure state");
-                    }
-                }
-
-                // If a pip is a cache miss we consider it part of a path of misses
-                // and we inform the dependent so it can update the length of its maximal path of misses
-                // We only consider successive process pips in a dependency chain for this computation,
-                // so non-process pips just forward the accumulated value.
-                if (runnablePip.PipType != PipType.Process)
-                {
-                    // If the pip is not a process pip just propagate the number
-                    dependentPipRuntimeInfo.InformDependencyCacheMissChain(pipRuntimeInfo.UpstreamCacheMissLongestChain);
-                }
-                else if (pipRuntimeInfo.Result == PipExecutionLevel.Executed)
-                {
-                    if (((Process)runnablePip.Pip).DisableCacheLookup)
-                    {
-                        // Do not increment length for pips that depends on disable cache lookup
-                        dependentPipRuntimeInfo.InformDependencyCacheMissChain(pipRuntimeInfo.UpstreamCacheMissLongestChain);
-                    }
-                    else
-                    {
-                        dependentPipRuntimeInfo.InformDependencyCacheMissChain(pipRuntimeInfo.UpstreamCacheMissLongestChain + 1);
-                    }
-                }
-
                 // Decrement reference count and possibly queue the pip (even if it is doomed to be skipped).
-                var readyToSchedule = dependentPipRuntimeInfo.DecrementRefCount();
-
+                var readyToSchedule = PropagateCompletion(child: dependentPipRuntimeInfo, parent: pipRuntimeInfo, isChild: false, parentId: nodeId, childId: outEdge.OtherNode);
                 if (readyToSchedule)
                 {
                     OperationKind scheduledByOperationKind = PipExecutorCounter.ScheduledByDependencyDuration;
@@ -5603,7 +5571,7 @@ namespace BuildXL.Scheduler
 
                             // Only meaningful for a "cold" pip (no historic perf data), where the scheduler's
                             // priority-assignment fallback used the pip's incoming-edge count as part of its
-                            // duration estimate (see PrioritizeAndSchedule).
+                            // duration estimate (see PrioritizeAndScheduleAsync).
                             uint coldPipIncomingEdgeCount = hasHistoricPerfData
                                 ? 0
                                 : (uint)DirectedGraph.GetIncomingEdgesCount(processRunnable.PipId.ToNodeId());
@@ -6362,8 +6330,6 @@ namespace BuildXL.Scheduler
 
         private async Task ConsumeDynamicGraphAdmissionsAsync(LoggingContext loggingContext)
         {
-            // DYNAMIC-GRAPH: The real session must retain admissions committed before this consumer starts.
-            // This loop is the scheduler-side replacement for enumerating PipTable.StableKeys exactly once.
             await foreach (var pipId in PipGraph.ReadPipAdmissionsAsync(m_schedulerCancellationTokenSource.Token))
             {
                 // DYNAMIC-GRAPH: Service, client, shutdown, and finalization pips are unsupported as a group.
@@ -6372,7 +6338,7 @@ namespace BuildXL.Scheduler
                     servicePipKind == ServicePipKind.None,
                     $"Service-related pip '{pipId}' with kind '{servicePipKind}' is unsupported in dynamic graph mode.");
 
-                PrioritizeAndSchedule(loggingContext, new[] { pipId.ToNodeId() });
+                await PrioritizeAndScheduleAsync(loggingContext, pipId.ToNodeId());
             }
 
             // No additional work can be admitted after the graph signals completion.
@@ -6744,7 +6710,6 @@ namespace BuildXL.Scheduler
                 IsInitialized = true;
                 // DYNAMIC-GRAPH: Preserve the initialization snapshot so later admissions can initialize counters.
                 m_initialPipCount = m_pipTable.Count;
-                m_pipRuntimeInfos = new PipRuntimeInfo[m_initialPipCount + 1]; // PipId starts from 1!
 
                 // DYNAMIC-GRAPH: This initializes counters for the current snapshot only. Newly admitted pips
                 // transition from Ignored when ConsumeDynamicGraphAdmissionsAsync processes their notification.
@@ -6788,15 +6753,16 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Assigning priorities to the pips
+        /// Assigns priority and schedules one admitted pip when its dependencies are complete.
         /// </summary>
-        private void PrioritizeAndSchedule(LoggingContext loggingContext, IEnumerable<NodeId> nodes)
+        private async Task PrioritizeAndScheduleAsync(LoggingContext loggingContext, NodeId node)
         {
             // DYNAMIC-GRAPH: The existing implementation walks the complete graph backwards from sinks to
             // calculate downstream critical-path priorities and initializes every pip in one batch. Neither the sink
             // set nor the complete dependent closure exists while publication is open. Keep the implementation below
-            // for comparison, but use a local priority and only the committed incoming edges for the supplied pips.
+            // for comparison, but use a local priority and only the committed incoming edges for the supplied pip.
 #if false
+            IEnumerable<NodeId> nodes = new[] { node };
             var readyNodes = new List<NodeId>();
             using (PerformanceMeasurement.Start(
                 loggingContext,
@@ -7023,63 +6989,61 @@ namespace BuildXL.Scheduler
             ScheduledGraph = DirectedGraph;
             m_criticalPathStats = new CriticalPathStats();
 
-            foreach (var node in nodes)
+            var pipId = node.ToPipId();
+            var pipType = m_pipTable.GetPipType(pipId);
+            if (pipType == PipType.HashSourceFile)
             {
-                var pipId = node.ToPipId();
-                var pipType = m_pipTable.GetPipType(pipId);
-                if (pipType == PipType.HashSourceFile)
+                return;
+            }
+
+            if (pipId.Value > m_initialPipCount)
+            {
+                // The initial bulk count only included the pip-table snapshot taken during scheduler initialization.
+                // Register the initial state before transitioning a pip admitted after that snapshot.
+                m_pipStateCounters.AccumulateInitialState(PipState.Ignored, pipType);
+            }
+
+            var pipRuntimeInfo = GetPipRuntimeInfo(pipId);
+            pipRuntimeInfo.Priority = m_pipTable.GetPipPriority(pipId) << CriticalPathPriorityBitCount;
+
+            // Incoming edges are final when a topologically published pip is admitted. Outgoing edges are not.
+            // The sequence handshake assigns each heavy edge to either admission or parent completion. The side
+            // that performs the final decrement owns scheduling, so admission can stop traversing immediately.
+            pipRuntimeInfo.RefCount = DirectedGraph.CountIncomingHeavyEdges(node);
+            pipRuntimeInfo.Transition(m_pipStateCounters, pipType, PipState.Waiting);
+
+            // Before publishing the initialization sequence, parent threads cannot own an edge decrement.
+            // A zero count here therefore means that the pip has no heavy dependencies and we can schedule right away.
+            if (pipRuntimeInfo.HasNoPendingDependencies)
+            {
+                await SchedulePip(node, pipId);
+                return;
+            }
+
+            TryReserveSequenceNo(ref pipRuntimeInfo.StartInitializationSequenceNo);
+
+            foreach (var incomingEdge in DirectedGraph.GetIncomingEdges(node))
+            {
+                // A parent thread that performs the final decrement owns scheduling. Stop traversing once all
+                // dependency properties have been propagated, including when the pip has already completed.
+                // This short circuit does not affect correctness, it may have some benefits in the cases where pips
+                // have many parents (e.g. in the order of hundreds or thousands).
+                if (pipRuntimeInfo.HasNoPendingDependencies)
+                {
+                    break;
+                }
+
+                if (incomingEdge.IsLight)
                 {
                     continue;
                 }
 
-                if (pipId.Value > m_initialPipCount)
+                var dependencyRuntimeInfo = GetPipRuntimeInfo(incomingEdge.OtherNode);
+                if (PropagateCompletion(child: pipRuntimeInfo, parent: dependencyRuntimeInfo, isChild: true, childId: node, parentId: incomingEdge.OtherNode))
                 {
-                    // The initial bulk count only included the pip-table snapshot taken during scheduler initialization.
-                    // Register the initial state before transitioning a pip admitted after that snapshot.
-                    m_pipStateCounters.AccumulateInitialState(PipState.Ignored, pipType);
-                }
-
-                var pipRuntimeInfo = GetPipRuntimeInfo(pipId);
-                pipRuntimeInfo.Priority = m_pipTable.GetPipPriority(pipId) << CriticalPathPriorityBitCount;
-
-                // Incoming edges are final when a topologically published pip is admitted. Outgoing edges are not.
-                // Parents can already be terminal because execution overlaps publication, so only unfinished parents
-                // contribute to the initial ref count and already-observed failures are propagated to the late child.
-                int unfinishedDependencyCount = 0;
-                bool hasFailedDependency = false;
-
-                // BUG: Dependency completion is not synchronized with late admission. A dependency can complete
-                // after it is counted here, skip this still-Ignored pip while scheduling dependents, and leave the
-                // pip permanently waiting with a ref count that will never be decremented.
-                foreach (var incomingEdge in DirectedGraph.GetIncomingEdges(node))
-                {
-                    if (incomingEdge.IsLight)
-                    {
-                        continue;
-                    }
-
-                    var dependencyRuntimeInfo = GetPipRuntimeInfo(incomingEdge.OtherNode);
-                    if (dependencyRuntimeInfo.RefCount == CompletedRefCount)
-                    {
-                        hasFailedDependency |= dependencyRuntimeInfo.State.IndicatesFailure();
-                    }
-                    else
-                    {
-                        unfinishedDependencyCount++;
-                    }
-                }
-
-                pipRuntimeInfo.RefCount = unfinishedDependencyCount;
-                pipRuntimeInfo.Transition(m_pipStateCounters, pipType, PipState.Waiting);
-
-                if (hasFailedDependency)
-                {
-                    pipRuntimeInfo.TryTransition(m_pipStateCounters, pipType, PipState.Waiting, PipState.Skipped);
-                }
-
-                if (pipRuntimeInfo.RefCount == 0)
-                {
-                    SchedulePip(node, pipId).GetAwaiter().GetResult();
+                    // This call performed the final decrement, so it owns scheduling. No need to keep traversing parents.
+                    await SchedulePip(node, pipId);
+                    break;
                 }
             }
 
@@ -7087,6 +7051,120 @@ namespace BuildXL.Scheduler
             // IDynamicGraph completion callback must own this transition instead of initial scheduler setup.
             // PipQueue.SetAsFinalized();
 #endif
+        }
+
+        private bool PropagateCompletion(PipRuntimeInfo child, PipRuntimeInfo parent, bool isChild, NodeId parentId, NodeId childId)
+        {
+            bool decrement = false;
+            if (child.StartInitializationSequenceNo > parent.StartDependentsSequenceNo)
+            {
+                // Parent started scheduling dependents BEFORE child started initialization
+                // child is responsible for decrementing the ref count
+                if (isChild)
+                {
+                    decrement = true;
+                }
+            }
+            else
+            {
+                // Parent started scheduling dependents AFTER child started initialization
+                // parent is responsible for decrementing the ref count
+                if (!isChild)
+                {
+                    decrement = true;
+                }
+            }
+
+            bool completed = false;
+            if (decrement)
+            {
+                PipState currentDependentState = child.State;
+
+                // Mark the dependent as uncacheable impacted if the parent was marked as impacted
+                if (parent.IsUncacheableImpacted)
+                {
+                    child.IsUncacheableImpacted = true;
+                }
+
+                if (parent.IsMissingContentImpacted)
+                {
+                    child.IsMissingContentImpacted = true;
+                }
+
+                if (parent.GetFlag(PipRuntimeInfo.Flags.DisableChildFrontierCacheMiss))
+                {
+                    child.IsFrontierMissCandidate = false;
+                }
+
+                if (parent.GetFlag(PipRuntimeInfo.Flags.ShouldSkipDependents))
+                {
+                    // The current pip failed, so skip the dependent pip.
+                    // Note that we decrement the ref count; this dependent pip will eventually have ref count == 0
+                    // at which point we will 'run' the pip in ReportSkippedPip (simply to unwind the stack and then
+                    // skip further transitive dependents).
+                    if (currentDependentState == PipState.Waiting)
+                    {
+                        var childPipType = m_pipTable.GetPipType(childId.ToPipId());
+
+                        do
+                        {
+                            // There can be a race on calling TryTransition. One thread may lose on Interlocked.CompareExchange
+                            // in PipRunTimeInfo.TryTransitionInternal, but before the other thread finishes the method, the former thread
+                            // checks in the Contract.Assert below if the state is PipState.Skipped. One need to ensure that both threads
+                            // end up with PipState.Skipped.
+                            bool transitionToSkipped = child.TryTransition(
+                                m_pipStateCounters,
+                                childPipType,
+                                currentDependentState,
+                                PipState.Skipped);
+
+                            if (transitionToSkipped && child.State != PipState.Skipped)
+                            {
+                                Contract.Assert(
+                                    false,
+                                    I($"Transition to {nameof(PipState.Skipped)} is successful, but the state of dependent is {child.State}"));
+                            }
+
+                            currentDependentState = child.State;
+                        }
+                        while (currentDependentState != PipState.Skipped);
+                    }
+                    else
+                    {
+                        Contract.Assert(
+                            PipStateExtensions.IsTerminal(child.State),
+                            "Upon failure, dependent pips must be in a terminal failure state");
+                    }
+                }
+
+                var parentPipType = m_pipTable.GetPipType(parentId.ToPipId());
+
+                // If a pip is a cache miss we consider it part of a path of misses
+                // and we inform the dependent so it can update the length of its maximal path of misses
+                // We only consider successive process pips in a dependency chain for this computation,
+                // so non-process pips just forward the accumulated value.
+                if (parentPipType != PipType.Process)
+                {
+                    // If the pip is not a process pip just propagate the number
+                    child.InformDependencyCacheMissChain((int)parent.UpstreamCacheMissLongestChain);
+                }
+                else if (parent.Result == PipExecutionLevel.Executed)
+                {
+                    if (parent.GetFlag(PipRuntimeInfo.Flags.DisableCacheLookup))
+                    {
+                        // Do not increment length for pips that depends on disable cache lookup
+                        child.InformDependencyCacheMissChain((int)parent.UpstreamCacheMissLongestChain);
+                    }
+                    else
+                    {
+                        child.InformDependencyCacheMissChain((int)(parent.UpstreamCacheMissLongestChain + 1));
+                    }
+                }
+
+                completed = child.DecrementRefCount();
+            }
+
+            return completed;
         }
 
         #endregion Runtime Initialization
@@ -7953,33 +8031,32 @@ namespace BuildXL.Scheduler
             return GetPipRuntimeInfo(pipId.ToNodeId());
         }
 
+        private void TryReserveSequenceNo(ref int sequenceNoField)
+        {
+            if (sequenceNoField == PipRuntimeInfo.UninitializedSequenceNo)
+            {
+                lock (m_sequenceNoLock)
+                {
+                    if (sequenceNoField == PipRuntimeInfo.UninitializedSequenceNo)
+                    {
+                        sequenceNoField = m_nextSequenceNo++;
+                    }
+                }
+            }
+        }
+
         private PipRuntimeInfo GetPipRuntimeInfo(NodeId nodeId)
         {
             Contract.Assume(IsInitialized);
 
-            // DYNAMIC-GRAPH: Pip ids can exceed the construction-time PipTable.Count. Array resizing is the
-            // smallest adaptation for this exercise; a segmented or concurrent table would avoid copying in production.
-            if (nodeId.Value >= (uint)m_pipRuntimeInfos.Length)
-            {
-                lock (m_pipRuntimeInfosLock)
-                {
-                    if (nodeId.Value >= (uint)m_pipRuntimeInfos.Length)
-                    {
-                        int newLength = Math.Max((int)nodeId.Value + 1, m_pipRuntimeInfos.Length * 2);
-                        Array.Resize(ref m_pipRuntimeInfos, newLength);
-                        NodeIdDebugView.RuntimeInfos = m_pipRuntimeInfos;
-                    }
-                }
-            }
-
-            var info = m_pipRuntimeInfos[(int)nodeId.Value];
+            var infoPtr = m_pipRuntimeInfos.GetBufferPointer(nodeId.Value);
+            var info = infoPtr.Buffer[infoPtr.Index];
             if (info == null)
             {
-                Interlocked.CompareExchange(ref m_pipRuntimeInfos[(int)nodeId.Value], new PipRuntimeInfo(), null);
+                var newInfo = new PipRuntimeInfo();
+                info = Interlocked.CompareExchange(ref infoPtr.Buffer[infoPtr.Index], newInfo, null) ?? newInfo;
             }
 
-            info = m_pipRuntimeInfos[(int)nodeId.Value];
-            Contract.Assume(info != null);
             return info;
         }
 

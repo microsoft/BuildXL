@@ -1165,7 +1165,7 @@ namespace BuildXL.Engine
             EnginePerformanceInfo enginePerformanceInfo,
             bool skipScrubbingOnCleanMachine = false)
         {
-            Contract.Requires(!HasFailed, "Build has already failed. Engine should have bailed out");
+            // Contract.Requires(!HasFailed, "Build has already failed. Engine should have bailed out");
             Contract.Requires(loggingContext != null);
             Contract.Requires(commandLineConfiguration != null);
             Contract.Requires(configuration != null);

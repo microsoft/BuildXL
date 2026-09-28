@@ -77,7 +77,8 @@ namespace BuildXL.Utilities.Configuration
             config.Engine.VerifyJunctionsDoNotConflictWithDirectoryTranslations = true;
 
             config.Engine.TrackBuildsInUserFolder = false;
-            config.Engine.DirectedGraphMode = DirectedGraphMode.MemoryMapped;
+            // TODO: Investigate memory-mapped directed graph issues in Office builds before re-enabling this mode in CloudBuild.
+            config.Engine.DirectedGraphMode = DirectedGraphMode.Legacy;
 
             config.Schedule.MinimumDiskSpaceForPipsGb = 5;
 

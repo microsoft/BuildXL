@@ -51,9 +51,7 @@ export const result = Transformer.execute({
             XAssert.AreEqual(".*allowed-regex.*", regex.Pattern.ToString(StringTable));
 
             var expectedOptions = OperatingSystemHelper.IsWindowsOS ? RegexOptions.IgnoreCase : RegexOptions.None;
-#if NET7_0_OR_GREATER
             expectedOptions |= RegexOptions.NonBacktracking;
-#endif
             XAssert.AreEqual(expectedOptions, regex.Options);
         }
     }

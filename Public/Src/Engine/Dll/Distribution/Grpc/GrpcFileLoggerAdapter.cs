@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-#if NET6_0_OR_GREATER
-
 using System;
 using Microsoft.Extensions.Logging;
 using BuildXL.Utilities.Tracing;
@@ -69,5 +67,3 @@ namespace BuildXL.Engine.Distribution.Grpc
     }
 
 }
-
-#endif

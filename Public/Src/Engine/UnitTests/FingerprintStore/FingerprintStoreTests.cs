@@ -1177,9 +1177,6 @@ namespace Test.BuildXL.FingerprintStore
         /// Wrapper for <see cref="MultiThreadedMultipleDisposeTest"/> that can catch and log a native exception.
         /// </summary>
         [Fact]
-#if !NET6_0_OR_GREATER // Not available in .net 6
-        [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions] // allow this test to catch native rocksdb errors
-#endif
         public void MultiThreadedMultipleDisposeWrapper()
         {
             try

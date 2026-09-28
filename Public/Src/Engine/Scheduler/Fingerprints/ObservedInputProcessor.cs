@@ -2136,13 +2136,8 @@ namespace BuildXL.Scheduler.Fingerprints
                 }
 
                 DirectoryFingerprint? result;
-                // net472 requires a copy of the set to be made for it to be a read-only set
                 IReadOnlySet<AbsolutePath> readonlyRelevantUntrackedPaths =
-#if !NET5_0_OR_GREATER
-                relevantUntrackedPaths?.ToReadOnlySet() ?? CollectionUtilities.EmptySet<AbsolutePath>();
-#else
                 relevantUntrackedPaths ?? (IReadOnlySet<AbsolutePath>)CollectionUtilities.EmptySet<AbsolutePath>();
-#endif
                 switch (enumerationMode)
                 {
                     case DirectoryEnumerationMode.DefaultFingerprint:

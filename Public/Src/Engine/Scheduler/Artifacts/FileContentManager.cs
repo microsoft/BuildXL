@@ -4616,7 +4616,6 @@ namespace BuildXL.Scheduler.Artifacts
 
             private static Dictionary<TKey, TValue> ClearAndTrimIfOversized<TKey, TValue>(Dictionary<TKey, TValue> dictionary)
             {
-#if NETCOREAPP
                 bool trim = dictionary.EnsureCapacity(0) > MaximumRetainedCollectionCapacity;
                 dictionary.Clear();
                 if (trim)
@@ -4625,24 +4624,11 @@ namespace BuildXL.Scheduler.Artifacts
                 }
 
                 return dictionary;
-#else
-                if (dictionary.Count > MaximumRetainedCollectionCapacity)
-                {
-                    return new Dictionary<TKey, TValue>(dictionary.Comparer);
-                }
-
-                dictionary.Clear();
-                return dictionary;
-#endif
             }
 
             private static void ClearAndTrimIfOversized<T>(HashSet<T> set)
             {
-#if NETCOREAPP
                 bool trim = set.EnsureCapacity(0) > MaximumRetainedCollectionCapacity;
-#else
-                bool trim = set.Count > MaximumRetainedCollectionCapacity;
-#endif
                 set.Clear();
                 if (trim)
                 {

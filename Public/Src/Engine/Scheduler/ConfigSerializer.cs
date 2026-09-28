@@ -18,10 +18,6 @@ using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Scheduler
 {
-    // There are differences in Text.Json between Net5 and Net6; Net6 version allows us to have
-    // a succinct code here, and a few features it relies on are not available in Net5.
-#if NET6_0_OR_GREATER
-
     /// <summary>
     /// Extension class for handling config serialization and logging.
     /// </summary>
@@ -297,5 +293,4 @@ namespace BuildXL.Scheduler
             public override void Write(Utf8JsonWriter writer, FileArtifact value, JsonSerializerOptions options) => m_pathConverter.Write(writer, value.Path, options);
         }
     }
-#endif
 }

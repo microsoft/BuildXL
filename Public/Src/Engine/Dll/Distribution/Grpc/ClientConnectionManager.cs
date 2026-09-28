@@ -23,11 +23,9 @@ using static BuildXL.Engine.Distribution.RemoteWorker;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Distribution.Grpc;
 
-#if NET6_0_OR_GREATER
 using Grpc.Net.Client.Configuration;
 using Grpc.Net.Client;
 using Microsoft.Extensions.Logging;
-#endif
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
@@ -96,13 +94,11 @@ namespace BuildXL.Engine.Distribution.Grpc
         private int m_numConsecutiveHeartbeatFails;
         private static string s_debugLogPathBase;
 
-#if NET6_0_OR_GREATER
         internal readonly GrpcChannel Channel;
         private ConnectivityState State => Channel.State;
 
         private int m_numReconnectAttempts;
         private static LogLevel s_debugLogVerbosity;
-#endif
 
         private string GenerateLog(string traceId, string status, uint numTry, string description)
         {
@@ -121,14 +117,10 @@ namespace BuildXL.Engine.Distribution.Grpc
             m_counters = counters;
             m_encryptionSettings = encryptionSettings;
 
-#if NET6_0_OR_GREATER
             Channel = SetupGrpcNetClient(ipAddress, port);
             m_monitorConnectionTask = MonitorConnectionAsync();
 
             Contract.Assert(Channel != null, "Channel must be initialized");
-#else
-            m_monitorConnectionTask = null;
-#endif
 
             m_heartbeatCall = heartbeatCall;
             m_heartbeatAction = new CancellableTimedAction(SendHeartbeat, GrpcSettings.HeartbeatIntervalMs);
@@ -159,7 +151,6 @@ namespace BuildXL.Engine.Distribution.Grpc
             }
         }
 
-#if NET6_0_OR_GREATER
         private GrpcChannel SetupGrpcNetClient(string ipAddress, int port)
         {
             var handler = new SocketsHttpHandler
@@ -288,14 +279,12 @@ namespace BuildXL.Engine.Distribution.Grpc
                 return true;
             };
         }
-#endif
 
         // Verbose logging meant for debugging only
         internal static void EnableVerboseLogging(string path, GrpcEnvironmentOptions.GrpcVerbosity verbosity)
         {
             s_debugLogPathBase = path;
 
-#if NET6_0_OR_GREATER
             // Adapt from GrpcEnvironmentOptions.GrpcVerbosity.
             // We are slightly more 'verbose' here (i.e. Debug => Trace and Error => Warning)
             // to account for the finer granularity and considering that the gRPC.NET client logging
@@ -308,7 +297,6 @@ namespace BuildXL.Engine.Distribution.Grpc
                 GrpcEnvironmentOptions.GrpcVerbosity.Error => LogLevel.Warning,
                 _ => LogLevel.Error
             };
-#endif
         }
 
         private CallCredentials GetCallCredentialsWithToken()
@@ -352,7 +340,6 @@ namespace BuildXL.Engine.Distribution.Grpc
             return channelOptions;
         }
 
-#if NET6_0_OR_GREATER
         private async Task MonitorConnectionAsync()
         {
             await Task.Yield();
@@ -510,9 +497,6 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             return true;
         }
-#else
-        private Task<bool> TryConnectChannelAsync(TimeSpan timeout, string operation, StopwatchSlim? watch = null, CancellationToken cancellationToken = default(CancellationToken)) => Task.FromResult(false);
-#endif
 
         /// <summary>
         /// Ready for exit.
@@ -538,9 +522,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 await m_exitTokenSource.CancelTokenAsyncIfSupported();
                 m_heartbeatAction.Join();
 
-#if NET6_0_OR_GREATER
                 Channel.Dispose();
-#endif
             }
 
             if (m_monitorConnectionTask != null)
@@ -659,11 +641,9 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             if (state == RpcCallResultState.Succeeded)
             {
-#if NET6_0_OR_GREATER
                 // Reconnection attempts are consecutive failures. Successful application traffic confirms
                 // that the connection recovered, so previous recoveries must not count against a later outage.
                 Interlocked.Exchange(ref m_numReconnectAttempts, 0);
-#endif
                 return new RpcCallResult<T>(result, attempts: numTry, duration: totalCallDuration, waitForConnectionDuration: waitForConnectionDuration);
             }
             else if (m_attached && timeouts == GrpcSettings.MaxAttempts)

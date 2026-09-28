@@ -11,7 +11,7 @@ import * as Shared from "Sdk.Managed.Shared";
 
 namespace NugetDownloader {
 
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
+    export declare const qualifier : BuildXLSdk.DefaultQualifier;
  
     // These are the specs that define the nuget downloader SDK. Since this is a bxl-provided tool
     // and customers don't have direct exposure to it, they are not places under the usual SDK folder, but
@@ -57,5 +57,4 @@ namespace NugetDownloader {
         ],
     });
 }
-
 

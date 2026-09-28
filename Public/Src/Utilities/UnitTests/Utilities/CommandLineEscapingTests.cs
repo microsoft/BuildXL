@@ -84,8 +84,6 @@ namespace Test.BuildXL.Utilities
             }
         }
 
-#if NETCOREAPP
-
         [Fact]
         public void ParseEmptyStringReturnsZeroLengthList()
         {
@@ -284,8 +282,6 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual("/tail:Unclosed Quote", args[5].Value.ToString());
             XAssert.AreEqual("/tail:\"Unclosed Quote", args[5].Raw.ToString());
         }
-#endif
-
         private static CommandLineEscapingTestCase Case(string value, string asWord = null, string asApplicationName = null)
         {
             return new CommandLineEscapingTestCase

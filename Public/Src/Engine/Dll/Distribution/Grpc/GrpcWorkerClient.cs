@@ -53,11 +53,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 async (callOptions) => await m_client.HeartbeatAsync(GrpcUtils.EmptyResponse, callOptions),
                 m_encryptionSettings);
             m_connectionManager.OnConnectionFailureAsync += m_onConnectionFailureAsync;
-#if NET6_0_OR_GREATER
             m_client = new Worker.WorkerClient(m_connectionManager.Channel);
-#else
-            m_client = null;
-#endif
         }
 
         public Task CloseAsync()

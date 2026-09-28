@@ -8,7 +8,6 @@ using Xunit;
 
 namespace Test.BuildXL.Utilities
 {
-#if NET5_0_OR_GREATER
     // The tests adopted from the following PR with ReadOnlySpan<T>.Split support:
     // https://github.com/dotnet/runtime/commit/78ed8e8ab18ae6a944e04aaa1c66928acef7da18#diff-27da3246e86c068a251dfa98f5c889b71a6d58d6022040c36c99442fa881d529
     public class MemoryExtensionsTests
@@ -270,5 +269,4 @@ namespace Test.BuildXL.Utilities
             Assert.False(source.MoveNext());
         }
     }
-#endif
 }

@@ -136,7 +136,6 @@ namespace Test.BuildXL.Distribution
             await StopServicesAsync(orchestratorHarness, workerHarness);
         }
 
-#if NET6_0_OR_GREATER
         [Fact]
         public async Task SuccessfulCallResetsReconnectAttempts()
         {
@@ -171,7 +170,6 @@ namespace Test.BuildXL.Distribution
 
             await StopServicesAsync(orchestratorHarness, workerHarness);
         }
-#endif
 
         [Theory]
         [InlineData(true)]

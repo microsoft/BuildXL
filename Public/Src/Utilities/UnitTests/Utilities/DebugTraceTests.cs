@@ -11,7 +11,6 @@ using Xunit;
 
 namespace Test.BuildXL.Utilities
 {
-#if NETCOREAPP
     public sealed class DebugTraceTests : XunitBuildXLTest
     {
         public DebugTraceTests(ITestOutputHelper output)
@@ -78,6 +77,5 @@ namespace Test.BuildXL.Utilities
             var debugTrace = new DebugTrace(enabled: false);
             debugTrace.AppendLine($"This would throw: {ActuallyThrows()}");
         }
-#endif
     }
 }

@@ -2043,10 +2043,8 @@ namespace BuildXL.Engine
 
                                 ThreadPoolHelper.ConfigureWorkerThreadPools(Configuration.Schedule.MaxProcesses);
 
-#if NET6_0_OR_GREATER
                                 // We are done with the Schedule phase. Config is final at this point, so we can log it now.
                                 var configLoggingTask = Configuration.SerialzieToFileAsync(Context.PathTable, m_translator, indent: true, includePaths: true, ignoreNulls: false);
-#endif
 
                                 if (success && !exitOnNewGraph && phase.HasFlag(EnginePhases.Execute))
                                 {
@@ -2132,7 +2130,6 @@ namespace BuildXL.Engine
                                         "An error should have been logged during saving file content table.");
                                     return BuildXLEngineResult.Failed(engineState);
                                 }
-#if NET6_0_OR_GREATER
                                 var configLoggingResult = await configLoggingTask;
                                 if (!configLoggingResult.Succeeded)
                                 {
@@ -2140,7 +2137,6 @@ namespace BuildXL.Engine
                                     // so just log a warning and move on.
                                     UnexpectedCondition.Log(loggingContext, $"An exception occurred while serializing config to a file. Exception: {configLoggingResult.Failure.DescribeIncludingInnerFailures()}");
                                 }
-#endif
                                 completedTryBlock = true;
                             }
                             finally
@@ -2308,12 +2304,7 @@ namespace BuildXL.Engine
                                 {
                                     Context.EngineCounters.LogAsStatistics("Engine", loggingContext);
                                 }
-#if NET8_0_OR_GREATER
                                 await timeoutCancellationTokenSource.CancelAsync();
-#else
-                                // Cancel the timeout task running in the background since this build did not hang
-                                timeoutCancellationTokenSource.Cancel();
-#endif
 
                                 backgroundThread?.Join();
                             }

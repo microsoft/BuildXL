@@ -3,25 +3,17 @@
 
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
-#if NETCOREAPP
 using System;
 using System.Buffers;
-#endif
 
 namespace TypeScript.Net.Reformatter
 {
     /// <nodoc />
     public static class LengthPredictor
     {
-#if NETCOREAPP
         private static readonly SearchValues<char> s_newLineChars = SearchValues.Create("\n\r");
 
         private static bool ContainsNewLine(string content) => content.AsSpan().ContainsAny(s_newLineChars);
-#else
-        private static readonly char[] s_newLineChars = { '\n', '\r' };
-
-        private static bool ContainsNewLine(string content) => content.IndexOfAny(s_newLineChars) >= 0;
-#endif
 
         /// <summary>
         /// Computes if the given node still fits on a single line with the given remaining space.

@@ -361,7 +361,6 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual("1234", str);
         }
 
-#if NETCOREAPP
         [Theory]
         [InlineData("BuildXL", true)]
         [InlineData("BuildXL\u4E2D\u6587", false)]
@@ -379,7 +378,6 @@ namespace Test.BuildXL.Utilities
 
             XAssert.AreEqual(expected, new string(destination));
         }
-#endif
 
         [Fact]
         public Task BigStrings()

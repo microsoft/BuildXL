@@ -68,11 +68,7 @@ namespace BuildXL.Scheduler
             {
                 return m_directoryPath == other.m_directoryPath
                     && m_enumeratePatternRegex == other.m_enumeratePatternRegex
-#if !NET5_0_OR_GREATER
-                    && m_untrackedPaths.ToReadOnlySet().SetEquals(other.m_untrackedPaths.ToReadOnlySet());
-#else
                     && m_untrackedPaths.SetEquals(other.m_untrackedPaths);
-#endif
             }
 
             public override bool Equals(object obj)

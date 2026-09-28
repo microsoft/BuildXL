@@ -389,7 +389,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "enableMemoryMappedBasedFileHashing",
                             sign => {
-#if NETCOREAPP
                                 if (sign)
                                 {
                                     ContentHashingUtilities.EnableMemoryMappedBasedFileHashing();
@@ -398,8 +397,6 @@ namespace BuildXL
                                 {
                                     ContentHashingUtilities.DisableMemoryMappedBasedFileHashing();
                                 }
-#endif // NETCOREAPP
-                                // if it's not NETCOREAPP - do nothing
                             }),
                         OptionHandlerFactory.CreateBoolOption(
                             "memoryMappedPipTable",

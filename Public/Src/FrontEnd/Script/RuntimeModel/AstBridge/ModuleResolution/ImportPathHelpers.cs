@@ -2,9 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
-#if NETCOREAPP
 using System.Buffers;
-#endif
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -29,30 +27,20 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         internal static readonly string InvalidPathCharsText = string.Join(", ", InvalidPathChars);
         internal static readonly char[] InvalidPackageChars = InvalidPathChars.Concat(new[] { '/', '\\' }).ToArray();
 
-#if NETCOREAPP
         private static readonly SearchValues<char> s_invalidPathChars = SearchValues.Create(InvalidPathChars);
         private static readonly SearchValues<char> s_invalidPackageChars = SearchValues.Create(InvalidPackageChars);
-#endif
 
         /// <summary>
         /// Whether the given string contains any character that is invalid in a path.
         /// </summary>
         internal static bool ContainsInvalidPathChar(string value)
-#if NETCOREAPP
             => value.AsSpan().ContainsAny(s_invalidPathChars);
-#else
-            => value.IndexOfAny(InvalidPathChars) != -1;
-#endif
 
         /// <summary>
         /// Whether the given string contains any character that is invalid in a package name.
         /// </summary>
         internal static bool ContainsInvalidPackageChar(string value)
-#if NETCOREAPP
             => value.AsSpan().ContainsAny(s_invalidPackageChars);
-#else
-            => value.IndexOfAny(InvalidPackageChars) != -1;
-#endif
 
         internal static Expression ResolvePath(RuntimeModelContext context, AbsolutePath specPath, string path, in UniversalLocation location)
         {

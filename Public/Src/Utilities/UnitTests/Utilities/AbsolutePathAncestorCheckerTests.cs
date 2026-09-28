@@ -158,11 +158,9 @@ namespace Test.BuildXL.Utilities
                 XAssert.IsFalse(oversizedChecker.HasKnownAncestor(pt, queriedPath));
                 XAssert.IsTrue(oversizedChecker.RetainedEntryCapacity > maximumRetainedEntries);
 
-#if NETCOREAPP
                 // Invalidating the negative cache must not hide its allocated backing storage.
                 oversizedChecker.AddPath(queriedPath);
                 XAssert.IsTrue(oversizedChecker.RetainedEntryCapacity > maximumRetainedEntries);
-#endif
             }
 
             XAssert.AreEqual(1, pool.OversizedObjectCount);

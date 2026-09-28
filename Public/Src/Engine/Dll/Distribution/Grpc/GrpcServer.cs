@@ -16,7 +16,6 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Instrumentation.Common;
 
-#if NETCOREAPP
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -26,7 +25,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Routing;
-#endif
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
@@ -43,9 +41,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         private readonly CancellationTokenSource m_cancellationSource = new CancellationTokenSource();
 
-#if NETCOREAPP
         private Microsoft.Extensions.Hosting.IHost m_kestrelServer;
-#endif
 
         // Expose the port to unit tests
         internal int? Port
@@ -57,7 +53,6 @@ namespace BuildXL.Engine.Distribution.Grpc
                     return m_server.Ports.FirstOrDefault().BoundPort;
                 }
 
-#if NETCOREAPP
                 // Get the bound addresses from Kestrel
                 var server = m_kestrelServer.Services.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>();
                 if (server != null)
@@ -68,7 +63,6 @@ namespace BuildXL.Engine.Distribution.Grpc
                         return new Uri(address).Port;
                     }
                 }
-#endif
                 return null;
             }
         }
@@ -122,7 +116,6 @@ namespace BuildXL.Engine.Distribution.Grpc
             m_server.Start();
         }
 
-#if NETCOREAPP
         /// <summary>
         /// Running a kestrel server instead of grpc.core server if it is enabled.
         /// </summary>
@@ -244,7 +237,6 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             return m_kestrelServer.RunAsync(m_cancellationSource.Token);
         }
-#endif
 
         /// <inheritdoc />
         public void Dispose() => DisposeAsync().GetAwaiter().GetResult();
@@ -267,7 +259,6 @@ namespace BuildXL.Engine.Distribution.Grpc
                 }
             }
 
-#if NETCOREAPP
             if (m_kestrelServer != null)
             {
                 try
@@ -302,7 +293,6 @@ namespace BuildXL.Engine.Distribution.Grpc
                     }
                 }
             }
-#endif
         }
     }
 }

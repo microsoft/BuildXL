@@ -23,10 +23,8 @@ using Google.Protobuf;
 using BuildXL.Utilities.Core;
 using static BuildXL.Distribution.Grpc.HelloResponse.Types;
 
-#if NETCOREAPP
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Routing;
-#endif
 
 namespace Test.BuildXL.Distribution
 {
@@ -115,13 +113,11 @@ namespace Test.BuildXL.Distribution
             StartCallCount++;
         }
 
-#if NETCOREAPP
         Task IServer.StartKestrel(int port, Action<IServiceCollection> configureGrpcServices, Action<IEndpointRouteBuilder> configureEndpointRouteBuilder)
         {
             StartCallCount++;
             return Task.CompletedTask;
         }
-#endif
 
         Task IServer.DisposeAsync() => Task.CompletedTask;
 

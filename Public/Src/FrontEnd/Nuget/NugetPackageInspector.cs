@@ -292,11 +292,7 @@ namespace BuildXL.FrontEnd.Nuget
                             chunkStart = totalLength - MinimalChunkSizeInBytes;
                         }
                     }
-#if NET6_0_OR_GREATER
                     using (var chunk = await response.Content.ReadAsStreamAsync(m_cancellationToken))
-#else
-                    using (var chunk = await response.Content.ReadAsStreamAsync())
-#endif
                     {
                         // Unfortunately the .net framework does not support prepending a stream, so we do it manually
                         // TODO: If this becomes a perf/footprint issue we could write a stream wrapper that knows how to compose streams. But

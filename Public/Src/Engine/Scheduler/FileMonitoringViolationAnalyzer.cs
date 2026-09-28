@@ -1616,11 +1616,7 @@ namespace BuildXL.Scheduler
                     // If undeclared reads are restricted, let's see whether the undeclared read falls under any of the allowed scopes
                     // If no valid scope was found, check equivalently for allowed paths
                     // Finally, check whether there is a match against any of the defined regexes
-#if NET5_0_OR_GREATER
                     var canRead = undeclaredRead.IsWithin(Context.PathTable, allowedScopes)
-#else
-                    var canRead = undeclaredRead.IsWithin(Context.PathTable, allowedScopes.ToReadOnlySet())
-#endif
                         || allowedPaths.Contains(undeclaredRead)
                         || combinedRegex?.IsMatch(undeclaredRead.ToString(Context.PathTable)) == true // combined regex case
                         || allowedRegexes?.Any(regex => regex.IsMatch(undeclaredRead.ToString(Context.PathTable))) == true; // individual regex check case

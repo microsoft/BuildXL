@@ -89,11 +89,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 HeartbeatCall,
                 m_encryptionSettings);
             m_connectionManager.OnConnectionFailureAsync += onConnectionFailureAsync;
-#if NET6_0_OR_GREATER
             m_client = new Orchestrator.OrchestratorClient(m_connectionManager.Channel);
-#else
-            m_client = null;
-#endif
             m_initialized = true;
         }
 

@@ -17,7 +17,6 @@ namespace BuildXL.Scheduler.WorkDispatcher
     /// </summary>
     public class DispatcherQueue : IDisposable
     {
-#if NET6_0_OR_GREATER
         private sealed class ReverseIntegerComparer : IComparer<int>
         {
             /// <nodoc/>
@@ -30,9 +29,6 @@ namespace BuildXL.Scheduler.WorkDispatcher
         // C# PriorityQueue dequeues the lowest priority the first unlike our custom PriorityQueue. We pass a custom comparer to reverse this behavior.
         private System.Collections.Generic.PriorityQueue<RunnablePip, int> m_queue = new System.Collections.Generic.PriorityQueue<RunnablePip, int>(new ReverseIntegerComparer());
         private object m_lock = new object();
-#else
-        private PriorityQueue<RunnablePip> m_queue = new PriorityQueue<RunnablePip>();
-#endif
         
         private readonly PipQueue m_pipQueue;
 
@@ -112,14 +108,10 @@ namespace BuildXL.Scheduler.WorkDispatcher
         {
             Contract.Requires(!IsDisposed);
 
-#if NET6_0_OR_GREATER
             lock (m_lock)
             {
                 m_queue.Enqueue(runnablePip, runnablePip.Priority);
             }
-#else
-            m_queue.Enqueue(runnablePip, runnablePip.Priority);
-#endif
             
             Interlocked.Increment(ref m_numQueuedPips);
 
@@ -170,14 +162,10 @@ namespace BuildXL.Scheduler.WorkDispatcher
             if (NumQueued != 0)
             {
                 Interlocked.Decrement(ref m_numQueuedPips);
-#if NET6_0_OR_GREATER
                 lock (m_lock)
                 {
                     runnablePip = m_queue.Dequeue();
                 }
-#else
-                runnablePip = m_queue.Dequeue();
-#endif
 
                 // A race is still possible in rare cases, so we check
                 // whether the returned item is not null.

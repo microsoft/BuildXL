@@ -64,6 +64,16 @@ export interface AllSupportedQualifiers extends Qualifier {
 }
 
 /**
+ * Qualifier for projects that support DotNetCore and NetStandard2.0
+ */
+@@public
+export interface DefaultQualifierWithNetStandard extends Qualifier {
+    configuration: "debug" | "release";
+    targetFramework: "net8.0" | "net9.0" | "net10.0" | "netstandard2.0";
+    targetRuntime: "win-x64" | "osx-x64" | "osx-arm64" | "linux-x64";
+}
+
+/**
  * Qualifier for projects that support all target frameworks, but do not support macOS ARM64
  */
 @@public

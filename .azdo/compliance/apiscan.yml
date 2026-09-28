@@ -28,6 +28,7 @@ jobs:
     fetchDepth: 1
 
   - template: /.azdo/common/journaling.yml # Enable journaling
+  - template: /.azdo/common/set-variable-pats.yml
   - template: /.azdo/common/set-msvc-version.yml
 
   # It should give us enough coverage to run with the default qualifier
@@ -35,11 +36,14 @@ jobs:
   - task: CmdLine@2
     displayName: BuildXL (cscDebugType=pdbOnly) 
     inputs:
-      script: 'bxl.cmd -DeployConfig $(BuildXL.Configuration) -SharedCacheMode Disabled /p:[Sdk.BuildXL]microsoftInternal=0 /p:[Sdk.BuildXL]cscDebugType=pdbOnly /logsDirectory:$(BuildXL.LogsDirectory) /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag) /logOutput:FullOutputOnWarningOrError /processRetries:3 Out\Bin\$(BuildXL.Configuration)\win-x64\*'
+      script: 'bxl.cmd -DeployConfig $(BuildXL.Configuration) -SharedCacheMode Disabled /p:[Sdk.BuildXL]microsoftInternal=0 /p:[Sdk.BuildXL]usePublicDepsOnlyFeed=1 /p:[Sdk.BuildXL]cscDebugType=pdbOnly /logsDirectory:$(BuildXL.LogsDirectory) /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag) /logOutput:FullOutputOnWarningOrError /processRetries:3 Out\Bin\$(BuildXL.Configuration)\win-x64\*'
     env:
       # The following two variables need to be set explicitly because we are using the ADO build runner outside of the 1ESPT buildxl workflow
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       ADOBUILDRUNNERINVOCATIONKEY: "APIScan"
+      # Feed auth for usePublicDepsOnlyFeed; set by /.azdo/common/set-variable-pats.yml earlier in the job.
+      1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64)
+      VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
 
   - task: PublishPipelineArtifact@1
     displayName: Upload logs

@@ -37,19 +37,25 @@ jobs:
     fetchDepth: 1
 
   - template: /.azdo/common/journaling.yml # Enable journaling
+  - template: /.azdo/common/set-variable-pats.yml
   - template: /.azdo/common/set-msvc-version.yml
 
   - task: CodeQL3000Init@0
 
-  # Filter the build all packages published by the BuildXL.Internal repo. It isn't important to scan unit tests
+  # Build all packages published by the BuildXL.Internal repo. It isn't important to scan unit tests.
   - task: CmdLine@2
     displayName: Run bxl.cmd
     inputs:
-      script: 'call bxl.cmd -SharedCacheMode Disabled /p:BUILDXL_FINGERPRINT_SALT=* /logsDirectory:$(BuildXL.LogsDirectory) /p:[Sdk.BuildXL]microsoftInternal=0 /processRetries:3 /traceInfo:selfhostlkgflavor=Public /scrubDirectory:$(Build.SourcesDirectory)\Out /unsafe_GlobalUntrackedScopes:$(Agent.TempDirectory)\codeql3000 /p:CODEQL_TEMP_DIR=$(Agent.TempDirectory)\codeql3000  out\bin\debug\public\pkgs\*'
+      script: 'call bxl.cmd -SharedCacheMode Disabled /p:BUILDXL_FINGERPRINT_SALT=* /logsDirectory:$(BuildXL.LogsDirectory) /p:[Sdk.BuildXL]microsoftInternal=0 /p:[Sdk.BuildXL]usePublicDepsOnlyFeed=1 /processRetries:3 /traceInfo:selfhostlkgflavor=Public /scrubDirectory:$(Build.SourcesDirectory)\Out /unsafe_GlobalUntrackedScopes:$(Agent.TempDirectory)\codeql3000 /p:CODEQL_TEMP_DIR=$(Agent.TempDirectory)\codeql3000 out\bin\debug\public\pkgs\*'
     env:
       # The following two variables need to be set explicitly because we are using the ADO build runner outside of the 1ESPT buildxl workflow
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       ADOBUILDRUNNERINVOCATIONKEY: "CodeQL"
+      # Feed auth for usePublicDepsOnlyFeed; set by /.azdo/common/set-variable-pats.yml earlier in the job.
+      1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+      1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64)
+      VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
+      ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
   - task: CodeQL3000Finalize@0
 
   - task: PublishPipelineArtifact@1

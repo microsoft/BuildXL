@@ -21,7 +21,8 @@ const isWindows: boolean = Context.isWindowsOS();
 export const qTestTool: Transformer.ToolDefinition = {
     exe: isWindows ? f`${root}/bin/DBS.QTest.exe` : f`${root}/bin/DBS.QTest.Linux`,
     description: "CloudBuild QTest",
-    runtimeDependencies: globR(d`${root}/bin`, "*"),
+    // bin/SRM holds a regex cache that QTest (via CredScan) rewrites at runtime, so it must not be a declared input.
+    runtimeDependencies: globR(d`${root}/bin`, "*").filter(f => !f.isWithin(d`${root}/bin/SRM`)),
     untrackedDirectoryScopes: isWindows
       ? [
           d`${Context.getMount("ProgramData").path}`,
@@ -32,7 +33,7 @@ export const qTestTool: Transformer.ToolDefinition = {
           // To ensure that dmps are generated during crashes, QTest now includes procdmp.exe
           // However, this tool reads dbghelp.dll located in the following directory in CloudBuild machines
           d`C:/Debuggers`,
-          // QTest writes files to the SRM directory at runtime. Likely related to the PublishSingleFile on the QTest executable.
+          // QTest (via CredScan) writes a regex cache to the SRM directory at runtime.
           d`${Context.getMount("BuildEnginePath").path}/Sdk/Sdk.QTest/bin/SRM`,
         ]
       : [
@@ -566,7 +567,7 @@ export function runQTest(args: QTestArguments): Result {
             // To ensure that dmps are generated during crashes, QTest now includes procdmp.exe
             // However, this tool reads dbghelp.dll located in the following directory in CloudBuild machines
             d`C:/Debuggers`,
-            // QTest writes files to the SRM directory at runtime. Likely related to the PublishSingleFile on the QTest executable.
+            // QTest (via CredScan) writes a regex cache to the SRM directory at runtime.
             d`${Context.getMount("BuildEnginePath").path}/Sdk/Sdk.QTest/bin/SRM`,
             ...addIfLazy(Context.getCurrentHost().os === "unix", () => [
                 d`${Context.getUserHomeDirectory().path}/.dotnet/corefx/cryptography`]),

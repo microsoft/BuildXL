@@ -30,7 +30,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         [InlineData(/*isSharedOpaque*/ true)]
         [InlineData(/*isSharedOpaque*/ false)]
-        public void VsoHashOfOpaqueDirectorySucceeds(bool isSharedOpaque)
+        public virtual void VsoHashOfOpaqueDirectorySucceeds(bool isSharedOpaque)
         {
             Configuration.Sandbox.OutputReportingMode = global::BuildXL.Utilities.Configuration.OutputReportingMode.FullOutputAlways;
 

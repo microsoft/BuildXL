@@ -25,7 +25,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 
 namespace Test.BuildXL.Scheduler
 {
-    public sealed class TestScheduler : global::BuildXL.Scheduler.Scheduler
+    public sealed class TestScheduler : global::BuildXL.Scheduler.Scheduler, ITestScheduler
     {
         private readonly Dictionary<PipId, PipResultStatus> m_overridePipResults = new Dictionary<PipId, PipResultStatus>();
         private readonly LoggingContext m_loggingContext;
@@ -138,6 +138,8 @@ namespace Test.BuildXL.Scheduler
 
             m_testPipQueue.OnPipCompleted(runnablePip.PipId);
         }
+
+        public SchedulerPerformanceInfo LogStatsForTest(LoggingContext loggingContext) => LogStats(loggingContext, null);
 
         public void AssertPipResults(
             Pip[] expectedSuccessfulPips = null,

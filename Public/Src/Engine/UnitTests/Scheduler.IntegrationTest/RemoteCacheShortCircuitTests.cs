@@ -264,7 +264,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
 
         [Fact]
-        public void RemoteCacheShortCircuitWithOpaqueHit()
+        public virtual void RemoteCacheShortCircuitWithOpaqueHit()
         {
             var outDir = CreateOutputDirectoryArtifact();
             var outDirStr = ArtifactToString(outDir);

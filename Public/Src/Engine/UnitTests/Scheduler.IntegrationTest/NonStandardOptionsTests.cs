@@ -61,7 +61,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void AllowEmptyFilterWithUnsafeForceSkipDeps_Bug1102785()
+        public virtual void AllowEmptyFilterWithUnsafeForceSkipDeps_Bug1102785()
         {
             Configuration.Schedule.ForceSkipDependencies = BuildXLConfiguration.ForceSkipDependenciesMode.Always;
             CreateAndSchedulePipBuilder(new Operation[]
@@ -73,7 +73,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void ValidateUnsafeForceSkipDeps()
+        public virtual void ValidateUnsafeForceSkipDeps()
         {
             // Forces skipping dependencies of explicitly scheduled pips unless inputs are non-existent on filesystem
             Configuration.Schedule.ForceSkipDependencies = BuildXLConfiguration.ForceSkipDependenciesMode.Always;

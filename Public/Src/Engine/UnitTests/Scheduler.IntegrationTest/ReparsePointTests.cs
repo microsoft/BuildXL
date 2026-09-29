@@ -1368,7 +1368,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [FactIfSupported(requiresAdmin: true, requiresWindowsBasedOperatingSystem: true)]
-        public void ManifestOfResolvedAccessIsProperlyComputed()
+        public virtual void ManifestOfResolvedAccessIsProperlyComputed()
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
 
@@ -1477,7 +1477,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [FactIfSupported(requiresAdmin: true, requiresWindowsBasedOperatingSystem: true)]
-        public void ReparsePointCreationInvalidatesTheCache()
+        public virtual void ReparsePointCreationInvalidatesTheCache()
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
 
@@ -1533,7 +1533,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [TheoryIfSupported(requiresAdmin: true, requiresWindowsBasedOperatingSystem: true)]
         [InlineData(true)]
         [InlineData(false)]
-        public void IndividualPipsCanTurnOffReparsePointResolution(bool pipDisablesFullReparsePointResolution)
+        public virtual void IndividualPipsCanTurnOffReparsePointResolution(bool pipDisablesFullReparsePointResolution)
         {
             // Enable reparse point resolution globally
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;

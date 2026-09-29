@@ -2144,6 +2144,21 @@ namespace BuildXL.Pips.Graph
                 Contract.Requires(process != null, "Argument process cannot be null");
                 Contract.Assert(!IsImmutable);
 
+                if (m_configuration.Engine.UnsafeEnableDynamicGraph)
+                {
+                    if (process.AllowUndeclaredSourceReads)
+                    {
+                        LogDynamicGraphUnsupportedFeature(process, "undeclared source reads");
+                        return false;
+                    }
+
+                    if (process.HasSharedOpaqueDirectoryOutputs)
+                    {
+                        LogDynamicGraphUnsupportedFeature(process, "shared opaque directories");
+                        return false;
+                    }
+                }
+
                 using (LockManager.PathAccessGroupLock pathAccessLock = LockManager.AcquirePathAccessLock(process))
                 {
                     if (PipExists(process))
@@ -2655,6 +2670,13 @@ namespace BuildXL.Pips.Graph
             {
                 Contract.Requires(sealDirectory != null);
                 Contract.Assert(!IsImmutable);
+
+                if (m_configuration.Engine.UnsafeEnableDynamicGraph &&
+                    sealDirectory.Kind == SealDirectoryKind.SharedOpaque)
+                {
+                    LogDynamicGraphUnsupportedFeature(sealDirectory, "shared opaque directories");
+                    return DirectoryArtifact.Invalid;
+                }
 
                 var semanticPathExpander = SemanticPathExpander.GetModuleExpander(sealDirectory.Provenance.ModuleId);
 
@@ -3434,6 +3456,23 @@ namespace BuildXL.Pips.Graph
                     provenance.SemiStableHash,
                     pip.GetDescription(Context),
                     provenance.OutputValueSymbol.ToString(Context.SymbolTable));
+            }
+
+            private void LogDynamicGraphUnsupportedFeature(Pip pip, string unsupportedFeature)
+            {
+                Contract.Requires(pip != null);
+                Contract.Requires(!string.IsNullOrEmpty(unsupportedFeature));
+
+                PipProvenance provenance = pip.Provenance ?? GetDummyProvenance();
+                Logger.Log.ScheduleFailAddPipDynamicGraphUnsupportedFeature(
+                    LoggingContext,
+                    provenance.Token.Path.ToString(Context.PathTable),
+                    provenance.Token.Line,
+                    provenance.Token.Position,
+                    provenance.SemiStableHash,
+                    pip.GetDescription(Context),
+                    provenance.OutputValueSymbol.ToString(Context.SymbolTable),
+                    unsupportedFeature);
             }
 
             private void LogEventWithPipProvenance(PipProvenanceEventWithFilePath pipEvent, Pip pip, FileArtifact relatedArtifact)

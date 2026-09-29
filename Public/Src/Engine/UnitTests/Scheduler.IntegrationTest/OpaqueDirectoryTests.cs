@@ -192,7 +192,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// file based output can overlap with its opaque directory output
         /// </summary>
         [Fact]
-        public void ConsumeExplicitFileOutOfOpaque()
+        public virtual void ConsumeExplicitFileOutOfOpaque()
         {
             // Set up PipA  => opaqueDirectory => PipB
             string opaqueDir = Path.Combine(ObjectRoot, "opaquedir");
@@ -343,7 +343,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Feature(Features.DirectoryEnumeration)]
         [Feature(Features.GraphFileSystem)]
         [Fact]
-        public void EnumerateOpaqueDirectory()
+        public virtual void EnumerateOpaqueDirectory()
         {
             Configuration.Sandbox.FileSystemMode = FileSystemMode.RealAndPipGraph;
 
@@ -391,7 +391,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(Process.AbsentPathProbeInUndeclaredOpaquesMode.Strict, SealDirectoryKind.SharedOpaque)]
         [InlineData(Process.AbsentPathProbeInUndeclaredOpaquesMode.Relaxed, SealDirectoryKind.SharedOpaque)]
         [InlineData(Process.AbsentPathProbeInUndeclaredOpaquesMode.Unsafe, SealDirectoryKind.SharedOpaque)]
-        public void AbsentPathProbeUnderOpaquesModeBehavior(Process.AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode, SealDirectoryKind directoryKind)
+        public virtual void AbsentPathProbeUnderOpaquesModeBehavior(Process.AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode, SealDirectoryKind directoryKind)
         {
             var opaqueDir = Path.Combine(ObjectRoot, "opaquedir");
             AbsolutePath opaqueDirPath = AbsolutePath.Create(Context.PathTable, opaqueDir);
@@ -437,7 +437,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(Process.AbsentPathProbeInUndeclaredOpaquesMode.Strict, SealDirectoryKind.SharedOpaque)]
         [InlineData(Process.AbsentPathProbeInUndeclaredOpaquesMode.Relaxed, SealDirectoryKind.SharedOpaque)]
         [InlineData(Process.AbsentPathProbeInUndeclaredOpaquesMode.Unsafe, SealDirectoryKind.SharedOpaque)]
-        public void AbsentFileProbeIsAllowedInsideDirectoryDependency(Process.AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode, SealDirectoryKind directoryKind)
+        public virtual void AbsentFileProbeIsAllowedInsideDirectoryDependency(Process.AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode, SealDirectoryKind directoryKind)
         {
             // we should always allow absent path probes inside opaque directories a pip depends on
 
@@ -734,7 +734,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         [InlineData(SealDirectoryKind.SharedOpaque)]
         [InlineData(SealDirectoryKind.Opaque)]
-        public void OutputExistenceAssertionsUnderOpaqueConsumptionBehavior(SealDirectoryKind kind)
+        public virtual void OutputExistenceAssertionsUnderOpaqueConsumptionBehavior(SealDirectoryKind kind)
         {
             var outputDirectory = CreateUniqueObjPath("outputDir");
             var outputFile = CreateOutputFileArtifact(outputDirectory, "fileA");
@@ -766,7 +766,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         [InlineData(SealDirectoryKind.SharedOpaque)]
         [InlineData(SealDirectoryKind.Opaque)]
-        public void OutputExistenceAssertionsUnderOpaqueIsValidated(SealDirectoryKind kind)
+        public virtual void OutputExistenceAssertionsUnderOpaqueIsValidated(SealDirectoryKind kind)
         {
             var outputDirectory = CreateUniqueObjPath("outputDir");
             var outputFile = CreateOutputFileArtifact(outputDirectory, "fileA");
@@ -789,7 +789,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         [InlineData(SealDirectoryKind.SharedOpaque)]
         [InlineData(SealDirectoryKind.Opaque)]
-        public void OutputExistenceAssertionsUnderOpaqueCachingBehavior(SealDirectoryKind kind)
+        public virtual void OutputExistenceAssertionsUnderOpaqueCachingBehavior(SealDirectoryKind kind)
         {
             var outputDirectory = CreateUniqueObjPath("outputDir");
             var outputFile = CreateOutputFileArtifact(outputDirectory, "fileA");

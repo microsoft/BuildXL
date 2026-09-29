@@ -63,7 +63,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void ValidateProcessPipCountersByFilterForFailedPip()
+        public virtual void ValidateProcessPipCountersByFilterForFailedPip()
         {
             var filterTag = "failed";
             var resetFile = CreateSourceFile();
@@ -109,7 +109,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void ValidateProcessPipCountersByFilter()
+        public virtual void ValidateProcessPipCountersByFilter()
         {
             var filterTag = "filterMatch";
 

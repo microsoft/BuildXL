@@ -8,7 +8,7 @@ using Xunit;
 
 namespace Test.BuildXL.Engine
 {
-    public sealed class RewriteTests : BaseEngineTest
+    public class RewriteTests : BaseEngineTest
     {
         public RewriteTests(ITestOutputHelper output)
             : base(output)

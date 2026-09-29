@@ -24,6 +24,9 @@ This list is intentionally conservative and not exhaustive.
   graph instead of a live graph publication session.
 - Graph caching is disabled because the current serialization pipeline assumes
   graph construction finishes before execution begins.
+- `RealAndPipGraph` and `AlwaysMinimalWithAlienFilesGraph` filesystem modes are
+  rejected because they require whole-graph or real-filesystem information that
+  is not stable while graph publication remains open.
 
 ### Restrictions for dynamic pip admission
 
@@ -34,6 +37,8 @@ This list is intentionally conservative and not exhaustive.
   are not inherently incompatible.
 - Shared opaque directories are unsupported until their graph-wide cleanup
   semantics are redesigned.
+- Undeclared source reads are unsupported because their filesystem observations
+  cannot be validated against an incomplete graph.
 - Late output-directory existence assertions are unsupported.
 - Pips may not add new pips for now. Existing frontends can publish through the
   shared mutable pip graph; executing pips are not graph producers yet.
@@ -83,19 +88,14 @@ use the immutable graph produced after publication completes:
 ### Non-obvious dynamic dependencies
 
 - `FileSystemView.Create` pre-populates a cache using the final artifact count.
-  Skipping pre-population is easy, but cached negative path-existence results
-  must be invalidated when a later pip declares an artifact under that path.
+  Dynamic mode skips pre-population, so parent directories for newly admitted
+  artifacts must be added to the filesystem view incrementally.
 - API server creation checks the graph moniker once during scheduler startup.
   A moniker requested later requires a metadata notification or an upfront
   publication barrier.
-- Outgoing-edge, consumer, and dependent queries are snapshots of what has been
-  admitted so far. Callers must not interpret an empty result as final until
-  graph publication closes.
-- A sequence-number handshake assigns each dependency edge to exactly one side
-  of a race between parent completion and child admission. The owning side
-  propagates the completed parent state before decrementing the child's
-  dependency count.
 - Graph-construction input tracking is disabled with graph caching. A frontend
   can observe an executing pip's output transition from absent to present,
   which is invalid under the input tracker's immutable-input model. A production
   protocol needs an explicit barrier or a separate class of execution signals.
+- PipGraph.Builder.Build() does whole graph validation that potentially needs to 
+  be done during dynamic pip addition.

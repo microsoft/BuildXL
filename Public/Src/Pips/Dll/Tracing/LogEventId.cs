@@ -93,6 +93,7 @@ namespace BuildXL.Pips.Tracing
         ScheduleFailAddPipInvalidComposedSealDirectoryDoesNotContainRoot = 14416,
         ScheduleFailAddOutputExistenceAssertionInOpaqueDirectoryWithoutProducer = 14417,
         FailedToAddOutputExistenceAssertionFragmentToGraph = 14418,
+        ScheduleFailAddPipDynamicGraphUnsupportedFeature = 14419,
 
         // CredScan
         CredentialsDetectedInEnvVar = 14420,

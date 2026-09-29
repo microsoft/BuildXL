@@ -42,7 +42,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         // Augmented accesses feature not supported on Linux yet
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        public void BreakawayProcessCompensatesWithAugmentedAccesses()
+        public virtual void BreakawayProcessCompensatesWithAugmentedAccesses()
         {
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "partialDir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
@@ -206,7 +206,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         // Augmented accesses feature not supported on Linux yet
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        public void AllowedTrustedAccessesTrumpFileBasedExistenceDenials()
+        public virtual void AllowedTrustedAccessesTrumpFileBasedExistenceDenials()
         {
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "partialDir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);

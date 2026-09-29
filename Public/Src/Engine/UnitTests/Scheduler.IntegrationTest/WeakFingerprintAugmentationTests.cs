@@ -187,7 +187,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void AugmentedPathSetUsageTracking()
+        public virtual void AugmentedPathSetUsageTracking()
         {
             Configuration.Cache.AugmentWeakFingerprintPathSetThreshold = 2;
             Configuration.Cache.MonitorAugmentedPathSets = 5;

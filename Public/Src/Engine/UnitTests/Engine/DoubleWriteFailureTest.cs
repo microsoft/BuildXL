@@ -11,7 +11,7 @@ using Xunit;
 namespace Test.BuildXL.EngineTests
 {
 
-    public sealed class DoubleWriteFailureTests : BaseEngineTest
+    public class DoubleWriteFailureTests : BaseEngineTest
     {
         public DoubleWriteFailureTests(ITestOutputHelper output)
             : base(output)

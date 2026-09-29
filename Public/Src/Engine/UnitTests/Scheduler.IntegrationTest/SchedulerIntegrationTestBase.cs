@@ -59,7 +59,6 @@ namespace Test.BuildXL.Scheduler
         /// Sanity check to make sure something was scheduled and avoid empty testing
         /// </summary>
         private bool m_graphWasEverModified;
-
         public PipGraph LastGraph { get; private set; }
 
         private JournalState m_journalState;
@@ -152,6 +151,18 @@ namespace Test.BuildXL.Scheduler
             BuildXLEngine.PopulateFileSystemCapabilities(Configuration, Context.PathTable);
 
             // Reset pip graph builder to use the populated configuration.
+            ResetPipGraphBuilder();
+        }
+
+        /// <summary>
+        /// Configures this test instance to run with the dynamic scheduler.
+        /// </summary>
+        protected void EnableDynamicGraphScheduler()
+        {
+            Configuration.Engine.UnsafeEnableDynamicGraph = true;
+            Configuration.Schedule.IncrementalScheduling = false;
+            Configuration.Cache.CacheGraph = false;
+            Configuration.Sandbox.FileSystemMode = FileSystemMode.RealAndMinimalPipGraph;
             ResetPipGraphBuilder();
         }
 
@@ -381,7 +392,7 @@ namespace Test.BuildXL.Scheduler
             IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null,
             PerformanceCollector performanceCollector = null,
             bool updateStatusTimerEnabled = false,
-            Action<TestScheduler> verifySchedulerPostRun = default,
+            Action<ITestScheduler> verifySchedulerPostRun = default,
             string runNameOrDescription = null,
             bool allowEmptySchedule = false,
             CancellationToken cancellationToken = default,
@@ -402,6 +413,11 @@ namespace Test.BuildXL.Scheduler
                 }
 
                 XAssert.IsNotNull(LastGraph, "Failed to build pip graph");
+
+                if (Configuration.Engine.UnsafeEnableDynamicGraph)
+                {
+                    ValidateDynamicGraphTestGraph(LastGraph);
+                }
             }
 
             m_graphWasModified = false;
@@ -445,6 +461,20 @@ namespace Test.BuildXL.Scheduler
             m_testOutputHelper.WriteLine("################################################################################");
         }
 
+        private void ValidateDynamicGraphTestGraph(PipGraph graph)
+        {
+            // Let's prevent tests from creating processes that violate the dynamic scheduler's constraints.
+            foreach (var process in graph.RetrievePipsOfType(PipType.Process).Cast<Process>())
+            {
+                XAssert.IsFalse(
+                    process.AllowUndeclaredSourceReads,
+                    $"Process '{process.GetDescription(Context)}' enables undeclared source reads, which are unsupported by the dynamic scheduler.");
+                XAssert.IsFalse(
+                    process.HasSharedOpaqueDirectoryOutputs,
+                    $"Process '{process.GetDescription(Context)}' produces a shared opaque directory, which is unsupported by the dynamic scheduler.");
+            }
+        }
+
         /// <summary>
         /// Runs the scheduler allowing various options to be specifically set
         /// </summary>
@@ -458,7 +488,7 @@ namespace Test.BuildXL.Scheduler
             string runNameOrDescription = null,
             PerformanceCollector performanceCollector = null,
             bool updateStatusTimerEnabled = false,
-            Action<TestScheduler> verifySchedulerPostRun = default,
+            Action<ITestScheduler> verifySchedulerPostRun = default,
             bool allowEmptySchedule = false,
             CancellationToken cancellationToken = default,
             FileTimestampTracker fileTimestampTracker = null,
@@ -535,49 +565,105 @@ namespace Test.BuildXL.Scheduler
 
             using (var queue = new PipQueue(LoggingContext, config))
             using (var testQueue = new TestPipQueue(queue, localLoggingContext, initiallyPaused: constraintExecutionOrder != null))
-            using (var testScheduler = new TestScheduler(
-                graph: graph,
-                pipQueue: constraintExecutionOrder == null ?
-                            testQueue :
-                            constraintExecutionOrder.Aggregate(testQueue, (TestPipQueue testQueue, (Pip before, Pip after) constraint) => { testQueue.ConstrainExecutionOrder(constraint.before, constraint.after); return testQueue; }).Unpause(),
-                context: BuildXLContext.CreateInstanceForTestingWithCancellationToken(Context, cancellationToken),
-                fileContentTable: FileContentTable,
-                loggingContext: localLoggingContext,
-                cache: Cache,
-                configuration: config,
-                journalState: m_journalState,
-                fileAccessAllowlist: allowlist,
-                fingerprintSalt: Configuration.Cache.CacheSalt,
-                directoryMembershipFingerprinterRules: new DirectoryMembershipFingerprinterRuleSet(Configuration, Context.StringTable),
-                tempCleaner: tempCleaner,
-                previousInputsSalt: previousOutputsSalt.Value,
-                successfulPips: null,
-                failedPips: null,
-                ipcProvider: null,
-                directoryTranslator: DirectoryTranslator,
-                vmInitializer: VmInitializer.CreateFromEngine(
+            {
+                var configuredQueue = constraintExecutionOrder == null ?
+                    testQueue :
+                    constraintExecutionOrder.Aggregate(testQueue, (TestPipQueue constrainedQueue, (Pip before, Pip after) constraint) =>
+                    {
+                        constrainedQueue.ConstrainExecutionOrder(constraint.before, constraint.after);
+                        return constrainedQueue;
+                    }).Unpause();
+                var schedulerContext = BuildXLContext.CreateInstanceForTestingWithCancellationToken(Context, cancellationToken);
+                var rules = new DirectoryMembershipFingerprinterRuleSet(Configuration, Context.StringTable);
+                var vmInitializer = VmInitializer.CreateFromEngine(
                     config.Layout.BuildEngineDirectory.ToString(Context.PathTable),
                     config.Layout.ExternalSandboxedProcessDirectory.ToString(Context.PathTable),
-                    subst: subst), // VM command proxy for unit tests comes from engine.
-                testHooks: testHooks,
-                performanceCollector: performanceCollector,
-                fileTimestampTracker: fileTimestampTracker,
-                pipSpecificPropertiesConfig: PipSpecificPropertiesConfig,
-                globalReclassificationRules: reclassifier
-                ))
-            {
+                    subst: subst);
+
+                ITestScheduler testScheduler = Configuration.Engine.UnsafeEnableDynamicGraph
+                    ? new TestDynamicScheduler(
+                        graph: graph,
+                        pipQueue: configuredQueue,
+                        context: schedulerContext,
+                        fileContentTable: FileContentTable,
+                        loggingContext: localLoggingContext,
+                        cache: Cache,
+                        configuration: config,
+                        journalState: m_journalState,
+                        fileAccessAllowlist: allowlist,
+                        fingerprintSalt: Configuration.Cache.CacheSalt,
+                        directoryMembershipFingerprinterRules: rules,
+                        tempCleaner: tempCleaner,
+                        previousInputsSalt: previousOutputsSalt.Value,
+                        directoryTranslator: DirectoryTranslator,
+                        vmInitializer: vmInitializer,
+                        testHooks: testHooks,
+                        performanceCollector: performanceCollector,
+                        fileTimestampTracker: fileTimestampTracker,
+                        pipSpecificPropertiesConfig: PipSpecificPropertiesConfig,
+                        globalReclassificationRules: reclassifier)
+                    : new TestScheduler(
+                        graph: graph,
+                        pipQueue: configuredQueue,
+                        context: schedulerContext,
+                        fileContentTable: FileContentTable,
+                        loggingContext: localLoggingContext,
+                        cache: Cache,
+                        configuration: config,
+                        journalState: m_journalState,
+                        fileAccessAllowlist: allowlist,
+                        fingerprintSalt: Configuration.Cache.CacheSalt,
+                        directoryMembershipFingerprinterRules: rules,
+                        tempCleaner: tempCleaner,
+                        previousInputsSalt: previousOutputsSalt.Value,
+                        successfulPips: null,
+                        failedPips: null,
+                        ipcProvider: null,
+                        directoryTranslator: DirectoryTranslator,
+                        vmInitializer: vmInitializer,
+                        testHooks: testHooks,
+                        performanceCollector: performanceCollector,
+                        fileTimestampTracker: fileTimestampTracker,
+                        pipSpecificPropertiesConfig: PipSpecificPropertiesConfig,
+                        globalReclassificationRules: reclassifier);
+
+                using (testScheduler)
+                {
                 CancellableTimedAction updateStatusAction = null;
 
                 MountPathExpander mountPathExpander = null;
                 var frontEndNonScrubbablePaths = CollectionUtilities.EmptyArray<string>();
 
-                if (filter == null)
+                if (Configuration.Engine.UnsafeEnableDynamicGraph)
+                {
+                    XAssert.IsNull(filter, "Dynamic graph scheduler tests do not support an explicit pip filter.");
+                    XAssert.IsTrue(string.IsNullOrEmpty(config.Filter), "Dynamic graph scheduler tests do not support configured pip filtering.");
+                    XAssert.AreNotEqual(
+                        FileSystemMode.RealAndPipGraph,
+                        config.Sandbox.FileSystemMode,
+                        "Dynamic graph scheduler tests do not support the full pip graph filesystem mode.");
+                    XAssert.AreNotEqual(
+                        FileSystemMode.AlwaysMinimalWithAlienFilesGraph,
+                        config.Sandbox.FileSystemMode,
+                        "Dynamic graph scheduler tests do not support alien-file enumeration.");
+                }
+                else if (filter == null)
                 {
                     EngineSchedule.TryGetPipFilter(localLoggingContext, Context, config, config, Expander.TryGetRootByMountName, out filter);
                 }
 
-                var nonScrubbablePaths = EngineSchedule.GetNonScrubbablePaths(Context.PathTable, config, frontEndNonScrubbablePaths, tempCleaner);
-                EngineSchedule.ScrubExtraneousFilesAndDirectories(mountPathExpander, testScheduler, localLoggingContext, config, nonScrubbablePaths, tempCleaner, filter);
+                if (!Configuration.Engine.UnsafeEnableDynamicGraph)
+                {
+                    var nonScrubbablePaths = EngineSchedule.GetNonScrubbablePaths(Context.PathTable, config, frontEndNonScrubbablePaths, tempCleaner);
+                    EngineSchedule.ScrubExtraneousFilesAndDirectories(
+                        mountPathExpander,
+                        (TestScheduler)testScheduler,
+                        localLoggingContext,
+                        config,
+                        nonScrubbablePaths,
+                        tempCleaner,
+                        filter);
+                }
 
                 bool schedulerInitResult = testScheduler.InitForOrchestrator(localLoggingContext, filter, schedulerState);
                 XAssert.AreEqual(expectSchedulerInitSuccess, schedulerInitResult, "Test scheduler initialization result unexpected");
@@ -616,13 +702,13 @@ namespace Test.BuildXL.Scheduler
                 {
                     // Logs are not written out normally during these tests, but LogStats depends on the existence of the logs directory
                     // to write out the stats perf JSON file
-                    testScheduler.LogStats(localLoggingContext, null);
+                    testScheduler.LogStatsForTest(localLoggingContext);
                 }
 
                 // Verify internal data of scheduler.
                 verifySchedulerPostRun?.Invoke(testScheduler);
 
-                if (success)
+                if (success && !Configuration.Engine.UnsafeEnableDynamicGraph)
                 {
                     // After a successful run, all process pips should have completed and the pending slot counter
                     // should be back to zero. A non-zero value indicates a mismatch between slot accounting at
@@ -641,7 +727,7 @@ namespace Test.BuildXL.Scheduler
                     PipExecutorCounters = testScheduler.PipExecutionCounters,
                     ProcessPipCountersByFilter = testScheduler.ProcessPipCountersByFilter,
                     ProcessPipCountersByTelemetryTag = testScheduler.ProcessPipCountersByTelemetryTag,
-                    SchedulerState = new SchedulerState(testScheduler),
+                    SchedulerState = Configuration.Engine.UnsafeEnableDynamicGraph ? null : new SchedulerState((TestScheduler)testScheduler),
                     Session = localLoggingContext.Session,
                     FileSystemView = testScheduler.State?.FileSystemView
                 };
@@ -655,6 +741,7 @@ namespace Test.BuildXL.Scheduler
                 updateStatusAction?.Join();
 
                 return runResult;
+                }
             }
         }
 

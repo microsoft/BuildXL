@@ -345,7 +345,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(TempArtifactType.TempDirectory, SealDirectoryKind.SharedOpaque)]
         [InlineData(TempArtifactType.AdditionalTempDirectory, SealDirectoryKind.Opaque)]
         [InlineData(TempArtifactType.TempDirectory, SealDirectoryKind.Opaque)]
-        public void FailWhenTempDirectoryContainsSharedOpaque(int tempArtifactType, SealDirectoryKind sealDirectoryKind)
+        public virtual void FailWhenTempDirectoryContainsSharedOpaque(int tempArtifactType, SealDirectoryKind sealDirectoryKind)
         {
             // Place a temp underneath previous pip's output directory
             CreateAndSchedulePipWithTemp(tempArtifactType, out var tempOut);

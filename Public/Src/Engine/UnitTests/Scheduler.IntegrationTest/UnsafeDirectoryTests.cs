@@ -52,7 +52,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void AbsentFileProbeFollowedByDynamicWriteIsIgnored()
+        public virtual void AbsentFileProbeFollowedByDynamicWriteIsIgnored()
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);

@@ -15,6 +15,8 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using ProcessEventId = BuildXL.Processes.Tracing.LogEventId;
 using SchedulerEventId = BuildXL.Scheduler.Tracing.LogEventId;
+using EngineEventId = BuildXL.Engine.Tracing.LogEventId;
+using PipEventId = BuildXL.Pips.Tracing.LogEventId;
 
 namespace Test.BuildXL.EngineTests
 {
@@ -25,6 +27,82 @@ namespace Test.BuildXL.EngineTests
         public DynamicGraphMiniBuildTester(ITestOutputHelper output)
             : base(output)
         {
+        }
+
+        [Theory]
+        [InlineData(FileSystemMode.RealAndPipGraph)]
+        [InlineData(FileSystemMode.AlwaysMinimalWithAlienFilesGraph)]
+        public void UnsupportedFileSystemModesAreRejected(FileSystemMode fileSystemMode)
+        {
+            ConfigureDynamicGraph();
+            Configuration.Sandbox.FileSystemMode = fileSystemMode;
+
+            SetConfig();
+            global::BuildXL.Engine.BuildXLEngine.PopulateLoggingAndLayoutConfiguration(
+                Configuration,
+                Context.PathTable,
+                bxlExeLocation: null,
+                inTestMode: true);
+
+            Assert.False(global::BuildXL.Engine.BuildXLEngine.PopulateAndValidateConfiguration(
+                Configuration,
+                Configuration,
+                Context.PathTable,
+                LoggingContext));
+            AssertErrorEventLogged(EngineEventId.DynamicGraphConfigurationIncompatible);
+        }
+
+        [Fact]
+        public void UndeclaredSourceReadsAreRejected()
+        {
+            ConfigureDynamicGraph();
+
+            string spec = CreateSpec($@"
+    const outputPath = p`obj/output.txt`;
+{CreateProcess("process", "outputPath", "'echo', 'output', '>', Artifact.output(outputPath)", allowUndeclaredSourceReads: true)}
+    return [process];
+");
+
+            AddModule("DynamicGraphUndeclaredSourceReads", ("spec.dsc", spec), placeInRoot: true);
+
+            RunEngine(expectSuccess: false);
+            AssertErrorEventLogged(PipEventId.ScheduleFailAddPipDynamicGraphUnsupportedFeature);
+        }
+
+        [Fact]
+        public void SharedOpaqueOutputsAreRejected()
+        {
+            ConfigureDynamicGraph();
+
+            string spec = $@"
+import {{Artifact, Cmd, Transformer}} from 'Sdk.Transformers';
+
+const tool = {GetOsShellCmdToolDefinition()};
+
+{GetExecuteFunction()}
+
+export const outputs = (() => {{
+    const objectRoot = Context.getMount('ObjectRoot').path;
+    const process = execute({{
+        tool: tool,
+        workingDirectory: d`.`,
+        arguments: [
+            Cmd.argument('/d'),
+            Cmd.argument('/c'),
+            Cmd.rawArgument('""'),
+            Cmd.args(['echo', 'output', '>', p`${{objectRoot}}/shared/output.txt`]),
+            Cmd.rawArgument('""'),
+        ],
+        outputs: [{{ kind: 'shared', directory: d`${{objectRoot}}/shared` }}],
+    }});
+    return [process];
+}})();
+";
+
+            AddModule("DynamicGraphSharedOpaqueOutputs", ("spec.dsc", spec), placeInRoot: true);
+
+            RunEngine(expectSuccess: false);
+            AssertErrorEventLogged(PipEventId.ScheduleFailAddPipDynamicGraphUnsupportedFeature);
         }
 
         [Fact]
@@ -198,7 +276,8 @@ export const outputs = (() => {{
             string outputPath,
             string commandArguments,
             string dependencies = null,
-            string successExitCodes = null)
+            string successExitCodes = null,
+            bool allowUndeclaredSourceReads = false)
         {
             string dependenciesProperty = dependencies == null
                 ? string.Empty
@@ -206,6 +285,9 @@ export const outputs = (() => {{
             string successExitCodesProperty = successExitCodes == null
                 ? string.Empty
                 : $"        successExitCodes: [{successExitCodes}],{Environment.NewLine}";
+            string allowUndeclaredSourceReadsProperty = allowUndeclaredSourceReads
+                ? $"        allowUndeclaredSourceReads: true,{Environment.NewLine}"
+                : string.Empty;
 
             return $@"    const {pipName} = Transformer.execute({{
         tool: tool,
@@ -217,7 +299,7 @@ export const outputs = (() => {{
             Cmd.args([{commandArguments}]),
             Cmd.rawArgument('""'),
         ],
-{dependenciesProperty}{successExitCodesProperty}    }}).getOutputFile({outputPath});
+{dependenciesProperty}{successExitCodesProperty}{allowUndeclaredSourceReadsProperty}    }}).getOutputFile({outputPath});
 ";
         }
 

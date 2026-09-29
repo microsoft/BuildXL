@@ -8546,6 +8546,14 @@ namespace BuildXL.Scheduler
                 return;
             }
 
+            // Dynamic execution can start before graph construction completes. If graph construction then fails,
+            // the engine disposes the scheduler without reaching WhenDone, so explicitly stop its foreground drain thread.
+            if (m_drainThread?.IsAlive == true)
+            {
+                RequestTermination(cancelQueue: true, cancelRunningPips: true);
+                m_drainThread.Join();
+            }
+
             Context.MemoryConservation?.Exit(force: true);
             
             m_cancellationTokenRegistration.Dispose();

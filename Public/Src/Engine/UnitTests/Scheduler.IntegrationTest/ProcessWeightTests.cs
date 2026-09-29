@@ -118,7 +118,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void WeightTestInDispatcher()
+        public virtual void WeightTestInDispatcher()
         {
             Configuration.Schedule.MaxProcesses = 4;
             var waitFile = ScheduleWaitingForFilePips(numberOfPips: 2, weight: 2);

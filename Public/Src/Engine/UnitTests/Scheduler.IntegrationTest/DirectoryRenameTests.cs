@@ -69,7 +69,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void TestRenameDirectoryInsideSharedOpaqueDirectory()
+        public virtual void TestRenameDirectoryInsideSharedOpaqueDirectory()
         {
             AbsolutePath rootDirPath = CreateUniqueObjPath("sod-nested-mov");
 
@@ -85,7 +85,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         [InlineData(SealDirectoryKind.SharedOpaque)]
         [InlineData(SealDirectoryKind.Opaque)]
-        public void TestRenameUntrackedDirectoryToOpaqueDirectory(SealDirectoryKind dirKind)
+        public virtual void TestRenameUntrackedDirectoryToOpaqueDirectory(SealDirectoryKind dirKind)
         {
             AbsolutePath rootDirPath = CreateUniqueObjPath("untracked-mov-sod");
 

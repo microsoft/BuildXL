@@ -1190,6 +1190,25 @@ namespace BuildXL.Pips.Tracing
         public abstract void ScheduleFailAddOutputExistenceAssertionInOpaqueDirectoryWithoutProducer(LoggingContext context, string assertedOutputFile, string outputDirectory);
 
         [GeneratedEvent(
+            (int)LogEventId.ScheduleFailAddPipDynamicGraphUnsupportedFeature,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+                EventConstants.ProvenancePrefix +
+                "The pip '{pipDescription}' cannot be added because dynamic graph mode does not support {unsupportedFeature}.")]
+        public abstract void ScheduleFailAddPipDynamicGraphUnsupportedFeature(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId,
+            string unsupportedFeature);
+
+        [GeneratedEvent(
             (int)LogEventId.WriteDeclaredOutsideOfKnownMount,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

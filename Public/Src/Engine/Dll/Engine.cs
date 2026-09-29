@@ -2584,6 +2584,12 @@ namespace BuildXL.Engine
                 incompatibleOptions.Add("incremental scheduling");
             }
 
+            if (mutableConfig.Sandbox.FileSystemMode == FileSystemMode.RealAndPipGraph ||
+                mutableConfig.Sandbox.FileSystemMode == FileSystemMode.AlwaysMinimalWithAlienFilesGraph)
+            {
+                incompatibleOptions.Add($"filesystem mode '{mutableConfig.Sandbox.FileSystemMode}'");
+            }
+
             if (!string.IsNullOrEmpty(mutableConfig.Engine.DefaultFilter) ||
                 !string.IsNullOrEmpty(initialCommandLineConfiguration.Filter) ||
                 initialCommandLineConfiguration.Startup.ImplicitFilters.Count != 0)

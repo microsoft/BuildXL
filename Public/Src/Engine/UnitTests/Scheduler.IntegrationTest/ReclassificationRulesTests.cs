@@ -149,7 +149,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public void BasicReclassificationTest(bool useAll)
+        public virtual void BasicReclassificationTest(bool useAll)
         {
             // Reclassify a file content read as a probe
 
@@ -190,7 +190,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public void ReclassificationToUnitIgnoresAccess(bool ignore)
+        public virtual void ReclassificationToUnitIgnoresAccess(bool ignore)
         {
             var pathStr = Path.Combine(SourceRoot, "file.txt");
             var path = AbsolutePath.Create(Context.PathTable, pathStr);

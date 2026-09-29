@@ -129,7 +129,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public void StopSchedulerDueToLowPhysicalMemory(bool enableMemoryConservation)
+        public virtual void StopSchedulerDueToLowPhysicalMemory(bool enableMemoryConservation)
         {
             Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
             Configuration.Schedule.EnableMemoryConservation = enableMemoryConservation;
@@ -157,7 +157,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void StopSchedulerDueToLowCommitMemory()
+        public virtual void StopSchedulerDueToLowCommitMemory()
         {
             Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
 
@@ -1340,7 +1340,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public void DirectoryWritesNotReportedAsObservations(bool underOpaque)
+        public virtual void DirectoryWritesNotReportedAsObservations(bool underOpaque)
         {
             FileOrDirectoryArtifact dirA;
             ProcessBuilder pip1;
@@ -2266,7 +2266,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public void RetryPipOnHighMemoryUsage(bool allowLowMemoryRetry)
+        public virtual void RetryPipOnHighMemoryUsage(bool allowLowMemoryRetry)
         {
             Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
             Configuration.Schedule.ManageMemoryMode = ManageMemoryMode.CancellationRam;
@@ -2331,7 +2331,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // suspend/resume is not available on macOS
-        public void SuspendResumePipOnHighMemoryUsage()
+        public virtual void SuspendResumePipOnHighMemoryUsage()
         {
             Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
             Configuration.Schedule.ManageMemoryMode = ManageMemoryMode.Suspend;
@@ -2384,7 +2384,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         // TODO: Investigate why this times out on Linux, work item#1984802
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        public void SingleSuspendedPipIsCancelledUnderContinuousMemoryPressure()
+        public virtual void SingleSuspendedPipIsCancelledUnderContinuousMemoryPressure()
         {
             Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
             Configuration.Schedule.ManageMemoryMode = ManageMemoryMode.Suspend;
@@ -2436,7 +2436,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void SurvivingChildProcessesNotReportedOnCancelation()
+        public virtual void SurvivingChildProcessesNotReportedOnCancelation()
         {
             var processA = CreateAndSchedulePipBuilder(new Operation[]
             {
@@ -2852,7 +2852,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         [InlineData(FileSystemMode.RealAndMinimalPipGraph)]
         [InlineData(FileSystemMode.RealAndPipGraph)]
-        public void FullGraphDirectoryEnumerationsExcludeUntrackedScopes(FileSystemMode fileSystemMode)
+        public virtual void FullGraphDirectoryEnumerationsExcludeUntrackedScopes(FileSystemMode fileSystemMode)
         {
             var dirPath = AbsolutePath.Create(Context.PathTable, Path.Combine(SourceRoot, "dir"));
             var dirToEnumerate = CreateAndScheduleSealDirectoryArtifact(dirPath, SealDirectoryKind.SourceAllDirectories);

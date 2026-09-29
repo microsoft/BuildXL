@@ -607,8 +607,8 @@ export function cacheBindingRedirects() : Managed.AssemblyBindingRedirect[] {
                 name: "Microsoft.Bcl.AsyncInterfaces",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-10.0.0.11",
-                newVersion: "10.0.0.11", // Corresponds to: { id: "Microsoft.Bcl.AsyncInterfaces", version: "10.0.11" },
+                oldVersion: "0.0.0.0-10.0.0.12",
+                newVersion: "10.0.0.12", // Corresponds to: { id: "Microsoft.Bcl.AsyncInterfaces", version: "10.0.12" },
             },
             {
                 name: "System.Threading.Tasks.Extensions", // Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51

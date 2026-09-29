@@ -3,9 +3,9 @@
 
 const coreVersion = "3.1.0";
 const core50Version = "5.0.0";
-const core80Version = "8.0.30";
-const core90Version = "9.0.19";
-const core100Version = "10.0.11";
+const core80Version = "8.0.31";
+const core90Version = "9.0.20";
+const core100Version = "10.0.12";
 
 // Microsoft.NETCore.Platforms has become out of sync with the rest of the packages.
 // Updaters of this file might want to try to restore the sync: for now we are using the latest version we can
@@ -104,7 +104,7 @@ export const pkgs = [
 
     // .NET 10
     // Note: Microsoft.NETCore.DotNetHostResolver/HostPolicy packages are still only published up to the 8.0.x series
-    // (latest published is 8.0.30), so net10 reuses the existing .8.0 aliases registered above (same approach as net9).
+    // (latest published is 8.0.31), so net10 reuses the existing .8.0 aliases registered above (same approach as net9).
     // The Microsoft.NETCore.Platforms.9.0 alias already pinned to core80VersionPlatforms is similarly reusable for net10.
     // CODESYNC: Public\Sdk\Public\Managed\Frameworks\net10\net10.0.dsc
 
@@ -254,7 +254,7 @@ export const pkgs = [
     { id: "System.Threading", version: pkgVersion },
     { id: "System.Threading.Overlapped", version: pkgVersion },
     { id: "System.Threading.Tasks", version: pkgVersion },
-    { id: "System.Formats.Asn1", version: "10.0.10"},
+    { id: "System.Formats.Asn1", version: "10.0.12"},
     
     { id: "System.Threading.Tasks.Parallel", version: pkgVersion },
     { id: "System.Threading.Thread", version: pkgVersion },
@@ -276,7 +276,7 @@ export const pkgs = [
     // NOTE: this package is explicitly on version 5.0.0.0 because 6.0.0.0 was delisted from nuget.
     { id: "System.Security.Principal.Windows", version: pkgVersion5 },
     
-    { id: "System.Text.Json", version: "10.0.8" },
+    { id: "System.Text.Json", version: "10.0.12" },
     { id: "System.Threading.AccessControl", version: pkgVersion5 },
 
     // Non-standard version ones
@@ -285,7 +285,7 @@ export const pkgs = [
     { id: "System.Threading.Tasks.Extensions", version: "4.6.3" }, // If you change this version, please change cacheBindingRedirects in BuildXLSdk.dsc
 
     { id: "System.Security.Cryptography.OpenSsl", version: "5.0.0" },
-    { id: "System.Collections.Immutable", version: "10.0.11" },
+    { id: "System.Collections.Immutable", version: "10.0.12" },
     // VBCSCompiler is used in CB against older versions of MSBuild that don't have binding redirects for the newer versions of System.Collections.Immutable.
     { id: "System.Collections.Immutable", alias: "System.Collections.Immutable.ForVBCS", version: "8.0.0" },
 ];

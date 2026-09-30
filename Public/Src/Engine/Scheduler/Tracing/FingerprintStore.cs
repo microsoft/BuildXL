@@ -1024,10 +1024,20 @@ namespace BuildXL.Scheduler.Tracing
         {
             Contract.Requires(!Accessor.ReadOnly);
 
-            var hashString = pipUniqueOutputHash.ToString();
-            PutInternal(hashString, pipFormattedSemiStableHash, ColumnNames.PipUniqueOutputHashes);
+            string hashString;
+            using (Counters.StartStopwatch(FingerprintStoreCounters.PipUniqueOutputHashPutTime))
+            {
+                hashString = pipUniqueOutputHash.ToString();
+                PutInternal(hashString, pipFormattedSemiStableHash, ColumnNames.PipUniqueOutputHashes);
+            }
 
-            m_lruEntryTracker?.TrackPipUniqueOutputHashEntry(hashString);
+            if (m_lruEntryTracker != null)
+            {
+                using (Counters.StartStopwatch(FingerprintStoreCounters.PipUniqueOutputHashLruTrackingTime))
+                {
+                    m_lruEntryTracker.TrackPipUniqueOutputHashEntry(hashString);
+                }
+            }
         }
 
         /// <summary>
@@ -1097,7 +1107,18 @@ namespace BuildXL.Scheduler.Tracing
             Analysis.IgnoreResult(
                 Accessor.Use(store =>
                 {
-                    store.Put(key, value, columnFamilyName: columnFamilyName);
+                    bool isPipUniqueOutputHash = columnFamilyName == ColumnNames.PipUniqueOutputHashes;
+                    // Only time pip-unique-output-hash writes here, after accessor acquisition.
+                    // The null branch leaves other columns in this shared put path untimed.
+                    using (isPipUniqueOutputHash ? Counters.StartStopwatch(FingerprintStoreCounters.PipUniqueOutputHashStorePutTime) : (CounterCollection.Stopwatch?)null)
+                    {
+                        store.Put(key, value, columnFamilyName: columnFamilyName);
+                    }
+
+                    if (isPipUniqueOutputHash)
+                    {
+                        Counters.IncrementCounter(FingerprintStoreCounters.NumPipUniqueOutputHashStorePuts);
+                    }
                 })
             );
         }
@@ -1364,8 +1385,19 @@ namespace BuildXL.Scheduler.Tracing
         /// </param>
         public bool TryGetPipUniqueOutputHashValue(string pipUniqueOutputHash, out string pipFormattedSemiStableHash)
         {
-            m_lruEntryTracker?.TrackPipUniqueOutputHashEntry(pipUniqueOutputHash);
-            return TryGetValueInternal(pipUniqueOutputHash, out pipFormattedSemiStableHash, columnFamilyName: ColumnNames.PipUniqueOutputHashes);
+            Counters.IncrementCounter(FingerprintStoreCounters.NumPipUniqueOutputHashLookups);
+            if (m_lruEntryTracker != null)
+            {
+                using (Counters.StartStopwatch(FingerprintStoreCounters.PipUniqueOutputHashLruTrackingTime))
+                {
+                    m_lruEntryTracker.TrackPipUniqueOutputHashEntry(pipUniqueOutputHash);
+                }
+            }
+
+            using (Counters.StartStopwatch(FingerprintStoreCounters.PipUniqueOutputHashLookupTime))
+            {
+                return TryGetValueInternal(pipUniqueOutputHash, out pipFormattedSemiStableHash, columnFamilyName: ColumnNames.PipUniqueOutputHashes);
+            }
         }
 
         private bool TryGetValueInternal(string key, out string value, string columnFamilyName = null)
@@ -1381,7 +1413,23 @@ namespace BuildXL.Scheduler.Tracing
             Analysis.IgnoreResult(
                 Accessor.Use(store =>
                 {
-                    keyFound = store.TryGetValue(key, out innerValue, columnFamilyName: columnFamilyName);
+                    bool isPipUniqueOutputHash = columnFamilyName == ColumnNames.PipUniqueOutputHashes;
+                    if (isPipUniqueOutputHash)
+                    {
+                        Counters.IncrementCounter(FingerprintStoreCounters.NumPipUniqueOutputHashStoreGets);
+                    }
+
+                    using (isPipUniqueOutputHash ? Counters.StartStopwatch(FingerprintStoreCounters.PipUniqueOutputHashStoreGetTime) : (CounterCollection.Stopwatch?)null)
+                    {
+                        keyFound = store.TryGetValue(key, out innerValue, columnFamilyName: columnFamilyName);
+                    }
+
+                    if (isPipUniqueOutputHash)
+                    {
+                        Counters.IncrementCounter(keyFound
+                            ? FingerprintStoreCounters.NumPipUniqueOutputHashStoreGetHits
+                            : FingerprintStoreCounters.NumPipUniqueOutputHashStoreGetMisses);
+                    }
                 })
             );
             value = innerValue;

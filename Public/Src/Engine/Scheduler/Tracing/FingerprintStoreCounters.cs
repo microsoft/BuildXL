@@ -339,5 +339,83 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         PreviousFingerprintStoreDisposeDuration,
+
+        /// <summary>
+        /// Accumulated elapsed time in attempts to compute a pip's unique output hash, including path expansion, cached results, and unavailable hashes.
+        /// Nested in <see cref="UpdateOrStorePipUniqueOutputHashEntryTime"/>.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        ComputePipUniqueOutputHashTime,
+
+        /// <summary>
+        /// The number of attempts to compute a pip's unique output hash in the execution log target, including cached results and unavailable hashes.
+        /// </summary>
+        ComputePipUniqueOutputHashCount,
+
+        /// <summary>
+        /// The number of computation attempts that return false because a unique output hash is unavailable (for example, shared-opaque-only outputs).
+        /// </summary>
+        NumPipUniqueOutputHashesUnavailable,
+
+        /// <summary>
+        /// Accumulated elapsed time tracking mapping keys for LRU renewal, before mapping lookups and after puts.
+        /// Excludes read-only sessions and tracking performed by unrelated APIs.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        PipUniqueOutputHashLruTrackingTime,
+
+        /// <summary>
+        /// Accumulated elapsed time looking up a mapping after LRU tracking, including mode checks, accessor overhead, and the nested
+        /// <see cref="PipUniqueOutputHashStoreGetTime"/>. Includes ignored, disabled, and failed lookups; excludes LRU tracking.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        PipUniqueOutputHashLookupTime,
+
+        /// <summary>
+        /// The number of mapping lookup API calls, including those that ignore existing entries or cannot access the store.
+        /// </summary>
+        NumPipUniqueOutputHashLookups,
+
+        /// <summary>
+        /// Accumulated elapsed time in the string-key store get for mappings, including string/byte conversion and native reads.
+        /// Nested in <see cref="PipUniqueOutputHashLookupTime"/>; excludes accessor overhead and LRU tracking. Not a native-Get-only timer.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        PipUniqueOutputHashStoreGetTime,
+
+        /// <summary>
+        /// The number of mapping store gets attempted inside the accessor, excluding ignored or disabled lookups.
+        /// Gets that throw count as attempts but not as hits or misses.
+        /// </summary>
+        NumPipUniqueOutputHashStoreGets,
+
+        /// <summary>
+        /// The number of mapping store gets that return true.
+        /// </summary>
+        NumPipUniqueOutputHashStoreGetHits,
+
+        /// <summary>
+        /// The number of mapping store gets that return false. Ignored, disabled, and failed lookups are not store misses.
+        /// </summary>
+        NumPipUniqueOutputHashStoreGetMisses,
+
+        /// <summary>
+        /// Accumulated elapsed time putting a mapping, including output-hash string conversion, accessor overhead, and the nested
+        /// <see cref="PipUniqueOutputHashStorePutTime"/>. Excludes subsequent LRU tracking.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        PipUniqueOutputHashPutTime,
+
+        /// <summary>
+        /// Accumulated elapsed time in the string-key store put for mappings, including string/byte conversion and native writes.
+        /// Nested in <see cref="PipUniqueOutputHashPutTime"/>; excludes accessor overhead and LRU tracking.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        PipUniqueOutputHashStorePutTime,
+
+        /// <summary>
+        /// The number of mapping store puts that return successfully, excluding disabled or failed writes.
+        /// </summary>
+        NumPipUniqueOutputHashStorePuts,
     }
 }

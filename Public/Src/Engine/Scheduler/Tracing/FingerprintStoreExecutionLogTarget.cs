@@ -775,7 +775,15 @@ namespace BuildXL.Scheduler.Tracing
         {
             using (Counters.StartStopwatch(FingerprintStoreCounters.UpdateOrStorePipUniqueOutputHashEntryTime))
             {
-                if (pip.TryComputePipUniqueOutputHash(m_context.PathTable, out var outputHash, PipContentFingerprinter.PathExpander))
+                Counters.IncrementCounter(FingerprintStoreCounters.ComputePipUniqueOutputHashCount);
+                bool outputHashComputed;
+                long outputHash;
+                using (Counters.StartStopwatch(FingerprintStoreCounters.ComputePipUniqueOutputHashTime))
+                {
+                    outputHashComputed = pip.TryComputePipUniqueOutputHash(m_context.PathTable, out outputHash, PipContentFingerprinter.PathExpander);
+                }
+
+                if (outputHashComputed)
                 {
                     var entryExists = fingerprintStore.TryGetPipUniqueOutputHashValue(outputHash.ToString(), out var oldSemiStableHash);
                     if (!entryExists // missing
@@ -784,6 +792,10 @@ namespace BuildXL.Scheduler.Tracing
                         Counters.IncrementCounter(FingerprintStoreCounters.NumPipUniqueOutputHashEntriesPut);
                         fingerprintStore.PutPipUniqueOutputHash(outputHash, pip.FormattedSemiStableHash);
                     }
+                }
+                else
+                {
+                    Counters.IncrementCounter(FingerprintStoreCounters.NumPipUniqueOutputHashesUnavailable);
                 }
             }
         }

@@ -51,6 +51,226 @@ namespace Test.BuildXL.FingerprintStore
             FingerprintStoreTestHooks = new FingerprintStoreTestHooks()
         };
 
+        /// <summary>
+        /// Verifies counters for missing, unchanged, and stale output-hash mappings, and equivalent
+        /// fingerprint lookup by output hash and semistable hash.
+        /// </summary>
+        [Fact]
+        public void PipUniqueOutputHashMappingCounters()
+        {
+            var pip = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(CreateOutputFileArtifact())
+            }).Process;
+
+            var firstBuild = RunScheduler(m_testHooks).AssertCacheMissWithFingerprintStore(Context.PathTable, Expander, pip.PipId);
+            AssertPipUniqueOutputHashCounters(m_testHooks.FingerprintStoreTestHooks.Counters,
+                computations: 1, lookups: 1, storeGets: 1, storeGetMisses: 1, putAttempts: 1, storePuts: 1, lruTracks: 2);
+            XAssert.AreEqual(1, m_testHooks.FingerprintStoreTestHooks.Counters[FingerprintStoreCounters.NumPipUniqueOutputHashEntriesPut].Value);
+
+            RunScheduler(m_testHooks).AssertCacheHit(pip.PipId);
+            AssertPipUniqueOutputHashCounters(m_testHooks.FingerprintStoreTestHooks.Counters,
+                computations: 1, lookups: 1, storeGets: 1, storeGetHits: 1, lruTracks: 1);
+            XAssert.AreEqual(0, m_testHooks.FingerprintStoreTestHooks.Counters[FingerprintStoreCounters.NumPipUniqueOutputHashEntriesPut].Value);
+            XAssert.AreEqual(1, m_testHooks.FingerprintStoreTestHooks.Counters[FingerprintStoreCounters.NumFingerprintComputationSkippedSameValueEntryExists].Value);
+
+            XAssert.IsTrue(pip.TryComputePipUniqueOutputHash(Context.PathTable, out var outputHash, Expander));
+            FingerprintStoreSession(ResultToStoreDirectory(firstBuild), store =>
+            {
+                store.PutPipUniqueOutputHash(outputHash, "Pip0000000000000000");
+            }, readOnly: false);
+
+            // The fingerprint is still a cache hit, but the stale mapping must be replaced.
+            var lastBuild = RunScheduler(m_testHooks).AssertCacheHit(pip.PipId);
+            AssertPipUniqueOutputHashCounters(m_testHooks.FingerprintStoreTestHooks.Counters,
+                computations: 1, lookups: 1, storeGets: 1, storeGetHits: 1, putAttempts: 1, storePuts: 1, lruTracks: 2);
+            XAssert.AreEqual(1, m_testHooks.FingerprintStoreTestHooks.Counters[FingerprintStoreCounters.NumPipUniqueOutputHashEntriesPut].Value);
+            XAssert.AreEqual(1, m_testHooks.FingerprintStoreTestHooks.Counters[FingerprintStoreCounters.NumFingerprintComputationSkippedSameValueEntryExists].Value);
+
+            FingerprintStoreSession(ResultToStoreDirectory(lastBuild), store =>
+            {
+                XAssert.IsTrue(store.TryGetPipUniqueOutputHashValue(outputHash.ToString(), out var semiStableHash));
+                XAssert.AreEqual(pip.FormattedSemiStableHash, semiStableHash);
+                XAssert.IsTrue(store.TryGetFingerprintStoreEntryBySemiStableHash(pip.FormattedSemiStableHash, out var byPip));
+                XAssert.IsTrue(store.TryGetFingerprintStoreEntryByPipUniqueOutputHash(outputHash.ToString(), out var byOutput));
+                XAssert.AreEqual(byPip.ToString(), byOutput.ToString());
+            });
+        }
+
+        /// <summary>
+        /// Verifies that shared-opaque-only pips count unavailable output hashes without mapping operations,
+        /// while still storing and reusing fingerprints by semistable hash.
+        /// </summary>
+        [Fact]
+        public void UnavailablePipUniqueOutputHashCounters()
+        {
+            var directory = CreateOutputDirectoryArtifact();
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(CreateOutputFileArtifact(ArtifactToString(directory)), doNotInfer: true)
+            });
+            builder.AddOutputDirectory(directory, SealDirectoryKind.SharedOpaque);
+            var pip = SchedulePipBuilder(builder).Process;
+            XAssert.AreEqual(0, pip.FileOutputs.Length);
+            XAssert.IsFalse(pip.TryComputePipUniqueOutputHash(Context.PathTable, out _, Expander));
+
+            var firstBuild = RunScheduler(m_testHooks).AssertCacheMiss(pip.PipId);
+            AssertPipUniqueOutputHashCounters(m_testHooks.FingerprintStoreTestHooks.Counters, computations: 1, unavailableHashes: 1);
+            XAssert.AreEqual(0, m_testHooks.FingerprintStoreTestHooks.Counters[FingerprintStoreCounters.NumPipUniqueOutputHashEntriesPut].Value);
+            FingerprintStoreSession(ResultToStoreDirectory(firstBuild), store =>
+            {
+                XAssert.IsTrue(store.TryGetFingerprintStoreEntryBySemiStableHash(pip.FormattedSemiStableHash, out _));
+            });
+
+            RunScheduler(m_testHooks).AssertCacheHit(pip.PipId);
+            AssertPipUniqueOutputHashCounters(m_testHooks.FingerprintStoreTestHooks.Counters, computations: 1, unavailableHashes: 1);
+            XAssert.AreEqual(1, m_testHooks.FingerprintStoreTestHooks.Counters[FingerprintStoreCounters.NumFingerprintComputationSkippedSameValueEntryExists].Value);
+        }
+
+        /// <summary>
+        /// Verifies lookup counters for default, execution-only, and ignore-existing modes, excluding unrelated operations.
+        /// Read-only lookups preserve LRU timestamps; writable lookups track both existing and missing mappings.
+        /// </summary>
+        [Theory]
+        [InlineData(FingerprintStoreMode.Default, false)]
+        [InlineData(FingerprintStoreMode.Default, true)]
+        [InlineData(FingerprintStoreMode.ExecutionFingerprintsOnly, false)]
+        [InlineData(FingerprintStoreMode.ExecutionFingerprintsOnly, true)]
+        [InlineData(FingerprintStoreMode.IgnoreExistingEntries, false)]
+        [InlineData(FingerprintStoreMode.IgnoreExistingEntries, true)]
+        public void PipUniqueOutputHashLookupCountersRespectStoreMode(FingerprintStoreMode mode, bool readOnly)
+        {
+            const long OutputHash = 42;
+            const long MissingOutputHash = 43;
+            const string SemiStableHash = "Pip0000000000000042";
+            const string OutputHashColumn = "PipUniqueOutputHashes";
+            string storeDirectory = Path.Combine(TemporaryDirectory, "outputHashStore");
+
+            using (var store = Open(storeDirectory).Result)
+            {
+                store.PutPipUniqueOutputHash(OutputHash, SemiStableHash);
+                store.PutContentHash("content", "inputs");
+            }
+
+            long originalTimestamp;
+            using (var store = Open(storeDirectory, readOnly: true).Result)
+            {
+                XAssert.IsTrue(store.TryGetLruEntriesMap(out var map, OutputHashColumn));
+                originalTimestamp = map[OutputHash.ToString()];
+                XAssert.IsFalse(map.ContainsKey(MissingOutputHash.ToString()));
+            }
+
+            bool readExistingEntries = mode != FingerprintStoreMode.IgnoreExistingEntries;
+            using (var store = Open(storeDirectory, readOnly: readOnly, mode: mode).Result)
+            {
+                XAssert.AreEqual(readExistingEntries, store.TryGetPipUniqueOutputHashValue(OutputHash.ToString(), out var value));
+                XAssert.AreEqual(readExistingEntries ? SemiStableHash : null, value);
+                XAssert.IsFalse(store.TryGetPipUniqueOutputHashValue(MissingOutputHash.ToString(), out var missingValue));
+                XAssert.IsNull(missingValue);
+
+                // Unrelated string-key reads and writes must not contribute to mapping counters.
+                XAssert.AreEqual(readExistingEntries, store.TryGetContentHashValue("content", out _));
+                if (!readOnly)
+                {
+                    store.PutContentHash("content", "inputs");
+                }
+
+                AssertPipUniqueOutputHashCounters(store.Counters,
+                    lookups: 2,
+                    storeGets: readExistingEntries ? 2 : 0,
+                    storeGetHits: readExistingEntries ? 1 : 0,
+                    storeGetMisses: readExistingEntries ? 1 : 0,
+                    lruTracks: readOnly ? 0 : 2);
+            }
+
+            using (var store = Open(storeDirectory, readOnly: true).Result)
+            {
+                XAssert.IsTrue(store.TryGetPipUniqueOutputHashValue(OutputHash.ToString(), out var value));
+                XAssert.AreEqual(SemiStableHash, value);
+                XAssert.IsFalse(store.TryGetPipUniqueOutputHashValue(MissingOutputHash.ToString(), out _));
+                XAssert.IsTrue(store.TryGetLruEntriesMap(out var map, OutputHashColumn));
+                XAssert.AreEqual(!readOnly, map.ContainsKey(MissingOutputHash.ToString()));
+                if (readOnly)
+                {
+                    XAssert.AreEqual(originalTimestamp, map[OutputHash.ToString()]);
+                }
+                else
+                {
+                    // Both lookups renew tracking at dispose, including missing or ignored entries.
+                    XAssert.AreEqual(map[OutputHash.ToString()], map[MissingOutputHash.ToString()]);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies that access attempts after disposal are tracked without recording actual store operations
+        /// or changing persisted mappings.
+        /// </summary>
+        [Fact]
+        public void DisabledPipUniqueOutputHashAccessDoesNotCountStoreOperations()
+        {
+            string storeDirectory = Path.Combine(TemporaryDirectory, "outputHashStore");
+            var store = Open(storeDirectory).Result;
+            using (store)
+            {
+                store.PutPipUniqueOutputHash(42, "original");
+            }
+
+            XAssert.IsTrue(store.Disabled);
+            XAssert.IsFalse(store.TryGetPipUniqueOutputHashValue("42", out var value));
+            XAssert.IsNull(value);
+            store.PutPipUniqueOutputHash(42, "replacement");
+            AssertPipUniqueOutputHashCounters(store.Counters, lookups: 1, putAttempts: 2, storePuts: 1, lruTracks: 3);
+
+            using (var reopenedStore = Open(storeDirectory, readOnly: true).Result)
+            {
+                XAssert.IsTrue(reopenedStore.TryGetPipUniqueOutputHashValue("42", out value));
+                XAssert.AreEqual("original", value);
+            }
+        }
+
+        private static void AssertPipUniqueOutputHashCounters(
+            CounterCollection<FingerprintStoreCounters> counters,
+            int computations = 0,
+            int unavailableHashes = 0,
+            int lookups = 0,
+            int storeGets = 0,
+            int storeGetHits = 0,
+            int storeGetMisses = 0,
+            int putAttempts = 0,
+            int storePuts = 0,
+            int lruTracks = 0)
+        {
+            var expectedCounts = new (FingerprintStoreCounters Counter, long Count)[]
+            {
+                (FingerprintStoreCounters.UpdateOrStorePipUniqueOutputHashEntryTime, computations),
+                (FingerprintStoreCounters.ComputePipUniqueOutputHashTime, computations),
+                (FingerprintStoreCounters.ComputePipUniqueOutputHashCount, computations),
+                (FingerprintStoreCounters.NumPipUniqueOutputHashesUnavailable, unavailableHashes),
+                (FingerprintStoreCounters.PipUniqueOutputHashLookupTime, lookups),
+                (FingerprintStoreCounters.NumPipUniqueOutputHashLookups, lookups),
+                (FingerprintStoreCounters.PipUniqueOutputHashStoreGetTime, storeGets),
+                (FingerprintStoreCounters.NumPipUniqueOutputHashStoreGets, storeGets),
+                (FingerprintStoreCounters.NumPipUniqueOutputHashStoreGetHits, storeGetHits),
+                (FingerprintStoreCounters.NumPipUniqueOutputHashStoreGetMisses, storeGetMisses),
+                (FingerprintStoreCounters.PipUniqueOutputHashPutTime, putAttempts),
+                (FingerprintStoreCounters.PipUniqueOutputHashStorePutTime, storePuts),
+                (FingerprintStoreCounters.NumPipUniqueOutputHashStorePuts, storePuts),
+                (FingerprintStoreCounters.PipUniqueOutputHashLruTrackingTime, lruTracks),
+            };
+
+            var statistics = counters.AsStatistics("FingerprintStore");
+            foreach (var (counter, count) in expectedCounts)
+            {
+                // Stopwatch occurrences are deterministic even when a fast operation rounds down to zero milliseconds.
+                XAssert.AreEqual(count, counters[counter].Value, counter.ToString());
+                bool isStopwatch = CounterCollection<FingerprintStoreCounters>.IsStopwatch(counter);
+                string name = $"FingerprintStore.{counter}" + (isStopwatch ? "Ms" : string.Empty);
+                long expectedValue = isStopwatch ? (long)counters.GetElapsedTime(counter).TotalMilliseconds : count;
+                XAssert.AreEqual(expectedValue, statistics[name], name);
+            }
+        }
+
         [Fact]
         public void VerifyFingerprintStoreEntryComplete()
         {
@@ -1306,6 +1526,11 @@ namespace Test.BuildXL.FingerprintStore
                 counters2.GetCounterValue(FingerprintStoreCounters.NumPipUniqueOutputHashEntriesPut));
             XAssert.AreEqual(counters1.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut),
                 counters2.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut));
+
+            AssertPipUniqueOutputHashCounters(counters1,
+                computations: 1, lookups: 1, storeGets: 1, storeGetMisses: 1, putAttempts: 1, storePuts: 1, lruTracks: 2);
+            AssertPipUniqueOutputHashCounters(counters2,
+                computations: 1, lookups: 1, putAttempts: 1, storePuts: 1, lruTracks: 2);
         }
 
         // On cache hit, new entry is put into the execution fingerprint store if necessary.

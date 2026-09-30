@@ -5,30 +5,15 @@
 trigger: none
 
 parameters:
-  - name: connectedServiceName
-    type: string
-    default: 'CloudTest-BuildXL-Prod'
-  - name: cloudTestTenant
-    type: string
-    default: 'cloudtest-sample'
-  - name: sessionTimeout
-    type: number
-    default: 120
   - name: ServiceConnection
     type: string
     default: 'mseng-Domino-BuildXL-Pipelines' # Service connection used by most BuildXL pipelines that need an authentication token
   - name: Resource
     type: string
     default: '499b84ac-1321-427f-aa17-267ca6975798' # Azure DevOps resource UUID
-  - name: AccessTokenVariable
-    type: string
-    default: 'GeneratedAccessToken' # Name of the pipeline variable that will store the generated access token
   - name: CloudTestResource
     type: string
     default: '77c466d9-b133-4a83-a8f5-c94133051e06' # CloudTest API resource ID
-  - name: CloudTestTokenVariable
-    type: string
-    default: 'CloudTestAccessToken' # Name of the pipeline variable that will store the CloudTest bearer token
 
 resources:
   repositories:
@@ -63,13 +48,13 @@ extends:
             inputs:
               azureSubscription: ${{ parameters.ServiceConnection }}
               resource: ${{ parameters.Resource }}
-              secretVariable: ${{ parameters.AccessTokenVariable }}
+              secretVariable: GeneratedAccessToken
           - task: microsoft-1es-production.entra-authenticate.entra-authenticate.EntraAuthenticate@0
             displayName: '🪙 Acquire CloudTest bearer token'
             inputs:
               azureSubscription: ${{ parameters.ServiceConnection }}
               resource: ${{ parameters.CloudTestResource }}
-              secretVariable: ${{ parameters.CloudTestTokenVariable }}
+              secretVariable: CloudTestAccessToken
           - task: NodeTool@0
             inputs:
               versionSpec: '22.18.0'
@@ -80,7 +65,7 @@ extends:
               npm install -g yarn
             displayName: 'Install Yarn'
             env:
-              FEED_TOKEN: $(${{ parameters.AccessTokenVariable }})
+              FEED_TOKEN: $(GeneratedAccessToken)
           - script: yarn install
             displayName: 'Yarn Install'
             workingDirectory: $(Build.SourcesDirectory)/Examples/CloudTest
@@ -91,8 +76,11 @@ extends:
             arguments: >-
               /c:config.dsc
               /logOutput:FullOutputAlways
-              /p:CloudTestTokenVariableName=${{ parameters.CloudTestTokenVariable }}
+              /p:CloudTestTokenVariableName=CloudTestAccessToken
               /p:ServiceConnectionId=861f8f3b-77a2-497a-a955-fbd921dc48de
             workingDirectory: $(Build.SourcesDirectory)/Examples/CloudTest
             env:
-              ${{ parameters.CloudTestTokenVariable }}: $(${{ parameters.CloudTestTokenVariable }})
+              CloudTestAccessToken: $(CloudTestAccessToken)
+            cloudTestMonitoring:
+              connectedServiceName: ${{ parameters.ServiceConnection }}
+              cloudTestTenant: "cloudtest-sample"

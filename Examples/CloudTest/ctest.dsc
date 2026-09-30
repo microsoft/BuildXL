@@ -73,16 +73,6 @@ const jobs = buildContent.toArray().map((kvp) => {
     return CloudTestClient.Helpers.submitJob(submitJobArgs);
 });
 
-// Wait for the cloudtest session to complete. For now we wait for this as part of the build.
-// In the future we may have an agent-less task that just waits for the session completion and reports the result, so we don't have to use an agent for this if the CT session is the last
-// thing that happens on a pipeline
-const sessionResult = CloudTestClient.Helpers.waitForCompletion({
-    configAndSessionResult: sessionCreateResult,
-    // This is optional, but by passing them, the pip that polls for the session completion will only start after all the provided jobs are submitted.
-    submittedJobs: jobs,
-    timeoutMinutes: 10
-});
-
 // We need to give a name to each test job. Use the package name + verb for that
 function getTestJobName(project: JavaScriptProjectIdentifier): string {
     return `${project.packageName}_${project.command}`;

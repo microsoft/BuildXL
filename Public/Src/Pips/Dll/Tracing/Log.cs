@@ -387,6 +387,25 @@ namespace BuildXL.Pips.Tracing
             string pipValueId);
 
         [GeneratedEvent(
+            (int)LogEventId.SharedOpaqueDirectoriesRequireSandboxing,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+                EventConstants.ProvenancePrefix +
+                "The process pip '{pipDescription}' cannot be added because shared opaque directory '{directoryPath}' requires file access monitoring and cannot be used when sandboxing is disabled.")]
+        public abstract void SharedOpaqueDirectoriesRequireSandboxing(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId,
+            string directoryPath);
+
+        [GeneratedEvent(
             (int)LogEventId.InvalidOutputDueToMultipleConflictingRewriteCounts,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

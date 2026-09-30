@@ -2144,15 +2144,27 @@ namespace BuildXL.Pips.Graph
                 Contract.Requires(process != null, "Argument process cannot be null");
                 Contract.Assert(!IsImmutable);
 
-                if (m_configuration.Engine.UnsafeEnableDynamicGraph)
+                if (m_configuration.Engine.UnsafeEnableDynamicGraph &&
+                    process.AllowUndeclaredSourceReads)
                 {
-                    if (process.AllowUndeclaredSourceReads)
+                    LogDynamicGraphUnsupportedFeature(process, "undeclared source reads");
+                    return false;
+                }
+
+                if (process.HasSharedOpaqueDirectoryOutputs)
+                {
+                    if (m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind == SandboxKind.None)
                     {
-                        LogDynamicGraphUnsupportedFeature(process, "undeclared source reads");
+                        var sharedOpaqueDirectory = process.DirectoryOutputs.First(directory => directory.IsSharedOpaque);
+                        // Intentionally log every violation so users can identify all pips that must be changed.
+                        LogEventWithPipProvenance(
+                            Logger.SharedOpaqueDirectoriesRequireSandboxing,
+                            process,
+                            sharedOpaqueDirectory.Path);
                         return false;
                     }
 
-                    if (process.HasSharedOpaqueDirectoryOutputs)
+                    if (m_configuration.Engine.UnsafeEnableDynamicGraph)
                     {
                         LogDynamicGraphUnsupportedFeature(process, "shared opaque directories");
                         return false;

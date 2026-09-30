@@ -64,7 +64,6 @@ jobs:
         --deploy-dev --release
         --runner-arg /cacheConfigLogGeneratedConfiguration:true 
         /logsDirectory:"Out/Logs/Bootstrap"
-        /forceAddExecutionPermission-
         ${{ parameters.BxlCommonArgs }}
       displayName: Build
       env:

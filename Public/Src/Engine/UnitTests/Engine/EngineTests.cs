@@ -23,6 +23,7 @@ using Xunit;
 using BuildXL.Engine.Tracing;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
+using PipLogEventId = BuildXL.Pips.Tracing.LogEventId;
 using FrontEndLogEventId = BuildXL.FrontEnd.Script.Tracing.LogEventId;
 using FrontEndCoreLogEventId = BuildXL.FrontEnd.Core.Tracing.LogEventId;
 using FrontEndEventId = BuildXL.FrontEnd.Core.Tracing.LogEventId;
@@ -283,14 +284,14 @@ namespace Test.BuildXL.EngineTests
 
             using (var trackingEventListener = new TrackingEventListener(Events.Log))
             {
-                trackingEventListener.RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
+                trackingEventListener.RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
                 RunEngine(expectSuccess: false);
 
-                AssertErrorEventLogged(LogEventId.SharedOpaqueDirectoriesRequireSandboxing);
+                AssertErrorEventLogged(PipLogEventId.SharedOpaqueDirectoriesRequireSandboxing);
                 XAssert.AreEqual(1, trackingEventListener.UserErrorDetails.Count);
                 XAssert.AreEqual(0, trackingEventListener.InternalErrorDetails.Count);
                 XAssert.AreEqual(
-                    LogEventId.SharedOpaqueDirectoriesRequireSandboxing.ToString(),
+                    PipLogEventId.SharedOpaqueDirectoriesRequireSandboxing.ToString(),
                     trackingEventListener.UserErrorDetails.FirstErrorName);
                 XAssert.Contains(trackingEventListener.UserErrorDetails.FirstErrorMessage, "Pip");
                 XAssert.Contains(trackingEventListener.UserErrorDetails.FirstErrorMessage, "spec0.dsc");

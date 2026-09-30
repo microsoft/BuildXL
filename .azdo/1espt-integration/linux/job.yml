@@ -50,8 +50,7 @@ jobs:
         /q:ReleaseLinux
         /logObservedFileAccesses 
         /logoutput:FullOutputOnError
-        /p:[Sdk.BuildXL]xunitSemaphoreCount=8 
-        /forceAddExecutionPermission-
+        /p:[Sdk.BuildXL]xunitSemaphoreCount=8
       displayName: 1ESPT Integration Test (${{ parameters.validationName }})
       workingDirectory: /home/subst
       env:

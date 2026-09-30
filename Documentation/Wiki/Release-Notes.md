@@ -2,6 +2,11 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260928.1 (Release [32134766](https://dev.azure.com/mseng/Domino/_build/results?buildId=32134766&view=results))
+- [gRPC] Enable the `Grpc.Net` ephemeral cache server by default.
+- [macOS] Add native ARM64 BuildXL packages, rolling validation, and unit-test support.
+- [Distribution] Improve graph-cache diagnostics and batch distributed execution-log events.
+- Various bug fixes and improvements.
 # 0.1.0-20260918.2 (Release [32090188](https://dev.azure.com/mseng/Domino/_build/results?buildId=32090188&view=results))
 - [macOS] Add `osx-arm64` support to the NuGet resolver and DScript qualifiers, and publish the internal macOS bootstrap package.
 - [Cache] Prevent BlobL3 timeout retries from retaining destination paths.

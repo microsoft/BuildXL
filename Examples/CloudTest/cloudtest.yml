@@ -14,6 +14,9 @@ parameters:
   - name: CloudTestResource
     type: string
     default: '77c466d9-b133-4a83-a8f5-c94133051e06' # CloudTest API resource ID
+  - name: CloudTestServiceConnection
+    type: string
+    default: CloudTest-BuildXL-Prod
 
 resources:
   repositories:
@@ -82,5 +85,5 @@ extends:
             env:
               CloudTestAccessToken: $(CloudTestAccessToken)
             cloudTestMonitoring:
-              connectedServiceName: ${{ parameters.ServiceConnection }}
+              connectedServiceName: ${{ parameters.CloudTestServiceConnection }}
               cloudTestTenant: "cloudtest-sample"

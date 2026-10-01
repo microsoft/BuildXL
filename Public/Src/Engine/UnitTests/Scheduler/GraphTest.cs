@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Native.IO;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities.Core;
@@ -241,6 +242,27 @@ namespace Test.BuildXL.Scheduler
 
             Assert.Throws<InvalidDataException>(
                 () => MemoryMappedReadOnlyDirectedGraph.Deserialize(outgoingFile, envelopeId));
+        }
+
+        [Fact]
+        public void TestMemoryMappedReadOnlyGraphReplacesMappedSidecar()
+        {
+            CreateGraphWithLightEdges(out MutableDirectedGraph graph, out _);
+            graph.Seal();
+
+            string outgoingFile = Path.Combine(TestOutputDirectory, "RetainedMappedDirectedGraph.bin");
+            string incomingFile = MemoryMappedReadOnlyDirectedGraph.GetIncomingPath(outgoingFile);
+            FileEnvelopeId envelopeId = FileEnvelopeId.Create();
+            graph.WriteMemoryMappedOutgoingFile(outgoingFile, envelopeId);
+
+            using var retainedGraph = MemoryMappedReadOnlyDirectedGraph.Deserialize(outgoingFile, envelopeId);
+
+            FileUtilities.DeleteFile(incomingFile);
+
+            using var replacementGraph = MemoryMappedReadOnlyDirectedGraph.Deserialize(outgoingFile, envelopeId);
+            XAssert.IsTrue(File.Exists(incomingFile));
+            VerifyEquivalentGraph(replacementGraph, graph);
+            VerifyEquivalentGraph(retainedGraph, graph);
         }
 
         /// <summary>

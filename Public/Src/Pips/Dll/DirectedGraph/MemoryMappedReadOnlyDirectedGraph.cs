@@ -246,8 +246,12 @@ namespace BuildXL.Pips.DirectedGraph
                 ValidateOffsets(incomingOffsets, outgoingLayout.EdgeCount, "incoming");
 
                 var incomingEnvelopeId = outgoingEnvelopeId;
-                // The sidecar is derived on first access and retained beside the outgoing artifact. Subsequent loads
-                // take this fast path when its correlation ID and layout prove that it belongs to this exact graph.
+                // Incoming sidecar lifecycle:
+                // 1. Reuse the canonical sidecar when its correlation ID and layout match this outgoing graph.
+                // 2. Otherwise, build a complete sidecar at a unique temporary path and map it read-only for this graph.
+                // 3. Publish that same mapped file for future loads by unlinking the old canonical path and renaming the
+                //    temporary path to it. Existing mappings continue to reference their original file object, so the
+                //    rename is safe on both Windows and Unix even if another graph still maps the previous sidecar.
                 if (TryOpenIncoming(
                     incomingPath,
                     incomingEnvelopeId,
@@ -339,17 +343,38 @@ namespace BuildXL.Pips.DirectedGraph
                 incomingStream.Dispose();
                 incomingStream = null;
 
-                // Publish only after the file is complete and correlated with the outgoing artifact. Existing readers
-                // retain their old equivalent file section when the destination is replaced.
+                // Retain a read-only mapping before publication so this graph remains valid if a concurrent builder
+                // subsequently unlinks and replaces the canonical path.
+                if (!TryOpenIncoming(
+                    temporaryIncomingPath,
+                    incomingEnvelopeId,
+                    outgoingLayout,
+                    incomingOffsets,
+                    deleteIncomingOnClose,
+                    out incomingFile,
+                    out incomingView,
+                    out incomingLayout))
+                {
+                    throw new InvalidDataException("The completed incoming directed graph artifact could not be reopened.");
+                }
+
+                // Existing readers retain the unlinked file object through their mapping. Rename to the now-vacant path
+                // because Windows cannot replace a destination that still has an active mapped section.
                 try
                 {
-                    FileUtilities.MoveFileAsync(temporaryIncomingPath, incomingPath, replaceExisting: true).GetAwaiter().GetResult();
+                    FileUtilities.DeleteFile(incomingPath);
+                    FileUtilities.MoveFileAsync(temporaryIncomingPath, incomingPath, replaceExisting: false).GetAwaiter().GetResult();
                     temporaryIncomingPath = null;
                 }
                 catch (BuildXLException)
                 {
-                    // Unix replacement is implemented as delete followed by move, so another builder can win between
-                    // those operations. Reuse its fully validated result instead of failing this load.
+                    incomingView.Dispose();
+                    incomingView = null;
+                    incomingFile.Dispose();
+                    incomingFile = null;
+
+                    // Another builder can win between the delete and move. Reuse its fully validated result instead of
+                    // failing this load.
                     if (TryOpenIncoming(
                         incomingPath,
                         incomingEnvelopeId,
@@ -372,21 +397,6 @@ namespace BuildXL.Pips.DirectedGraph
                     }
 
                     throw;
-                }
-
-                // Close the writable temporary mapping before publication, then reopen the published path read-only so
-                // the graph never retains a writable mapping.
-                if (!TryOpenIncoming(
-                    incomingPath,
-                    incomingEnvelopeId,
-                    outgoingLayout,
-                    incomingOffsets,
-                    deleteIncomingOnClose,
-                    out incomingFile,
-                    out incomingView,
-                    out incomingLayout))
-                {
-                    throw new InvalidDataException("The completed incoming directed graph artifact could not be reopened.");
                 }
 
                 return new MemoryMappedReadOnlyDirectedGraph(

@@ -24,15 +24,17 @@ The production pipeline:
 2. Uses a retryable Azure CLI task with scoped Kusto identity to select and prepare completed builds in the requested UTC window.
 3. Retains a deterministic, time-distributed sample of builds across the requested window independently for each codebase.
 4. Encodes shared disk-backed training, validation, and test arrays on the training agent.
-5. Uses a following PowerShell task on the same agent to tune each target with seeded Gaussian-process Bayesian optimization, then trains CPU, peak-memory, average-memory, and duration models sequentially without uploading prepared telemetry.
+5. Uses a following PowerShell task on the same agent to tune each target with seeded Gaussian-process Bayesian optimization, then trains raw CPU, peak-memory, average-memory, and duration values sequentially without uploading prepared telemetry. Manual runs can set `underpredictionMultiplier` above `1` to penalize underprediction more than overprediction for every target; for example, `2` makes an equal-sized underprediction count twice as much.
 6. Verifies target model hashes and dataset identity locally.
-7. Applies held-out warm, warm-masked, and cold quality gates.
+7. Reports held-out warm, warm-masked, and cold MAE, bias, slot error, multi-slot recall, and underprediction metrics for manual comparison; thresholds are informational and do not block publication. The Azure DevOps run summary distinguishes estimated, downloaded, and prepared rows and renders target and CPU scheduler tables.
 8. Assembles sanitized model JSON and parity fixtures into one JSON-only `BuildXL.ML.Models` package.
 9. Publishes the validated package when requested.
 
 ## Bounded Validation
 
-Queue the general pipeline with `buildsPerCodebase: 5` and `tuningTrials: 1` for a short end-to-end validation through the production path. Set `publish: false` when the run should validate without publishing its package.
+Queue the general pipeline with `buildsPerCodebase: 3`, `tuningTrials: 2`, and `publish: true` for a short end-to-end validation through the production path.
+Publication creates an immutable package for offline comparison; it does not deploy or select that package for BuildXL.
+Quality observations remain informational, and deployment still requires an explicit package-version update after reviewing the report.
 
 ## Local Validation
 

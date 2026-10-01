@@ -27,6 +27,10 @@ param(
 
     [double]$MaxNormalizedMae,
 
+    [double]$UnderpredictionMultiplier = 2.0,
+
+    [int]$MaxEstimators = 800,
+
     [string]$PackageVersion,
 
     [int]$MaxBuilds = 0,
@@ -101,13 +105,14 @@ if ($Operation -in @('All', 'Train')) {
         '--dataset-root', $DataRoot,
         '--output-dir', $ModelDir,
         '--quality-report', $QualityReport,
-        '--max-normalized-mae', $MaxNormalizedMae
+        '--max-normalized-mae', $MaxNormalizedMae,
+        '--underprediction-multiplier', $UnderpredictionMultiplier,
+        '--max-estimators', $MaxEstimators
     )
     python @trainingArguments
     if ($LASTEXITCODE -ne 0) {
         throw 'Pip Usage model training or export failed. See the Python error above.'
     }
-
     if (-not (Test-Path $ModelDir)) {
         throw "Training finished without creating the model export directory: $ModelDir"
     }

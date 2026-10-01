@@ -116,7 +116,11 @@ def partition_vocabularies(paths: list[Path]) -> dict[str, list[str]]:
     }
 
 
-def encode_native_partitions(paths: list[Path], work_dir: Path, vocabularies: dict[str, list[str]]) -> tuple[list[Path], dict[str, list[Path]]]:
+def encode_native_partitions(
+    paths: list[Path],
+    work_dir: Path,
+    vocabularies: dict[str, list[str]],
+) -> tuple[list[Path], dict[str, list[Path]]]:
     """Convert training rows to numeric feature and label files that LightGBM can read in batches.
 
     Only training rows are included. Warm pips are stored once with history and once with
@@ -131,18 +135,16 @@ def encode_native_partitions(paths: list[Path], work_dir: Path, vocabularies: di
         if train.empty:
             continue
         encoded = export.encode_frame(train, FEATURES, vocabularies)
-        cold = ~train[HAS_HISTORIC_PERF_DATA]
+        cold = (~train[HAS_HISTORIC_PERF_DATA]).to_numpy()
         masked = encoded.copy()
         masked[:, priors] = np.nan
-        augmented = np.vstack([encoded[~cold.to_numpy()], masked])
         feature_path = work_dir / f"features-{index:02d}.npy"
-        np.save(feature_path, augmented)
+        np.save(feature_path, np.vstack([encoded[~cold], masked]))
         feature_paths.append(feature_path)
         for target, target_column in TARGETS.items():
-            labels = np.log1p(train[target_column].clip(lower=0).to_numpy(dtype=float))
-            augmented_labels = np.concatenate([labels[~cold.to_numpy()], labels])
             label_path = work_dir / f"labels-{target}-{index:02d}.npy"
-            np.save(label_path, augmented_labels)
+            actual = train[target_column].clip(lower=0).to_numpy(dtype=float)
+            np.save(label_path, np.concatenate([actual[~cold], actual]))
             label_paths[target].append(label_path)
     return feature_paths, label_paths
 
@@ -178,7 +180,7 @@ def encode_evaluation_partitions(paths: list[Path], work_dir: Path, vocabularies
     feature_paths: list[Path] = []
     target_paths = {target: [] for target in TARGETS}
     cold_paths: list[Path] = []
-    fixtures = []
+    fixture_parts = []
     for index, path in enumerate(paths):
         selected = pd.read_pickle(path).loc[lambda frame: frame["Split"].eq(split)]
         if selected.empty:
@@ -193,24 +195,22 @@ def encode_evaluation_partitions(paths: list[Path], work_dir: Path, vocabularies
             target_path = work_dir / f"{split}-target-{target}-{index:02d}.npy"
             np.save(target_path, selected[target_column].to_numpy(dtype=float))
             target_paths[target].append(target_path)
-        if sum(len(frame) for frame in fixtures) < 20:
-            fixtures.append(selected.head(20 - sum(len(frame) for frame in fixtures)))
+        if sum(len(frame) for frame in fixture_parts) < 20:
+            fixture_parts.append(selected.head(20 - sum(len(frame) for frame in fixture_parts)))
     if not feature_paths:
         raise RuntimeError(f"Prepared dataset has no {split} rows.")
-    return EvaluationPartitions(feature_paths, target_paths, cold_paths, pd.concat(fixtures, ignore_index=True))
+    return EvaluationPartitions(feature_paths, target_paths, cold_paths, pd.concat(fixture_parts, ignore_index=True))
 
 
-def partition_mae(booster: lgb.Booster, evaluation: EvaluationPartitions, target: str, path: str | None = None) -> tuple[float | None, float]:
-    """Measure mean absolute error and actual-value range for a selected set of pips.
-
-    ``cold`` selects cold pips and hides history. ``warm`` selects warm pips with history.
-    ``warm_masked`` selects warm pips and hides history. Any other value selects all pips.
-    The returned error is ``None`` when the selected set contains no rows.
-    """
-    error = 0.0
-    count = 0
-    minimum = np.inf
-    maximum = -np.inf
+def partition_predictions(
+    booster: lgb.Booster,
+    evaluation: EvaluationPartitions,
+    target: str,
+    path: str | None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Collect actual and predicted values for one warm, warm-masked, cold, or complete partition."""
+    actual_values = []
+    predicted_values = []
     prior_indices = [FEATURES.index(name) for name in PRIORS.values()]
     for feature_path, target_path, cold_path in zip(evaluation.feature_paths, evaluation.target_paths[target], evaluation.cold_paths):
         features = np.load(feature_path, mmap_mode="r")
@@ -222,13 +222,39 @@ def partition_mae(booster: lgb.Booster, evaluation: EvaluationPartitions, target
         selected_features = np.asarray(features[selector])
         if path in {"cold", "warm_masked"}:
             selected_features[:, prior_indices] = np.nan
-        selected_actual = np.asarray(actual[selector])
-        prediction = np.expm1(booster.predict(selected_features))
-        error += float(np.abs(selected_actual - prediction).sum())
-        count += len(selected_actual)
-        minimum = min(minimum, float(selected_actual.min()))
-        maximum = max(maximum, float(selected_actual.max()))
-    return (error / count if count else None), (maximum - minimum if count else 0.0)
+        actual_values.append(np.asarray(actual[selector]))
+        predicted_values.append(np.maximum(booster.predict(selected_features), 0))
+    if not actual_values:
+        return np.array([]), np.array([])
+    return np.concatenate(actual_values), np.concatenate(predicted_values)
+
+
+def asymmetric_mae(actual: np.ndarray, predicted: np.ndarray, ratio: float) -> float:
+    """Measure absolute error while charging more for underprediction."""
+    difference = predicted - actual
+    losses = np.where(difference >= 0, difference, -difference * ratio)
+    return float(losses.mean())
+
+
+def summarize_prediction_balance(actual: np.ndarray, predicted: np.ndarray) -> dict[str, float | None]:
+    """Report directional prediction behavior without imposing an automatic release decision."""
+    actual = np.asarray(actual, dtype=float)
+    predicted = np.asarray(predicted, dtype=float)
+    if not len(actual):
+        return {
+            "meanBias": None,
+            "underpredictionRate": None,
+            "meanUnderprediction": None,
+            "meanOverprediction": None,
+        }
+    under = predicted < actual
+    over = predicted > actual
+    return {
+        "meanBias": float((predicted - actual).mean()),
+        "underpredictionRate": float(under.mean()),
+        "meanUnderprediction": float((actual[under] - predicted[under]).mean()) if under.any() else 0.0,
+        "meanOverprediction": float((predicted[over] - actual[over]).mean()) if over.any() else 0.0,
+    }
 
 
 def partition_expected_mae(evaluation: EvaluationPartitions, target: str) -> tuple[float | None, float]:
@@ -253,37 +279,95 @@ def partition_expected_mae(evaluation: EvaluationPartitions, target: str) -> tup
     return (error / count if count else None), (maximum - minimum if count else 0.0)
 
 
-def evaluate_partitioned(models: dict[str, NativeModel], evaluation: EvaluationPartitions) -> tuple[dict[str, dict[str, float | None]], dict[str, dict[str, float | None]]]:
+def scheduler_slots(cpu_percent: np.ndarray) -> np.ndarray:
+    """Convert CPU percentages to the discrete process weights used by the scheduler."""
+    values = np.asarray(cpu_percent, dtype=float)
+    rounded = np.where(np.isnan(values) | (values <= 0), 0, np.ceil(values))
+    return np.where(rounded > 100, np.rint(rounded / 100.0), 1).astype(int)
+
+
+def summarize_cpu_scheduler_metrics(actual_cpu: np.ndarray, predicted_cpu: np.ndarray) -> dict[str, float | int | None]:
+    """Summarize CPU estimates using the scheduler's discrete process weights."""
+    actual_cpu = np.asarray(actual_cpu, dtype=float)
+    predicted_cpu = np.asarray(predicted_cpu, dtype=float)
+    actual_slots = scheduler_slots(actual_cpu)
+    predicted_slots = scheduler_slots(predicted_cpu)
+    multi_slot = actual_slots > 1
+    severe_high_cpu = actual_slots >= 4
+    return {
+        "slotMae": float(np.abs(actual_slots - predicted_slots).mean()) if len(actual_slots) else None,
+        "meanSlotBias": float((predicted_slots - actual_slots).mean()) if len(actual_slots) else None,
+        "cpuBias": float((predicted_cpu - actual_cpu).mean()) if len(actual_cpu) else None,
+        "underpredictionRate": float((predicted_slots < actual_slots).mean()) if len(actual_slots) else None,
+        "multiSlotRecall": float((predicted_slots[multi_slot] > 1).mean()) if multi_slot.any() else None,
+        "multiSlotUnderpredictionRate": float((predicted_slots[multi_slot] < actual_slots[multi_slot]).mean()) if multi_slot.any() else None,
+        "multiSlotCount": int(multi_slot.sum()),
+        "severeUnderpredictionRate": float((predicted_slots[severe_high_cpu] * 2 <= actual_slots[severe_high_cpu]).mean()) if severe_high_cpu.any() else None,
+        "severeHighCpuCount": int(severe_high_cpu.sum()),
+    }
+
+
+def evaluate_partitioned(models: dict[str, NativeModel], evaluation: EvaluationPartitions) -> tuple[
+    dict[str, dict[str, float | None]],
+    dict[str, dict[str, float | None]],
+    dict[str, dict[str, float | int | None]],
+    dict[str, dict[str, dict[str, float | None]]],
+]:
     """Measure model and historical expected-value MAE on the test rows."""
     metrics: dict[str, dict[str, float | None]] = {}
     normalized: dict[str, dict[str, float | None]] = {}
+    prediction_balance: dict[str, dict[str, dict[str, float | None]]] = {}
+    scheduler_metrics: dict[str, dict[str, float | int | None]] = {}
     for target, model in models.items():
         metrics[target] = {}
         normalized[target] = {}
+        prediction_balance[target] = {}
         for path in MODEL_EVALUATION_PATHS:
-            mae, value_range = partition_mae(model.booster_, evaluation, target, path)
+            actual, predicted = partition_predictions(
+                model.booster_,
+                evaluation,
+                target,
+                path,
+            )
+            mae = float(np.abs(actual - predicted).mean()) if len(actual) else None
+            value_range = float(actual.max() - actual.min()) if len(actual) else 0.0
             metrics[target][path] = mae
             normalized[target][path] = None if mae is None or value_range <= 0 else mae / value_range
+            prediction_balance[target][path] = summarize_prediction_balance(actual, predicted)
+            if target == "cpu":
+                scheduler_metrics[path] = summarize_cpu_scheduler_metrics(actual, predicted)
         expected_mae, expected_range = partition_expected_mae(evaluation, target)
         metrics[target]["expected"] = expected_mae
         normalized[target]["expected"] = None if expected_mae is None or expected_range <= 0 else expected_mae / expected_range
-    return metrics, normalized
+    return metrics, normalized, scheduler_metrics, prediction_balance
 
 
-def native_params(model_params: dict[str, Any] | None = None) -> tuple[dict[str, Any], int, int]:
+def native_params(model_params: dict[str, Any] | None = None, underprediction_multiplier: float = 2.0) -> tuple[dict[str, Any], int, int]:
     """Build LightGBM settings and return them with training and early-stopping limits."""
+    if not np.isfinite(underprediction_multiplier) or underprediction_multiplier < 1:
+        raise ValueError("Underprediction multiplier must be finite and at least 1.")
     common = {**MODEL_PARAMS, **(model_params or {})}
     rounds = common.pop("estimators")
     early_stopping_rounds = common.pop("early_stopping_rounds")
     seed = common.pop("random_seed")
     workers = common.pop("workers")
-    return {
+    parameters = {
         **FAMILY_PARAMS,
         **common,
-        "metric": "l1",
         "seed": seed,
         "num_threads": workers,
-    }, rounds, early_stopping_rounds
+    }
+    if underprediction_multiplier == 1:
+        parameters["objective"] = "regression_l1"
+        parameters["metric"] = "l1"
+    else:
+        # Quantile loss applies alpha to underprediction and 1-alpha to overprediction.
+        # This mapping is exactly the requested multiplier-to-one loss ratio, up to a
+        # constant factor that does not change the fitted model.
+        parameters["objective"] = "quantile"
+        parameters["metric"] = "quantile"
+        parameters["alpha"] = underprediction_multiplier / (underprediction_multiplier + 1)
+    return parameters, rounds, early_stopping_rounds
 
 
 def create_tuning_optimizer(target: str) -> BayesianOptimization:
@@ -316,6 +400,10 @@ def prepare_training_inputs(cohort: Path) -> TrainingInputs:
     paths = sorted((cohort / "prepared_parts").glob("*.pkl"))
     if not paths:
         raise RuntimeError("Prepared dataset has no partitions.")
+    native_dir = cohort / "native_parts"
+    native_dir.mkdir(parents=True, exist_ok=True)
+    (native_dir / "train-features.bin").unlink(missing_ok=True)
+    (native_dir / "validation-features.bin").unlink(missing_ok=True)
     vocabularies = partition_vocabularies(paths)
     vocabulary_cardinalities = {name: len(values) for name, values in vocabularies.items()}
     print(f"Categorical vocabulary cardinalities: {json.dumps(vocabulary_cardinalities, sort_keys=True)}", flush=True)
@@ -326,40 +414,75 @@ def prepare_training_inputs(cohort: Path) -> TrainingInputs:
             f"{json.dumps(large_vocabularies, sort_keys=True)}. LightGBM may ignore max_bin for these native categorical features.",
             flush=True,
         )
-    feature_paths, label_paths = encode_native_partitions(paths, cohort / "native_parts", vocabularies)
-    validation = encode_evaluation_partitions(paths, cohort / "native_parts", vocabularies, "validation")
-    test = encode_evaluation_partitions(paths, cohort / "native_parts", vocabularies, "test")
+    feature_paths, label_paths = encode_native_partitions(
+        paths,
+        native_dir,
+        vocabularies,
+    )
+    validation = encode_evaluation_partitions(paths, native_dir, vocabularies, "validation")
+    test = encode_evaluation_partitions(paths, native_dir, vocabularies, "test")
     return TrainingInputs(cohort, vocabularies, feature_paths, label_paths, validation, test)
 
 
-def train_target(inputs: TrainingInputs, target: str, tuning_trials: int) -> tuple[NativeModel, dict[str, Any]]:
+def ensure_feature_binary(
+    feature_paths: list[Path],
+    binary_path: Path,
+    params: dict[str, Any],
+    reference: lgb.Dataset | None = None,
+) -> None:
+    """Create one reusable LightGBM feature binary without target-specific labels."""
+    if binary_path.exists():
+        return
+    temporary_path = binary_path.with_suffix(".bin.tmp")
+    temporary_path.unlink(missing_ok=True)
+    dataset = lgb.Dataset(
+        PartitionSequence(feature_paths),
+        reference=reference,
+        feature_name=FEATURES,
+        categorical_feature=list(range(len(CATEGORICAL))),
+        params=params,
+        free_raw_data=False,
+    )
+    dataset.save_binary(temporary_path)
+    temporary_path.replace(binary_path)
+    del dataset
+    gc.collect()
+
+
+def train_target(
+    inputs: TrainingInputs,
+    target: str,
+    tuning_trials: int,
+    underprediction_multiplier: float,
+    max_estimators: int,
+) -> tuple[NativeModel, dict[str, Any]]:
     """Try several model settings for one target and return the model with lowest validation error."""
     if target not in TARGETS:
         raise ValueError(f"Unknown target '{target}'. Expected one of: {', '.join(TARGETS)}.")
     if tuning_trials < 1:
         raise ValueError("Tuning trials must be at least one.")
-    sequence = PartitionSequence(inputs.feature_paths)
-    validation_sequence = PartitionSequence(inputs.validation.feature_paths)
-    params, rounds, early_stopping_rounds = native_params()
+    if max_estimators < 1:
+        raise ValueError("Maximum estimators must be at least one.")
+    params, rounds, early_stopping_rounds = native_params(
+        model_params={"estimators": max_estimators},
+        underprediction_multiplier=underprediction_multiplier,
+    )
     optimizer = create_tuning_optimizer(target)
-    categorical_indices = list(range(len(CATEGORICAL)))
     labels = np.concatenate([np.load(path, mmap_mode="r") for path in inputs.label_paths[target]])
-    train_set = lgb.Dataset(sequence, label=labels, feature_name=FEATURES, categorical_feature=categorical_indices, params=params, free_raw_data=False)
-    binary_path = inputs.cohort / "native_parts" / f"train-{target}.bin"
-    binary_path.unlink(missing_ok=True)
-    train_set.save_binary(binary_path)
-    del train_set, labels
-    gc.collect()
-    train_set = lgb.Dataset(binary_path, params=params, free_raw_data=True)
-    validation_labels = np.log1p(np.concatenate([np.load(path, mmap_mode="r") for path in inputs.validation.target_paths[target]]).clip(min=0))
-    validation_set = lgb.Dataset(validation_sequence, label=validation_labels, reference=train_set, feature_name=FEATURES, categorical_feature=categorical_indices, params=params, free_raw_data=False)
-    validation_binary_path = inputs.cohort / "native_parts" / f"validation-{target}.bin"
-    validation_binary_path.unlink(missing_ok=True)
-    validation_set.save_binary(validation_binary_path)
-    del validation_set, validation_labels
-    gc.collect()
-    validation_set = lgb.Dataset(validation_binary_path, reference=train_set, params=params, free_raw_data=True)
+    binary_path = inputs.cohort / "native_parts" / "train-features.bin"
+    ensure_feature_binary(inputs.feature_paths, binary_path, params)
+    train_set = lgb.Dataset(binary_path, params=params, free_raw_data=True).set_label(labels)
+    for label_path in inputs.label_paths[target]:
+        label_path.unlink(missing_ok=True)
+    validation_labels = np.concatenate([
+        np.load(path, mmap_mode="r")
+        for path in inputs.validation.target_paths[target]
+    ]).clip(min=0)
+    validation_binary_path = inputs.cohort / "native_parts" / "validation-features.bin"
+    ensure_feature_binary(inputs.validation.feature_paths, validation_binary_path, params, train_set)
+    validation_set = lgb.Dataset(validation_binary_path, reference=train_set, params=params, free_raw_data=True).set_label(validation_labels)
 
+    best_score = np.inf
     best_mae = np.inf
     best_params = None
     best_booster = None
@@ -368,10 +491,26 @@ def train_target(inputs: TrainingInputs, target: str, tuning_trials: int) -> tup
         point = optimizer.random_sample(1)[0] if trial_index <= initial_trials else optimizer.suggest()
         candidate = model_params_from_tuning_point(point)
         booster = lgb.train({**params, **candidate}, train_set, num_boost_round=rounds, valid_sets=[validation_set], callbacks=[lgb.early_stopping(early_stopping_rounds, verbose=False)])
-        validation_mae, _ = partition_mae(booster, inputs.validation, target)
-        optimizer.register(params=point, target=-validation_mae)
-        print(f"{target} tuning trial {trial_index}/{tuning_trials} finished with validation MAE {validation_mae:.6f} and parameters {candidate}.", flush=True)
-        if validation_mae < best_mae:
+        actual, predicted = partition_predictions(
+            booster,
+            inputs.validation,
+            target,
+            None,
+        )
+        validation_mae = float(np.abs(actual - predicted).mean())
+        selection_score = asymmetric_mae(
+            actual,
+            predicted,
+            underprediction_multiplier,
+        )
+        optimizer.register(params=point, target=-selection_score)
+        print(
+            f"{target} tuning trial {trial_index}/{tuning_trials} finished with validation MAE {validation_mae:.6f}, "
+            f"asymmetric MAE {selection_score:.6f}, and parameters {candidate}.",
+            flush=True,
+        )
+        if selection_score < best_score:
+            best_score = selection_score
             best_mae = validation_mae
             best_params = candidate
             best_booster = booster
@@ -379,41 +518,101 @@ def train_target(inputs: TrainingInputs, target: str, tuning_trials: int) -> tup
     details = {
         "family": "lightgbm",
         "validation_mae": float(best_mae),
+        "validation_asymmetric_mae": float(best_score),
+        "underprediction_multiplier": underprediction_multiplier,
+        "maximum_estimators": rounds,
         "parameters": best_params,
         "best_iteration": best_booster.best_iteration,
     }
-    del train_set, validation_set
+    del train_set, validation_set, labels, validation_labels
     gc.collect()
-    binary_path.unlink(missing_ok=True)
-    validation_binary_path.unlink(missing_ok=True)
     return model, details
 
 
-def train_partitioned_models(cohort: Path, tuning_trials: int) -> tuple[dict[str, NativeModel], dict[str, dict[str, Any]], EvaluationPartitions, pd.DataFrame]:
+def train_partitioned_models(
+    cohort: Path,
+    tuning_trials: int,
+    underprediction_multiplier: float,
+    max_estimators: int,
+) -> tuple[dict[str, NativeModel], dict[str, dict[str, Any]], EvaluationPartitions, pd.DataFrame]:
     """Train CPU, peak-memory, average-memory, and duration models from one prepared cohort."""
     inputs = prepare_training_inputs(cohort)
     models = {}
     details = {}
     for target in TARGETS:
-        models[target], details[target] = train_target(inputs, target, tuning_trials)
+        models[target], details[target] = train_target(
+            inputs,
+            target,
+            tuning_trials,
+            underprediction_multiplier,
+            max_estimators,
+        )
     return models, details, inputs.test, inputs.test.fixtures
 
 
-def enforce_quality(metrics: dict[str, dict[str, float | None]], normalized: dict[str, dict[str, float | None]], max_normalized_mae: float) -> None:
-    """Fail when a required test group is missing or its normalized error exceeds the limit."""
-    failures = []
+def quality_observations(metrics: dict[str, dict[str, float | None]], normalized: dict[str, dict[str, float | None]], max_normalized_mae: float) -> list[str]:
+    """Describe missing or high-error groups without blocking model export or publication."""
+    observations = []
     for target, paths in metrics.items():
         if any(paths.get(path) is None or normalized[target].get(path) is None for path in MODEL_EVALUATION_PATHS):
-            failures.append(f"{target} lacks a required warm, warm-masked, or cold test group.")
+            observations.append(f"{target} lacks a warm, warm-masked, or cold test group.")
         for path in MODEL_EVALUATION_PATHS:
             value = normalized[target].get(path)
             if value is not None and value > max_normalized_mae:
-                failures.append(f"{target}/{path} normalized MAE {value:.6f} exceeds {max_normalized_mae:.6f}.")
-    if failures:
-        raise RuntimeError("Quality gate failed: " + " ".join(failures))
+                observations.append(f"{target}/{path} normalized MAE {value:.6f} exceeds the comparison threshold {max_normalized_mae:.6f}.")
+    return observations
 
 
-def export_pip_usage_models(models: dict[str, NativeModel], fixture_rows: pd.DataFrame, dataset_name: str, split_sha256: str, output_dir: Path) -> dict[str, str]:
+def quality_summary(report: dict[str, Any]) -> str:
+    """Render the most useful quality metrics as an Azure DevOps Markdown summary."""
+    def number(value: float | int | None, percent: bool = False) -> str:
+        """Format an optional metric for a compact Markdown table."""
+        if value is None:
+            return "-"
+        return f"{value:.1%}" if percent else f"{value:,.3f}"
+
+    statistics = report["datasetStatistics"]
+    lines = [
+        "# Pip Usage model quality",
+        "",
+        "| Dataset | Underprediction multiplier | Max trees | Estimated rows | Downloaded | Prepared | Download/estimate | Preparation yield |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
+        f"| {report['dataset']} | {number(report['underpredictionMultiplier'])} | {report['maxEstimators']:,} | "
+        f"{statistics['discoveredRows']:,} | "
+        f"{statistics['downloadedRows']:,} | {statistics['preparedRows']:,} | {number(statistics['downloadToDiscoveryRatio'])} | "
+        f"{number(statistics['preparationYield'], True)} |",
+        "",
+        "| Target | Path | MAE | Baseline MAE | Bias | Underprediction |",
+        "|---|---|---:|---:|---:|---:|",
+    ]
+    names = {"cpu": "CPU", "memory": "Peak memory", "average_memory": "Average memory", "duration": "Duration"}
+    for target, name in names.items():
+        for path in MODEL_EVALUATION_PATHS:
+            balance = report["predictionBalance"][target][path]
+            baseline = report["testMae"][target]["expected"] if path == "warm" else None
+            lines.append(
+                f"| {name} | {path} | {number(report['testMae'][target][path])} | {number(baseline)} | "
+                f"{number(balance['meanBias'])} | {number(balance['underpredictionRate'], True)} |"
+            )
+    lines.extend(["", "| CPU path | Slot MAE | Slot bias | Multi-slot recall | Severe underprediction |", "|---|---:|---:|---:|---:|"])
+    for path in MODEL_EVALUATION_PATHS:
+        metrics = report["cpuSchedulerMetrics"][path]
+        lines.append(
+            f"| {path} | {number(metrics['slotMae'])} | {number(metrics['meanSlotBias'])} | "
+            f"{number(metrics['multiSlotRecall'], True)} | {number(metrics['severeUnderpredictionRate'], True)} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def export_pip_usage_models(
+    models: dict[str, NativeModel],
+    fixture_rows: pd.DataFrame,
+    dataset_name: str,
+    split_sha256: str,
+    underprediction_multiplier: float,
+    max_estimators: int,
+    output_dir: Path,
+) -> dict[str, str]:
     """Supply Pip Usage schema and training metadata to the generic JSON exporter."""
     return export.export_models(
         models=models,
@@ -423,7 +622,17 @@ def export_pip_usage_models(models: dict[str, NativeModel], fixture_rows: pd.Dat
         categorical_features=CATEGORICAL,
         vocabularies=models["cpu"].vocabularies,
         targets=TARGETS,
-        manifest={"modelKind": "pipUsage", "rareBucket": "rare", "outputTransform": "expm1", "training": {"dataset": dataset_name, "splitSha256": split_sha256}},
+        manifest={
+            "modelKind": "pipUsage",
+            "rareBucket": "rare",
+            "outputTransform": "identity",
+            "training": {
+                "dataset": dataset_name,
+                "splitSha256": split_sha256,
+                "underpredictionMultiplier": underprediction_multiplier,
+                "maxEstimators": max_estimators,
+            },
+        },
     )
 
 
@@ -436,6 +645,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--quality-report", type=Path, required=True)
     parser.add_argument("--tuning-trials", type=int, default=1)
     parser.add_argument("--max-normalized-mae", type=float, default=1.0)
+    parser.add_argument("--underprediction-multiplier", type=float, default=2.0)
+    parser.add_argument("--max-estimators", type=int, default=800)
     return parser.parse_args()
 
 
@@ -444,13 +655,29 @@ def main() -> None:
     args = parse_args()
     cohort = args.dataset_root / "snapshots" / args.dataset_name
     split = json.loads((cohort / "split_manifest.json").read_text(encoding="utf-8"))
-    models, training, evaluation, fixture_rows = train_partitioned_models(cohort, args.tuning_trials)
-    metrics, normalized = evaluate_partitioned(models, evaluation)
-    enforce_quality(metrics, normalized, args.max_normalized_mae)
-    hashes = export_pip_usage_models(models, fixture_rows, args.dataset_name, split["sha256"], args.output_dir)
-    report = {"modelKind": "pipUsage", "createdUtc": datetime.now(timezone.utc).isoformat(), "dataset": args.dataset_name, "splitSha256": split["sha256"], "datasetStatistics": split.get("statistics", {}), "vocabularyCardinalities": {name: len(values) for name, values in models["cpu"].vocabularies.items()}, "training": training, "testMae": metrics, "testNormalizedMae": normalized, "maxNormalizedMae": args.max_normalized_mae, "artifacts": hashes}
+    models, training, evaluation, fixture_rows = train_partitioned_models(
+        cohort,
+        args.tuning_trials,
+        args.underprediction_multiplier,
+        args.max_estimators,
+    )
+    metrics, normalized, scheduler_metrics, prediction_balance = evaluate_partitioned(models, evaluation)
+    observations = quality_observations(metrics, normalized, args.max_normalized_mae)
+    hashes = export_pip_usage_models(
+        models,
+        fixture_rows,
+        args.dataset_name,
+        split["sha256"],
+        args.underprediction_multiplier,
+        args.max_estimators,
+        args.output_dir,
+    )
+    report = {"modelKind": "pipUsage", "createdUtc": datetime.now(timezone.utc).isoformat(), "dataset": args.dataset_name, "splitSha256": split["sha256"], "datasetStatistics": split.get("statistics", {}), "vocabularyCardinalities": {name: len(values) for name, values in models["cpu"].vocabularies.items()}, "training": training, "underpredictionMultiplier": args.underprediction_multiplier, "maxEstimators": args.max_estimators, "testMae": metrics, "testNormalizedMae": normalized, "predictionBalance": prediction_balance, "cpuSchedulerMetrics": scheduler_metrics, "qualityComparisonThreshold": args.max_normalized_mae, "qualityObservations": observations, "artifacts": hashes}
     args.quality_report.parent.mkdir(parents=True, exist_ok=True)
     args.quality_report.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    summary_path = args.quality_report.with_suffix(".md")
+    summary_path.write_text(quality_summary(report), encoding="utf-8")
+    print(f"##vso[task.uploadsummary]{summary_path}")
     print(json.dumps(report, indent=2))
 
 

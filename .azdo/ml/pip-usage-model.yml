@@ -24,6 +24,14 @@ parameters:
     displayName: "Maximum builds per codebase"
     type: number
     default: 500
+  - name: underpredictionMultiplier
+    displayName: "Loss multiplier when a prediction is below actual usage"
+    type: number
+    default: 2
+  - name: maxEstimators
+    displayName: "Maximum boosting trees for every model"
+    type: number
+    default: 800
 
 trigger: none
 pr: none
@@ -156,6 +164,8 @@ extends:
                     -QualityReport '$(qualityReport)'
                     -TuningTrials '${{ parameters.tuningTrials }}'
                     -MaxNormalizedMae '$(maxNormalizedMae)'
+                    -UnderpredictionMultiplier '${{ parameters.underpredictionMultiplier }}'
+                    -MaxEstimators '${{ parameters.maxEstimators }}'
                     -PackageVersion '$(packageVersion)'
 
               - ${{ if eq(parameters.publish, true) }}:

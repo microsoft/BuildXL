@@ -14,10 +14,11 @@ from pathlib import Path
 from string import Template
 from threading import Lock
 
+import numpy as np
 import pandas as pd
 from azure.identity import AzureCliCredential
 from azure.kusto.data import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
-from azure.kusto.data.exceptions import KustoNetworkError
+from azure.kusto.data.exceptions import KustoApiError, KustoMultiApiError, KustoNetworkError
 from azure.kusto.data.helpers import dataframe_from_result_table
 from pip_usage.features import (
     PIP_USAGE_CATEGORICAL_FEATURES,
@@ -35,10 +36,24 @@ HAS_HISTORIC_PERF_DATA = PIP_USAGE_HAS_HISTORIC_PERF_DATA
 RAW_QUERY_MAX_BUILDS = 50
 RAW_QUERY_TARGET_ROWS = 750_000
 RAW_QUERY_DOWNLOAD_WORKERS = 2
+DISCOVERY_QUERY_WORKERS = 2
 SAMPLE_PARTITIONS = 64
 DEFAULT_BUILDS_PER_CODEBASE = 100
 KUSTO_QUERY_TIMEOUT = timedelta(minutes=10)
-KUSTO_QUERY_ATTEMPTS = 3
+KUSTO_QUERY_ATTEMPTS = 5
+KUSTO_TRANSIENT_ERROR_MARKERS = (
+    "429",
+    "503",
+    "becomingprimary",
+    "not ready to answer queries",
+    "temporarily",
+    "timeout",
+    "timed out",
+    'statuscode="unavailable"',
+    "connection was forcibly closed",
+    "request was aborted",
+    "transport connection",
+)
 
 
 def render_query(name: str, **parameters: object) -> str:
@@ -147,6 +162,38 @@ def sample_builds_across_time(builds: pd.DataFrame, limit: int) -> pd.DataFrame:
     return ordered.iloc[positions]
 
 
+def attach_discovery_metadata(
+    builds: pd.DataFrame,
+    metadata: pd.DataFrame,
+    builds_per_codebase: int,
+) -> pd.DataFrame:
+    """Join invocation dimensions and preserve the original daily per-codebase cap."""
+    dimensions = ["Codebase", "StageId", "Queue", "Tenant"]
+    enriched = builds.merge(metadata[["BuildId", *dimensions]], on="BuildId", how="left")
+    for column in dimensions:
+        enriched[column] = enriched[column].fillna("unknown").astype(str).replace(["", "<missing>"], "unknown")
+    return (
+        enriched.sort_values("LastPipEvent", ascending=False)
+        .groupby("Codebase", sort=False, observed=True)
+        .head(builds_per_codebase)
+        .reset_index(drop=True)
+    )
+
+
+def merge_invocation_metadata(metadata_parts: list[pd.DataFrame]) -> pd.DataFrame:
+    """Combine bounded invocation queries and retain the latest orchestrator metadata per build."""
+    if not metadata_parts or all(part.empty for part in metadata_parts):
+        return pd.DataFrame(columns=["BuildId", "Codebase", "StageId", "Queue", "Tenant"])
+    metadata = pd.concat(metadata_parts, ignore_index=True)
+    metadata["EventInfo_Time"] = pd.to_datetime(metadata["EventInfo_Time"], utc=True)
+    return (
+        metadata.sort_values(["EventInfo_Time", "BuildId"], ascending=[False, True], kind="stable")
+        .drop_duplicates("BuildId")
+        .drop(columns="EventInfo_Time")
+        .reset_index(drop=True)
+    )
+
+
 def merge_discovered_builds(build_parts: list[pd.DataFrame], max_builds: int, builds_per_codebase: int) -> pd.DataFrame:
     """Combine daily discovery results and sample the requested builds across time per codebase.
 
@@ -188,14 +235,6 @@ def kusto_ids(build_ids: list[str]) -> str:
     return ",".join(json.dumps(build_id) for build_id in build_ids)
 
 
-def kusto_build_metadata(build_ids: list[str], codebases: dict[str, str], assignments: dict[str, str]) -> str:
-    """Format each build's codebase and data split as rows for a Kusto query."""
-    return ",".join(
-        f"{json.dumps(build_id)},{json.dumps(codebases.get(build_id, 'unknown'))},{json.dumps(assignments[build_id])}"
-        for build_id in build_ids
-    )
-
-
 def arguments() -> argparse.Namespace:
     """Read the download window, build limits, dataset name, and output path from the command line."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -222,15 +261,30 @@ def kusto_time(value: datetime) -> str:
     return value.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def is_transient_kusto_error(error: Exception) -> bool:
+    """Identify service-state, throttling, timeout, and storage failures that are safe to retry."""
+    if isinstance(error, KustoNetworkError):
+        return True
+    message = str(error).lower()
+    return isinstance(error, (KustoApiError, KustoMultiApiError)) and any(
+        marker in message for marker in KUSTO_TRANSIENT_ERROR_MARKERS
+    )
+
+
 def query(client: KustoClient, props: ClientRequestProperties, database: str, text: str) -> pd.DataFrame:
-    """Run a Kusto query and retry temporary network failures up to the configured attempt limit."""
+    """Run a Kusto query with bounded retries for known temporary service failures."""
     for attempt in range(1, KUSTO_QUERY_ATTEMPTS + 1):
         try:
             return dataframe_from_result_table(client.execute(database, text, properties=props).primary_results[0])
-        except KustoNetworkError:
-            if attempt == KUSTO_QUERY_ATTEMPTS:
+        except (KustoApiError, KustoMultiApiError, KustoNetworkError) as error:
+            if attempt == KUSTO_QUERY_ATTEMPTS or not is_transient_kusto_error(error):
                 raise
-            time.sleep(5 * attempt)
+            delay = 10 * attempt
+            print(
+                f"Transient Kusto failure on attempt {attempt}/{KUSTO_QUERY_ATTEMPTS}; retrying in {delay}s: {error}",
+                flush=True,
+            )
+            time.sleep(delay)
 
 
 def write_csv_atomic(frame: pd.DataFrame, path: Path) -> None:
@@ -282,9 +336,18 @@ def prepare(raw: pd.DataFrame) -> pd.DataFrame:
     pips["PreciseTimeStamp"] = pd.to_datetime(pips["PreciseTimeStamp"], utc=True, errors="coerce", format="mixed")
     for column in [*TARGETS.values(), *PRIORS.values(), *NUMERIC]:
         pips[column] = pd.to_numeric(pips[column], errors="coerce")
-    pips = pips.dropna(subset=["BuildId", "PreciseTimeStamp", "PipHash", *TARGETS.values()]).drop_duplicates(["BuildId", "PipHash", "PreciseTimeStamp"])
+    pips = pips.dropna(subset=["BuildId", "PreciseTimeStamp", "PipHash", *TARGETS.values(), *NUMERIC]).drop_duplicates(["BuildId", "PipHash", "PreciseTimeStamp"])
     pips = pips[(pips["ProcessorUseInPercents"] >= 0) & (pips["PeakWorkingSetMb"] >= 0) & (pips["AverageWorkingSetMb"] >= 0) & (pips["ActualDurationSec"] >= 0)].copy()
-    pips[HAS_HISTORIC_PERF_DATA] = resolve_has_historic_perf_data(pips)
+    if "ExpectedPipUsageSource" not in pips:
+        pips["ExpectedPipUsageSource"] = "Unknown"
+        pips[HAS_HISTORIC_PERF_DATA] = resolve_has_historic_perf_data(pips)
+    else:
+        pips["ExpectedPipUsageSource"] = pips["ExpectedPipUsageSource"].fillna("Unknown").astype(str)
+        pips[HAS_HISTORIC_PERF_DATA] = (
+            resolve_has_historic_perf_data(pips) & pips["ExpectedPipUsageSource"].eq("Historical")
+        )
+        unavailable = ~pips[HAS_HISTORIC_PERF_DATA]
+        pips.loc[unavailable, list(PRIORS.values())] = np.nan
     if "PipDescription" in pips:
         parsed = pd.DataFrame(
             pips["PipDescription"].map(parse_pip_description).tolist(),
@@ -299,15 +362,8 @@ def prepare(raw: pd.DataFrame) -> pd.DataFrame:
     pips["ModuleFamily"] = module.str[0].fillna("unknown").replace("", "unknown")
     pips["ModuleSubgroup"] = module.str[1].fillna("unknown").replace("", "unknown")
     pips["ToolExtension"] = pips["Tool"].str.extract(r"(\.[A-Za-z0-9]+)(?:\s|\(|$)", expand=False).str.lower().fillna("unknown")
-    pips["PipKind"] = pips["Qualifier"].str.extract(r"\|\|\s*(?:Syncronization|Synchronization)\s+Pip\s+For\s+\{\(([^|)]+)", expand=False).fillna("unknown")
     pips["Configuration"] = pips["Qualifier"].str.extract(r'configuration:"([^"}]+)"', expand=False).fillna("unknown")
     pips["Platform"] = pips["Qualifier"].str.extract(r'platform:"([^"}]+)"', expand=False).fillna("unknown")
-    pips["TargetFramework"] = pips["Qualifier"].str.extract(r'targetFramework:"([^"}]+)"', expand=False).fillna("unknown")
-    pips["TargetRuntime"] = pips["Qualifier"].str.extract(r'targetRuntime:"([^"}]+)"', expand=False).fillna("unknown")
-    if "ExpectedPipUsageSource" not in pips:
-        pips["ExpectedPipUsageSource"] = "Unknown"
-    else:
-        pips["ExpectedPipUsageSource"] = pips["ExpectedPipUsageSource"].fillna("Unknown").astype(str)
     return pips
 
 
@@ -401,7 +457,7 @@ def prepare_and_split(data_root: Path, dataset_name: str) -> dict:
         "discoveredRows": discovered_rows,
         "downloadedRows": downloaded_rows,
         "preparedRows": staged_rows,
-        "parserYield": downloaded_rows / discovered_rows if discovered_rows else 0.0,
+        "downloadToDiscoveryRatio": downloaded_rows / discovered_rows if discovered_rows else None,
         "preparationYield": staged_rows / downloaded_rows if downloaded_rows else 0.0,
         "unknownFeatureCounts": unknown_feature_counts,
         "unknownFeatureRates": {
@@ -412,9 +468,9 @@ def prepare_and_split(data_root: Path, dataset_name: str) -> dict:
     split["statistics"] = statistics
     (cohort / "split_manifest.json").write_text(json.dumps(split, indent=2), encoding="utf-8")
     print("Pip Usage dataset statistics: " + json.dumps(statistics, sort_keys=True), flush=True)
-    if statistics["parserYield"] < 0.9:
+    if statistics["preparationYield"] < 0.9:
         print(
-            f"WARNING: only {statistics['parserYield']:.1%} of discovered DX5071 rows survived Kusto parsing; verify the DX5071 log format.",
+            f"WARNING: only {statistics['preparationYield']:.1%} of downloaded DX5071 rows survived preparation; verify the DX5071 log format and required fields.",
             flush=True,
         )
 
@@ -508,21 +564,40 @@ def download_raw_cohort(
     credential = AzureCliCredential(); credential.get_token("https://kusto.kusto.windows.net/.default")
     client = KustoClient(KustoConnectionStringBuilder.with_azure_token_credential("https://cbuild.kusto.windows.net", credential))
     props = ClientRequestProperties(); props.set_option(ClientRequestProperties.request_timeout_option_name, KUSTO_QUERY_TIMEOUT)
-    st, et = kusto_time(start), kusto_time(end)
-    build_parts = []
     discovery_chunks = list(time_chunks(start, end))
-    for chunk_index, (chunk_start, chunk_end) in enumerate(discovery_chunks, start=1):
+
+    def discover_invocation_chunk(chunk_item: tuple[int, tuple[datetime, datetime]]) -> pd.DataFrame:
+        """Resolve one bounded day of invocation metadata."""
+        chunk_index, (chunk_start, chunk_end) = chunk_item
+        print(f"Discovering invocation metadata {chunk_index}/{len(discovery_chunks)}: {chunk_start.isoformat()} through {chunk_end.isoformat()}", flush=True)
+        invocation_query = render_query(
+            "discover_invocations.kql",
+            window_start=kusto_time(chunk_start),
+            window_end=kusto_time(chunk_end),
+        )
+        return query(client, props, "Domino", invocation_query)
+
+    print(f"Discovering {len(discovery_chunks)} daily invocation chunks with {DISCOVERY_QUERY_WORKERS} concurrent requests.", flush=True)
+    with ThreadPoolExecutor(max_workers=DISCOVERY_QUERY_WORKERS) as executor:
+        invocation_parts = list(executor.map(discover_invocation_chunk, enumerate(discovery_chunks, start=1)))
+    invocation_metadata = merge_invocation_metadata(invocation_parts)
+
+    def discover_chunk(chunk_item: tuple[int, tuple[datetime, datetime]]) -> pd.DataFrame:
+        """Count one bounded day of pip telemetry."""
+        chunk_index, (chunk_start, chunk_end) = chunk_item
         print(f"Discovering builds {chunk_index}/{len(discovery_chunks)}: {chunk_start.isoformat()} through {chunk_end.isoformat()}", flush=True)
         chunk_st, chunk_et = kusto_time(chunk_start), kusto_time(chunk_end)
         discovery_query = render_query(
             "discover_builds.kql",
             chunk_start=chunk_st,
             chunk_end=chunk_et,
-            window_start=st,
-            window_end=et,
-            builds_per_codebase=builds_per_codebase,
         )
-        build_parts.append(query(client, props, "CloudBuildProd", discovery_query))
+        discovered = query(client, props, "CloudBuildProd", discovery_query)
+        return attach_discovery_metadata(discovered, invocation_metadata, builds_per_codebase)
+
+    print(f"Discovering {len(discovery_chunks)} daily build chunks with {DISCOVERY_QUERY_WORKERS} concurrent requests.", flush=True)
+    with ThreadPoolExecutor(max_workers=DISCOVERY_QUERY_WORKERS) as executor:
+        build_parts = list(executor.map(discover_chunk, enumerate(discovery_chunks, start=1)))
     builds = merge_discovered_builds(build_parts, max_builds, builds_per_codebase)
     print(f"Discovered {len(builds)} selected builds across {builds['Codebase'].nunique()} codebases.", flush=True)
     if len(builds) < 3: raise RuntimeError(f"Only {len(builds)} complete Pip Usage builds were found; widen the range.")
@@ -530,7 +605,6 @@ def download_raw_cohort(
     metadata = builds[["BuildId", "Codebase", "StageId", "Queue", "Tenant"]].copy()
     metadata.to_csv(cohort / "metadata.csv", index=False)
     builds[["BuildId", "PipRows", "FirstPipEvent", "LastPipEvent"]].to_csv(cohort / "builds.csv", index=False)
-    codebases = metadata.set_index("BuildId")["Codebase"].astype(str).to_dict()
     build_metadata = builds[["BuildId", "LastPipEvent", "Codebase"]].copy()
     build_metadata["LastPipEvent"] = pd.to_datetime(build_metadata["LastPipEvent"], utc=True)
     assignments = split_assignments(build_metadata)
@@ -549,7 +623,6 @@ def download_raw_cohort(
         """Download one build batch, or reuse its completed CSV, and report overall progress."""
         batch_index, build_batch = batch_item
         ids = kusto_ids(build_batch)
-        batch_metadata = kusto_build_metadata(build_batch, codebases, assignments)
         batch_key = hashlib.sha256("\n".join(build_batch).encode()).hexdigest()
         selected_builds = builds.loc[builds["BuildId"].astype(str).isin(build_batch)]
         estimated_rows = int(selected_builds["PipRows"].sum())
@@ -564,7 +637,6 @@ def download_raw_cohort(
             text = render_query(
                 "download_pip_usage.kql",
                 ids=ids,
-                build_metadata=batch_metadata,
                 batch_start=batch_start,
                 batch_end=batch_end,
             )

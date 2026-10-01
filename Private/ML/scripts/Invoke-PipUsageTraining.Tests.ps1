@@ -8,6 +8,7 @@ Describe 'Invoke-PipUsageTraining' {
         $modelDir = Join-Path $TestDrive 'model'
         $exportDir = Join-Path $TestDrive 'export'
         $qualityReport = Join-Path $TestDrive 'quality.json'
+        $qualitySummary = [IO.Path]::ChangeExtension($qualityReport, '.md')
         $nugetScript = Join-Path $TestDrive 'nuget.ps1'
         $datasetName = 'smoke-dataset'
         $global:PipUsagePythonCalls = @()
@@ -22,9 +23,12 @@ Describe 'Invoke-PipUsageTraining' {
                 Set-Content -Path (Join-Path $cohort 'prepared_parts\00.pkl') -Value 'prepared'
                 Set-Content -Path (Join-Path $cohort 'split_manifest.json') -Value '{}'
             } elseif ($args -contains 'pip_usage.training') {
-                New-Item -ItemType Directory -Force -Path $modelDir | Out-Null
-                Set-Content -Path (Join-Path $modelDir 'model_spec.json') -Value '{}'
-                Set-Content -Path $qualityReport -Value '{}'
+                $outputDir = $args[[Array]::IndexOf([object[]]$args, '--output-dir') + 1]
+                $reportPath = $args[[Array]::IndexOf([object[]]$args, '--quality-report') + 1]
+                New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+                Set-Content -Path (Join-Path $outputDir 'model_spec.json') -Value '{}'
+                Set-Content -Path $reportPath -Value '{}'
+                Set-Content -Path ([IO.Path]::ChangeExtension($reportPath, '.md')) -Value '# Pip Usage model quality'
             }
             $global:LASTEXITCODE = 0
         }
@@ -51,6 +55,8 @@ Describe 'Invoke-PipUsageTraining' {
                 -QualityReport $qualityReport `
                 -TuningTrials 1 `
                 -MaxNormalizedMae 1.0 `
+                -UnderpredictionMultiplier 2.0 `
+                -MaxEstimators 300 `
                 -PackageVersion '0.0.1-smoke' `
                 -NugetExecutable $nugetScript
         } finally {
@@ -69,9 +75,12 @@ Describe 'Invoke-PipUsageTraining' {
         $trainingCall | Should -Match 'pip_usage.training'
         $trainingCall | Should -Match '--tuning-trials 1'
         $trainingCall | Should -Match '--max-normalized-mae 1'
+        $trainingCall | Should -Match '--underprediction-multiplier 2'
+        $trainingCall | Should -Match '--max-estimators 300'
+        $trainingCall | Should -Not -Match 'target-transform'
         (Test-Path (Join-Path $exportDir 'model_spec.json')) | Should -BeTrue
+        Test-Path $qualitySummary | Should -BeTrue
         $global:PipUsageNugetCalls.Count | Should -Be 1
-        ($global:PipUsageNugetCalls[0] -join ' ') | Should -Match 'BuildXL.ML.Models.nuspec'
         Remove-Variable PipUsagePythonCalls -Scope Global
         Remove-Variable PipUsageNugetCalls -Scope Global
     }
@@ -83,6 +92,7 @@ Describe 'Pip Usage pipeline Python execution' {
         $modelDir = Join-Path $TestDrive 'real-model'
         $exportDir = Join-Path $TestDrive 'real-export'
         $qualityReport = Join-Path $TestDrive 'real-quality.json'
+        $qualitySummary = [IO.Path]::ChangeExtension($qualityReport, '.md')
         $nugetScript = Join-Path $TestDrive 'real-nuget.ps1'
         Set-Content $nugetScript 'param([Parameter(ValueFromRemainingArguments=$true)]$Arguments); $global:LASTEXITCODE = 0'
 
@@ -106,6 +116,7 @@ Describe 'Pip Usage pipeline Python execution' {
                 -QualityReport $qualityReport `
                 -TuningTrials 2 `
                 -MaxNormalizedMae 2.0 `
+                -UnderpredictionMultiplier 2.0 `
                 -PackageVersion '0.0.1-test' `
                 -NugetExecutable $nugetScript
 
@@ -115,15 +126,20 @@ Describe 'Pip Usage pipeline Python execution' {
             Test-Path $qualityReport | Should -BeTrue
             $quality = Get-Content $qualityReport -Raw | ConvertFrom-Json
             $quality.modelKind | Should -Be 'pipUsage'
+            $quality.underpredictionMultiplier | Should -Be 2
+            $quality.PSObject.Properties.Name | Should -Not -Contain 'targetTransforms'
             $quality.datasetStatistics.discoveredRows | Should -Be 360
             $quality.datasetStatistics.downloadedRows | Should -Be 360
             $quality.datasetStatistics.preparedRows | Should -Be 360
-            $quality.datasetStatistics.parserYield | Should -Be 1
+            $quality.datasetStatistics.downloadToDiscoveryRatio | Should -Be 1
             $quality.datasetStatistics.preparationYield | Should -Be 1
             $quality.vocabularyCardinalities.Tool | Should -BeGreaterThan 0
             $quality.vocabularyCardinalities.Codebase | Should -BeGreaterThan 0
             @($quality.artifacts.PSObject.Properties).Count | Should -Be 6
             @($quality.training.PSObject.Properties).Count | Should -Be 4
+            $modelSpec = Get-Content (Join-Path $exportDir 'model_spec.json') -Raw | ConvertFrom-Json
+            $modelSpec.outputTransform | Should -Be 'identity'
+            $modelSpec.PSObject.Properties.Name | Should -Not -Contain 'outputTransforms'
             foreach ($target in $quality.training.PSObject.Properties) {
                 $target.Value.parameters.learning_rate | Should -BeGreaterOrEqual $tuningRanges.learning_rate[0]
                 $target.Value.parameters.learning_rate | Should -BeLessOrEqual $tuningRanges.learning_rate[1]
@@ -135,7 +151,24 @@ Describe 'Pip Usage pipeline Python execution' {
             foreach ($target in @('cpu', 'memory', 'average_memory', 'duration')) {
                 $quality.testMae.$target.expected | Should -BeGreaterOrEqual 0
                 $quality.testNormalizedMae.$target.expected | Should -BeGreaterOrEqual 0
+                $quality.training.$target.underprediction_multiplier | Should -Be 2
+                foreach ($path in @('warm', 'warm_masked', 'cold')) {
+                    $quality.predictionBalance.$target.$path.underpredictionRate | Should -BeGreaterOrEqual 0
+                    $quality.predictionBalance.$target.$path.meanBias | Should -Not -BeNullOrEmpty
+                }
             }
+            foreach ($path in @('warm', 'warm_masked', 'cold')) {
+                $quality.cpuSchedulerMetrics.$path.slotMae | Should -BeGreaterOrEqual 0
+                $quality.cpuSchedulerMetrics.$path.multiSlotCount | Should -BeGreaterOrEqual 0
+                $quality.cpuSchedulerMetrics.$path.underpredictionRate | Should -BeGreaterOrEqual 0
+                $quality.cpuSchedulerMetrics.$path.meanSlotBias | Should -Not -BeNullOrEmpty
+            }
+            @($quality.qualityObservations).Count | Should -BeGreaterOrEqual 0
+            Test-Path $qualitySummary | Should -BeTrue
+            $summary = Get-Content $qualitySummary -Raw
+            $summary | Should -Match '# Pip Usage model quality'
+            $summary | Should -Match ([regex]::Escape('| CPU | warm |'))
+            $summary | Should -Match ([regex]::Escape('| CPU path | Slot MAE |'))
         } finally {
             Pop-Location
             Get-ChildItem (Join-Path $repoRoot 'Private\ML') -Recurse -Directory -Filter '__pycache__' |
@@ -144,4 +177,3 @@ Describe 'Pip Usage pipeline Python execution' {
         }
     }
 }
-

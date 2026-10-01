@@ -115,7 +115,7 @@ def _apply_transform(raw: np.ndarray, transform: str) -> np.ndarray:
     if transform == "expm1":
         return np.expm1(raw)
     if transform in (None, "", "identity"):
-        return raw
+        return np.maximum(raw, 0)
     raise ValueError(f"Unsupported output_transform '{transform}'.")
 
 
@@ -208,6 +208,7 @@ def export_models(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     manifest = dict(manifest)
+    output_transform = manifest.get("outputTransform", "expm1")
     model_kind = manifest["modelKind"]
     artifact_prefix = re.sub(r"(?<!^)(?=[A-Z])", "_", model_kind).lower()
     artifact_names = {target: f"{artifact_prefix}_{target}.json" for target in models}
@@ -228,7 +229,14 @@ def export_models(
             for target in models
         },
         "predictions": {
-            target: sample_cases(model, feature_names, categorical_features, vocabularies, fixture_rows[target])
+            target: sample_cases(
+                model,
+                feature_names,
+                categorical_features,
+                vocabularies,
+                fixture_rows[target],
+                transform=output_transform,
+            )
             for target, model in models.items()
         },
     }

@@ -18,9 +18,10 @@ PIP_USAGE_PRIORS = {
     "duration": "ExpectedDurationSec",
 }
 PIP_USAGE_HAS_HISTORIC_PERF_DATA = "HasHistoricPerfData"
+# PipKind, TargetFramework, and TargetRuntime are omitted because DX5071 almost never populates them.
 PIP_USAGE_CATEGORICAL_FEATURES = [
-    "Tool", "ToolExtension", "ModuleFamily", "ModuleSubgroup", "PipKind", "Configuration", "Platform",
-    "TargetFramework", "TargetRuntime", "Codebase", "StageId", "Queue", "Tenant",
+    "Tool", "ToolExtension", "ModuleFamily", "ModuleSubgroup", "Configuration", "Platform",
+    "Codebase", "StageId", "Queue", "Tenant",
 ]
 PIP_USAGE_NUMERIC_FEATURES = [
     "Weight", "NumFileDependencies", "NumDirectoryDependencies", "NumFileOutputs", "NumDirectoryOutputs",

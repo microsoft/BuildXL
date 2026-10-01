@@ -1,0 +1,12 @@
+// @cluster: cbuild
+// @database: Domino
+// WHY: Resolve build dimensions in bounded chunks that stay below Kusto result limits.
+// WHAT: Latest orchestrator metadata per build in this chunk for local cross-chunk merging.
+cluster('cbuild').database('Domino').dominoinvocation
+| where EventInfo_Time between (datetime($window_start) .. datetime($window_end))
+| where Role == "Orchestrator"
+| extend BuildId=tostring(RelatedSessionId)
+| project BuildId, EventInfo_Time, Environment
+| parse-kv Environment as (codebase:string, stageid:string, cloudBuildQueue:string, Tenant:string) with (pair_delimiter=";", kv_delimiter="=")
+| summarize hint.shufflekey=BuildId arg_max(EventInfo_Time, codebase, stageid, cloudBuildQueue, Tenant) by BuildId
+| project BuildId, EventInfo_Time, Codebase=coalesce(codebase,"unknown"), StageId=coalesce(stageid,"unknown"), Queue=coalesce(cloudBuildQueue,"unknown"), Tenant=coalesce(Tenant,"unknown")

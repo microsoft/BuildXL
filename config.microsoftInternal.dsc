@@ -13,7 +13,7 @@ const qTestVersion = "26.8.19-g080a1e95";
 // The dependent code is still open sourced, but not compiled in the public repo.
 export const pkgs = isMicrosoftInternal ? [
     { id: "BuildXL.DeviceMap", version: "0.0.1" },
-    { id: "BuildXL.ML.Models", version: "0.0.32018318-dev" },
+    { id: "BuildXL.ML.Models", version: "0.0.32159160-dev" },
 
     // Runtime dependencies used for macOS deployments
     { id: "runtime.osx-x64.BuildXL", version: "3.8.99" },

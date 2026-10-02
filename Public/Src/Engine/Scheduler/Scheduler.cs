@@ -610,6 +610,15 @@ namespace BuildXL.Scheduler
                 m_pipUsageMLMode = PipUsageMLMode.Disabled;
                 Logger.Log.PipUsageMLModelLoadFailed(m_loggingContext, error ?? "No model was returned.");
             }
+            else
+            {
+                Logger.Log.PipUsageMLModelLoaded(
+                    m_loggingContext,
+                    model.OutputTransform,
+                    model.TrainingDataset ?? "<unspecified>",
+                    model.TargetCount,
+                    model.FeatureCount);
+            }
 
             return model;
         }

@@ -130,6 +130,43 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
+        public void ModelSpecAcceptsLegacyGlobalExpm1OutputTransform()
+        {
+            PipUsageModelSpec spec = CreateValidSpec();
+
+            Assert.Null(spec.Validate());
+        }
+
+        [Fact]
+        public void ModelSpecAcceptsIdentityOutputTransform()
+        {
+            PipUsageModelSpec spec = CreateValidSpec();
+            spec.OutputTransform = "identity";
+
+            Assert.Null(spec.Validate());
+        }
+
+        [Fact]
+        public void ModelSpecRejectsUnknownOutputTransform()
+        {
+            PipUsageModelSpec spec = CreateValidSpec();
+            spec.OutputTransform = "square";
+
+            string error = spec.Validate();
+            Assert.Contains("unsupported output transform 'square'", error);
+            Assert.Contains("'expm1' or 'identity'", error);
+        }
+
+        [Theory]
+        [InlineData("expm1", 1.0, 1.718281828459045)]
+        [InlineData("identity", 3.0, 3.0)]
+        [InlineData("identity", -3.0, -3.0)]
+        public void AppliesOutputTransform(string transform, double value, double expected)
+        {
+            Assert.Equal(expected, PipUsageModel.ApplyOutputTransform(value, transform), precision: 12);
+        }
+
+        [Fact]
         public void LightGbmModelRejectsOutOfRangeSplitFeature()
         {
             const string Json = @"{
@@ -158,6 +195,18 @@ namespace Test.BuildXL.Scheduler
             PipUsageModel model = PipUsageModel.TryLoadEmbedded(out string error);
             XAssert.IsNotNull(model, error);
             Assert.Null(error);
+        }
+
+        [Fact]
+        public void EmbeddedModelReportsLoadMetadata()
+        {
+            PipUsageModel model = PipUsageModel.TryLoadEmbedded(out string error);
+            XAssert.IsNotNull(model, error);
+
+            Assert.Equal("identity", model.OutputTransform);
+            Assert.Equal("pip-usage-32159160", model.TrainingDataset);
+            Assert.Equal(4, model.TargetCount);
+            Assert.Equal(19, model.FeatureCount);
         }
 
         [Fact]

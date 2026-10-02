@@ -3365,6 +3365,15 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void HistoricPerfDataCacheTrace(LoggingContext context, string message);
 
         [GeneratedEvent(
+            (int)LogEventId.PipUsageMLModelLoaded,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Scheduler,
+            Message = "Pip Usage ML model loaded. Transform={outputTransform}, TrainingDataset={trainingDataset}, TargetCount={targetCount}, FeatureCount={featureCount}")]
+        public abstract void PipUsageMLModelLoaded(LoggingContext context, string outputTransform, string trainingDataset, int targetCount, int featureCount);
+
+        [GeneratedEvent(
             (int)LogEventId.PipUsageMLModelLoadFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

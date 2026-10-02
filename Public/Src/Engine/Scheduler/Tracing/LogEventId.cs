@@ -569,5 +569,6 @@ namespace BuildXL.Scheduler.Tracing
         EngineDumpCollectorFailed = 14619,
         PipUsageMLModelLoadFailed = 14620,
         PipUsageMLPredictionFailed = 14621,
+        PipUsageMLModelLoaded = 14622,
     }
 }

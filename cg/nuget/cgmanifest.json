@@ -186,7 +186,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "BuildXL.ML.Models",
-          "Version": "0.0.32018318-dev"
+          "Version": "0.0.32159160-dev"
         }
       }
     },

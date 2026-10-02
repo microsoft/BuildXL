@@ -97,6 +97,8 @@ namespace BuildXL.ML.PipUsage
         private readonly LightGbmModel[] m_models;
         private readonly IReadOnlyList<string> m_featureNames;
         private readonly int m_featureCount;
+        private readonly string m_outputTransform;
+        private readonly string m_trainingDataset;
 
         // Pre-computed per-feature metadata for O(1) encoding decisions.
         private readonly bool[] m_isCategorical;
@@ -110,6 +112,8 @@ namespace BuildXL.ML.PipUsage
             m_models = models;
             m_featureNames = spec.Features;
             m_featureCount = m_featureNames.Count;
+            m_outputTransform = spec.OutputTransform;
+            m_trainingDataset = spec.Training?.Dataset;
 
             var categoricalSet = new HashSet<string>(spec.CategoricalFeatures ?? Array.Empty<string>(), StringComparer.Ordinal);
             m_isCategorical = new bool[m_featureCount];
@@ -127,6 +131,14 @@ namespace BuildXL.ML.PipUsage
                 }
             }
         }
+
+        internal int FeatureCount => m_featureCount;
+
+        internal string OutputTransform => m_outputTransform;
+
+        internal int TargetCount => m_models.Length;
+
+        internal string TrainingDataset => m_trainingDataset;
 
         private static Dictionary<string, int> BuildVocabLookup(PipUsageModelSpec spec, string feature)
         {
@@ -352,7 +364,7 @@ namespace BuildXL.ML.PipUsage
                 Span<double> predictions = stackalloc double[m_models.Length];
                 for (int i = 0; i < m_models.Length; i++)
                 {
-                    if (!TryNormalizePrediction(Expm1(m_models[i].PredictRaw(vector)), out predictions[i]))
+                    if (!TryNormalizePrediction(ApplyOutputTransform(m_models[i].PredictRaw(vector), m_outputTransform), out predictions[i]))
                     {
                         error = $"Pip Usage ML returned a non-finite prediction for target {(PipUsageTarget)i}.";
                         return null;
@@ -413,6 +425,19 @@ namespace BuildXL.ML.PipUsage
 
             prediction = Math.Max(0.0, value);
             return true;
+        }
+
+        internal static double ApplyOutputTransform(double value, string transform)
+        {
+            switch (transform)
+            {
+                case "expm1":
+                    return Math.Exp(value) - 1.0;
+                case "identity":
+                    return value;
+                default:
+                    throw new InvalidOperationException($"Unsupported Pip Usage output transform '{transform ?? "<missing>"}'.");
+            }
         }
 
         private double EncodeCategorical(int featureIndex, string value)
@@ -504,6 +529,5 @@ namespace BuildXL.ML.PipUsage
             return null;
         }
 
-        private static double Expm1(double value) => Math.Exp(value) - 1.0;
     }
 }

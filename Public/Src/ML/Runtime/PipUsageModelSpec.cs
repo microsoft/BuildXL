@@ -115,6 +115,11 @@ namespace BuildXL.ML.PipUsage
         }
     }
 
+    internal sealed class PipUsageTrainingMetadata
+    {
+        public string Dataset { get; set; }
+    }
+
     /// <summary>
     /// Typed manifest for the <c>pipUsage</c> model payload.
     /// </summary>
@@ -135,6 +140,8 @@ namespace BuildXL.ML.PipUsage
         public ModelFiles ModelFiles { get; set; }
 
         public string OutputTransform { get; set; }
+
+        public PipUsageTrainingMetadata Training { get; set; }
 
         public string Validate()
         {
@@ -219,9 +226,10 @@ namespace BuildXL.ML.PipUsage
                 }
             }
 
-            if (!string.Equals(OutputTransform, "expm1", StringComparison.Ordinal))
+            if (!string.Equals(OutputTransform, "expm1", StringComparison.Ordinal) &&
+                !string.Equals(OutputTransform, "identity", StringComparison.Ordinal))
             {
-                return "Pip Usage model manifest specifies an unsupported output transform (only 'expm1' is supported).";
+                return $"Pip Usage model manifest specifies unsupported output transform '{OutputTransform ?? "<missing>"}' (expected 'expm1' or 'identity').";
             }
 
             return null;

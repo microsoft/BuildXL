@@ -350,9 +350,28 @@ function setExecutablePermissions() {
     # On some usages of this script, execution bits might be
     # missing from the deployment. This is the case, for example, on ADO
     # builds where the engine is deployed by downloading pipeline artifacts.
-    # Make bxl executable so it can start. BuildXL's ForceAddExecutionPermission mode handles
-    # executables launched by bxl on Unix.
-    chmod u+rx "$BUILDXL_BIN/bxl"
+    # Make sure that the executables that we need in the build are indeed executable.
+    local executableFiles=(
+        "bxl"
+        "bxlanalyzer"
+        "bxlcacheanalyzer"
+        "bxlScriptAnalyzer"
+        "BxlPipGraphFragmentGenerator"
+        "AdoBuildRunner"
+        "ContentStoreApp"
+        "Downloader"
+        "Extractor"
+        "NugetDownloader"
+        "SandboxedProcessExecutor"
+        "tools/NinjaGraphBuilder/NinjaGraphBuilder"
+        "tools/MsBuildGraphBuilder/dotnetcore/ProjectGraphBuilder"
+    )
+
+    for executableFile in "${executableFiles[@]}"; do
+        if [[ -f "$BUILDXL_BIN/$executableFile" ]]; then
+            chmod u+rx "$BUILDXL_BIN/$executableFile"
+        fi
+    done
 
     # Downloaded or copied macOS deployments may retain a quarantine attribute that prevents launch.
     if [[ "${OSTYPE}" == darwin* ]] && command -v xattr &> /dev/null; then

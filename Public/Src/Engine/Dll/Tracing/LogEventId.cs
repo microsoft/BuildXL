@@ -122,6 +122,7 @@ namespace BuildXL.Engine.Tracing
         ConfigIgnoreUntrackedPathsInFullReparsePointResolving = 948,
         ConfigUnsafeMonitorCreateProcessAsUser = 949,
         ConfigSandboxingNotSupportedOnMacOS = 953,
+        SharedOpaqueDirectoriesRequireSandboxing = 954,
         StartInitializingCache = 1502,
         EndInitializingCache = 1503,
         SynchronouslyWaitedForCache = 1504,

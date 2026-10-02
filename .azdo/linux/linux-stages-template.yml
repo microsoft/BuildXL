@@ -6,7 +6,8 @@ parameters:
   default: >-
     /logObservedFileAccesses 
     /logoutput:FullOutputOnError 
-    /p:[Sdk.BuildXL]xunitSemaphoreCount=8
+    /p:[Sdk.BuildXL]xunitSemaphoreCount=8 
+    /forceAddExecutionPermission-
 
 - name: BxlExtraArgs
   type: string

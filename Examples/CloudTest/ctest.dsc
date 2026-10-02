@@ -32,7 +32,8 @@ const sessionArgs : CloudTestClient.Helpers.GenerateSessionConfigAndCreateSessio
     cacheEnabled: false,
     properties: Map.empty<string, string>()
         // We always want to see the logs
-        .add("VstsTestResultAttachmentUploadBehavior", "Always"),
+        .add("VstsTestResultAttachmentUploadBehavior", "Always")
+        .add("ServiceTraceLevel", "Information"),
     // A session is made up of one or more groups. Here we use a single group; image/sku/maxResources and the
     // group's jobs are now group-level properties.
     groups: [

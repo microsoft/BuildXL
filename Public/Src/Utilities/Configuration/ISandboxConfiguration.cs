@@ -58,6 +58,17 @@ namespace BuildXL.Utilities.Configuration
         bool NormalizeReadTimestamps { get; }
 
         /// <summary>
+        /// Whether experimental shared opaque tracking is enabled.
+        /// </summary>
+        /// <remarks>
+        /// Uses directory scopes instead of individual member entries where possible, expanding members that overlap
+        /// output scopes to preserve input and output timestamp policies. Incremental tools preserving outputs retain real timestamps.
+        /// The sandbox automatically allows and reports accesses for post-execution validation without changing whether
+        /// unexpected file accesses are treated as errors.
+        /// </remarks>
+        bool ExperimentalSharedOpaqueTracking { get; }
+
+        /// <summary>
         /// Whether BuildXL will use larger NtClose prealocated list.
         /// </summary>
         bool UseLargeNtClosePreallocatedList { get; }

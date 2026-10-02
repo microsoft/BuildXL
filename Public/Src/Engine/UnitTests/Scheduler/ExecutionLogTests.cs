@@ -9,6 +9,7 @@ using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
@@ -17,6 +18,7 @@ using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -71,6 +73,26 @@ namespace Test.BuildXL.Scheduler
                     MissedOutputs = new(),
                 });
             });
+        }
+
+        /// <summary>
+        /// Verifies that the shared opaque manifest expansion setting survives execution-log serialization
+        /// and conversion back to fingerprint salts.
+        /// </summary>
+        [Fact]
+        public void TestBuildSessionConfigurationRoundTrip()
+        {
+            var sandboxConfiguration = new SandboxConfiguration
+            {
+                ExperimentalSharedOpaqueTracking = true,
+            };
+            var configuration = new ConfigurationImpl
+            {
+                Sandbox = sandboxConfiguration,
+            };
+            var salts = new ExtraFingerprintSalts(configuration, null, null, null);
+
+            TestExecutionLogHelper(verifier => verifier.Expect(new BuildSessionConfigurationEventData(salts)));
         }
 
         [Fact]
@@ -313,7 +335,8 @@ namespace Test.BuildXL.Scheduler
             IEqualityVerifier<ProcessFingerprintComputationEventData>,
             IEqualityVerifier<ObservedInputsEventData>,
             IEqualityVerifier<PipCacheMissEventData>,
-            IEqualityVerifier<PipExecutionDirectoryOutputs>
+            IEqualityVerifier<PipExecutionDirectoryOutputs>,
+            IEqualityVerifier<BuildSessionConfigurationEventData>
         {
             private readonly Queue<object> m_expectedData = new Queue<object>();
             private readonly ExecutionLogTests m_parent;
@@ -354,6 +377,11 @@ namespace Test.BuildXL.Scheduler
             }
 
             public override void PipExecutionDirectoryOutputs(PipExecutionDirectoryOutputs data)
+            {
+                VerifyEvent(data);
+            }
+
+            public override void BuildSessionConfiguration(BuildSessionConfigurationEventData data)
             {
                 VerifyEvent(data);
             }
@@ -424,6 +452,18 @@ namespace Test.BuildXL.Scheduler
                 XAssert.AreEqual(expected.PipId, actual.PipId);
 
                 return VerifyEquals(expected.ObservedInputs, actual.ObservedInputs);
+            }
+
+            public bool VerifyEquals(BuildSessionConfigurationEventData expected, BuildSessionConfigurationEventData actual)
+            {
+                XAssert.IsTrue(expected.ExperimentalSharedOpaqueTracking);
+                XAssert.AreEqual(
+                    expected.ExperimentalSharedOpaqueTracking,
+                    actual.ExperimentalSharedOpaqueTracking);
+                XAssert.AreEqual(
+                    actual.ExperimentalSharedOpaqueTracking,
+                    actual.ToFingerprintSalts().ExperimentalSharedOpaqueTracking);
+                return true;
             }
 
             public bool VerifyEquals(ReadOnlyArray<ObservedInput> expected, ReadOnlyArray<ObservedInput> actual)

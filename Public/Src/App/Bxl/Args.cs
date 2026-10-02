@@ -431,6 +431,9 @@ namespace BuildXL
                                 loggingConfiguration,
                                 frontEndConfiguration)),
                         OptionHandlerFactory.CreateBoolOption(
+                            "experimentalSharedOpaqueTracking",
+                            sign => sandboxConfiguration.ExperimentalSharedOpaqueTracking = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "explicitlyReportDirectoryProbes",
                             sign => sandboxConfiguration.ExplicitlyReportDirectoryProbes = sign
                             ),

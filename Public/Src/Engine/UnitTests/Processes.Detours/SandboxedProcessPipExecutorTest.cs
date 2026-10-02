@@ -968,8 +968,38 @@ namespace Test.BuildXL.Processes.Detours
             AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable);
         }
 
-        [Fact]
-        public async Task ProcessFileAccessesUnderSharedOpaques()
+        /// <summary>
+        /// Verifies that accesses under overlapping shared opaque input and output scopes are reported against the individual
+        /// member, including when general shared opaque manifest expansion is skipped.
+        /// </summary>
+        /// <param name="experimentalSharedOpaqueTracking">Whether to use experimental shared opaque tracking.</param>
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public Task ProcessFileAccessesUnderSharedOpaques(bool experimentalSharedOpaqueTracking) =>
+            RunProcessFileAccessesUnderSharedOpaqueTest(experimentalSharedOpaqueTracking, hasOverlappingOutput: true);
+
+        /// <summary>
+        /// Verifies that accesses under an input-only shared opaque are reported against the shared opaque root when
+        /// manifest expansion is skipped and against the individual member otherwise.
+        /// </summary>
+        /// <param name="experimentalSharedOpaqueTracking">Whether to use experimental shared opaque tracking.</param>
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public Task ProcessFileAccessesUnderInputOnlySharedOpaque(bool experimentalSharedOpaqueTracking) =>
+            RunProcessFileAccessesUnderSharedOpaqueTest(experimentalSharedOpaqueTracking, hasOverlappingOutput: false);
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public Task ProcessFileAccessesUnderNestedSharedOpaqueInput(bool experimentalSharedOpaqueTracking) =>
+            RunProcessFileAccessesUnderSharedOpaqueTest(experimentalSharedOpaqueTracking, hasOverlappingOutput: true, nestedInput: true);
+
+        private async Task RunProcessFileAccessesUnderSharedOpaqueTest(
+            bool experimentalSharedOpaqueTracking,
+            bool hasOverlappingOutput,
+            bool nestedInput = false)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var symbolTable = context.SymbolTable;
@@ -984,9 +1014,10 @@ namespace Test.BuildXL.Processes.Detours
 
                 AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, sharedOpaqueRoot);
 
-                // Create two shared opaques with the same root. One will act as an input to the pip, the other one as an
-                // output directory
-                var sharedOpaqueInput = new DirectoryArtifact(AbsolutePath.Create(context.PathTable, sharedOpaqueRoot), 1, isSharedOpaque: true);
+                // The input either shares the output root or is nested inside it.
+                var sharedOpaqueInput = new DirectoryArtifact(
+                    AbsolutePath.Create(context.PathTable, nestedInput ? Path.Combine(sharedOpaqueRoot, "input") : sharedOpaqueRoot),
+                    1, isSharedOpaque: true);
                 var sharedOpaqueOutput = new DirectoryArtifact(AbsolutePath.Create(context.PathTable, sharedOpaqueRoot), 2, isSharedOpaque: true);
 
                 // The shared opaque input contains input/in.txt
@@ -1000,17 +1031,22 @@ namespace Test.BuildXL.Processes.Detours
                 arguments.Add("/c");
                 using (arguments.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
                 {
-                    // Reads 'input/in.txt' (under the shared opaque input) and creates 'nested/out.txt' (under the shared opaque output)
+                    // Read 'input/in.txt' under the shared opaque input.
                     arguments.Add("type");
                     arguments.Add(@"input\in.txt");
-                    arguments.Add("&&");
-                    arguments.Add("mkdir");
-                    arguments.Add("nested");
-                    arguments.Add("&&");
-                    arguments.Add("echo");
-                    arguments.Add("foo");
-                    arguments.Add(">");
-                    arguments.Add(@"nested\out.txt");
+
+                    if (hasOverlappingOutput)
+                    {
+                        // In the nested-input case, create the output alongside the existing input.
+                        arguments.Add("&&");
+                        arguments.Add("mkdir");
+                        arguments.Add("nested");
+                        arguments.Add("&&");
+                        arguments.Add("echo");
+                        arguments.Add("foo");
+                        arguments.Add(">");
+                        arguments.Add(nestedInput ? @"input\out.txt" : @"nested\out.txt");
+                    }
                 }
 
                 var pip = new Process(
@@ -1029,7 +1065,9 @@ namespace Test.BuildXL.Processes.Detours
                     ReadOnlyArray<FileArtifact>.FromWithoutCopy(executableFileArtifact),
                     ReadOnlyArray<FileArtifactWithAttributes>.Empty,
                     ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new DirectoryArtifact[] { sharedOpaqueInput }),
-                    ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new DirectoryArtifact[] { sharedOpaqueOutput }),
+                    hasOverlappingOutput
+                        ? ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new DirectoryArtifact[] { sharedOpaqueOutput })
+                        : ReadOnlyArray<DirectoryArtifact>.Empty,
                     ReadOnlyArray<PipId>.Empty,
                     ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencies(context.PathTable)),
                     ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencyScopes(context.PathTable)),
@@ -1048,9 +1086,16 @@ namespace Test.BuildXL.Processes.Detours
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
+                var sandboxConfiguration = new SandboxConfiguration
+                {
+                    FileAccessIgnoreCodeCoverage = true,
+                    FailUnexpectedFileAccesses = false,
+                };
+                sandboxConfiguration.ExperimentalSharedOpaqueTracking = experimentalSharedOpaqueTracking;
+
                 SandboxedProcessPipExecutionResult result = await RunProcess(
                     context,
-                    new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, FailUnexpectedFileAccesses = false },
+                    sandboxConfiguration,
                     pip,
                     fileAccessAllowlist: null,
                     new Dictionary<string, string>(),
@@ -1061,9 +1106,19 @@ namespace Test.BuildXL.Processes.Detours
 
                 XAssert.AreEqual(SandboxedProcessPipExecutionStatus.Succeeded, result.Status);
 
-                // There should be a single reported file access that is not related to creating directories: The attempt to read 'input/in.txt'. The accesses related to writing the file should not be reported here.
+                // There should be a single reported file access that is not related to creating directories: the attempt to read 'input/in.txt'.
+                // Accesses related to writing the file should not be reported here.
                 ObservedFileAccess access = result.ObservedFileAccesses.Single(fa => !fa.Accesses.All(a => a.IsDirectoryCreationOrRemoval()));
-                XAssert.AreEqual(AbsolutePath.Create(context.PathTable, inputUndersharedOpaqueRoot), access.Path);
+                var inputPath = AbsolutePath.Create(context.PathTable, inputUndersharedOpaqueRoot);
+                XAssert.AreEqual(inputPath, access.Path);
+
+                var expectedManifestPath = experimentalSharedOpaqueTracking && !hasOverlappingOutput
+                    ? sharedOpaqueInput.Path
+                    : inputPath;
+                XAssert.IsTrue(
+                    access.Accesses.Any(a => a.ManifestPath == expectedManifestPath),
+                    $"Expected manifest path '{expectedManifestPath.ToString(context.PathTable)}'. Actual manifest paths: "
+                    + string.Join(", ", access.Accesses.Select(a => a.ManifestPath.ToString(context.PathTable))));
             }
         }
 

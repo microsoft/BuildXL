@@ -16,6 +16,9 @@
 //   sharedOpaque\anothersubdir\nested\dynamicInputInSharedOpaque1
 //   sharedOpaque\anothersubdir\dynamicInputInSharedOpaque2
 //   sharedOpaque\dynamicInputInSharedOpaque3
+//   inputOnlySharedOpaque\dynamicInputInInputOnlySharedOpaque
+//   sharedOpaque\nestedInput\existingInput
+//   sharedOpaque\nestedInput\oldInput
 //   sharedOpaque\rewrittenOutputInSharedOpaque
 //
 // There are two of each file type in subdir to guarantee that both types can appear in FindNextFile when enumerating the directory.
@@ -248,7 +251,7 @@ void VerifyExpectedTimestampForAllKnownFunctions(VerificationResult& verificatio
     verificationResult.Combine(VerifyExpectedTimestampViaFindFirstFileSingle(filename, expectedTimestamp, allowGreaterThan));
 }
 
-int Timestamps(bool normalize)
+int Timestamps(bool normalize, bool incremental = false)
 {
     wchar_t const * const InputFile = L"input";
     wchar_t const * const RewrittenOutputFile = L"rewrittenOutput";
@@ -263,9 +266,13 @@ int Timestamps(bool normalize)
     wchar_t const * const DynamicInputInSharedOpaque1 = L"sharedOpaque\\anothersubdir\\nested\\dynamicInputInSharedOpaque1";
     wchar_t const * const DynamicInputInSharedOpaque2 = L"sharedOpaque\\anothersubdir\\dynamicInputInSharedOpaque2";
     wchar_t const * const DynamicInputInSharedOpaque3 = L"sharedOpaque\\dynamicInputInSharedOpaque3";
+    wchar_t const * const DynamicInputInInputOnlySharedOpaque = L"inputOnlySharedOpaque\\dynamicInputInInputOnlySharedOpaque";
+    wchar_t const * const OldInputInNestedSharedOpaque = L"sharedOpaque\\nestedInput\\oldInput";
     wchar_t const * const RewrittenOutputInSharedOpaque = L"sharedOpaque\\rewrittenOutputInSharedOpaque";
     wchar_t const * const DynamicOutputInSharedOpaque = L"sharedOpaque\\yetanothersubdir\\dynamicOutputInSharedOpaque"; // does not exist, this process creates it
     wchar_t const * const AnotherDynamicOutputInSharedOpaque = L"sharedOpaque\\subdir\\dynamicOutputInSharedOpaque"; // does not exist, this process creates it
+    wchar_t const * const InputInNestedSharedOpaque = L"sharedOpaque\\nestedInput\\existingInput";
+    wchar_t const * const OutputInNestedSharedOpaque = L"sharedOpaque\\nestedInput\\newOutput";
 
     const FILETIME expectedInputTime = GetExpectedInputTime();
     const FILETIME expectedOutputTime = GetExpectedOutputTime();
@@ -281,6 +288,9 @@ int Timestamps(bool normalize)
         !ExpectExistent(DynamicInputInSharedOpaque1) ||
         !ExpectExistent(DynamicInputInSharedOpaque2) ||
         !ExpectExistent(DynamicInputInSharedOpaque3) ||
+        !ExpectExistent(DynamicInputInInputOnlySharedOpaque) ||
+        !ExpectExistent(OldInputInNestedSharedOpaque) ||
+        !ExpectExistent(InputInNestedSharedOpaque) ||
         !ExpectExistent(RewrittenOutputInSharedOpaque)) {
         return 1;
     }
@@ -330,6 +340,22 @@ int Timestamps(bool normalize)
     WriteFile(anotherHFile, message, 20, &bytesWritten, NULL);
     CloseHandle(anotherHFile);
 
+    // A new output inside a narrower input scope must still expose its real timestamp.
+    HANDLE nestedOutput = CreateFile(
+        OutputInNestedSharedOpaque,
+        GENERIC_WRITE,
+        FILE_SHARE_WRITE,
+        nullptr,
+        CREATE_ALWAYS,
+        FILE_ATTRIBUTE_NORMAL,
+        nullptr);
+    if (nestedOutput == INVALID_HANDLE_VALUE)
+    {
+        return static_cast<int>(GetLastError());
+    }
+    WriteFile(nestedOutput, message, 20, &bytesWritten, nullptr);
+    CloseHandle(nestedOutput);
+
     const bool allowGreaterThan = !normalize;
 
     VerificationResult result;
@@ -340,19 +366,25 @@ int Timestamps(bool normalize)
     VerifyExpectedTimestampForAllKnownFunctions(result, DynamicInputInSharedOpaque1, expectedInputTime, allowGreaterThan);
     VerifyExpectedTimestampForAllKnownFunctions(result, DynamicInputInSharedOpaque2, expectedInputTime, allowGreaterThan);
     VerifyExpectedTimestampForAllKnownFunctions(result, DynamicInputInSharedOpaque3, expectedInputTime, allowGreaterThan);
+    VerifyExpectedTimestampForAllKnownFunctions(result, DynamicInputInInputOnlySharedOpaque, expectedInputTime, allowGreaterThan);
+    VerifyExpectedTimestampForAllKnownFunctions(result, OldInputInNestedSharedOpaque, incremental ? expectedOutputTime : expectedInputTime, false);
+    VerifyExpectedTimestampForAllKnownFunctions(result, InputInNestedSharedOpaque, expectedInputTime, allowGreaterThan);
+    VerifyExpectedTimestampForAllKnownFunctions(result, OutputInNestedSharedOpaque, expectedInputTime, true);
     VerifyExpectedTimestampForAllKnownFunctions(result, RewrittenOutputInSharedOpaque, expectedOutputTime, false);
-    VerifyExpectedTimestampForAllKnownFunctions(result, DynamicOutputInSharedOpaque, expectedOutputTime, true);
-    // This is to verify that even though timestamp faking happens for the parent directory (checked below), the output itself shows its true timestamp
-    VerifyExpectedTimestampForAllKnownFunctions(result, AnotherDynamicOutputInSharedOpaque, expectedOutputTime, true);
+    VerifyExpectedTimestampForAllKnownFunctions(result, DynamicOutputInSharedOpaque, expectedInputTime, true);
+    // Verify that an output created alongside inputs shows its true timestamp.
+    VerifyExpectedTimestampForAllKnownFunctions(result, AnotherDynamicOutputInSharedOpaque, expectedInputTime, true);
 
-    // Verify that we also fake the timestamp of directories that involve dynamic and static inputs under a shared opaque
+    // Verify that directories containing shared opaque inputs also expose normalized timestamps.
     result.Combine(VerifyExpectedTimestampViaGetFileAttributesEx(L"sharedOpaque\\subdir", expectedInputTime, allowGreaterThan));
     result.Combine(VerifyExpectedTimestampViaGetFileAttributesEx(L"sharedOpaque\\subdir\\nested", expectedInputTime, allowGreaterThan));
     result.Combine(VerifyExpectedTimestampViaGetFileAttributesEx(L"sharedOpaque\\anothersubdir", expectedInputTime, allowGreaterThan));
     result.Combine(VerifyExpectedTimestampViaGetFileAttributesEx(L"sharedOpaque\\anothersubdir\\nested", expectedInputTime, allowGreaterThan));
+    result.Combine(VerifyExpectedTimestampViaGetFileAttributesEx(L"inputOnlySharedOpaque", expectedInputTime, allowGreaterThan));
+    result.Combine(VerifyExpectedTimestampViaGetFileAttributesEx(L"sharedOpaque\\nestedInput", expectedInputTime, allowGreaterThan));
 
     // Verify that we don't fake the timestamp of directories that do not involve inputs
-    result.Combine(VerifyExpectedTimestampViaGetFileAttributesEx(L"sharedOpaque\\yetanothersubdir", expectedOutputTime, true));
+    result.Combine(VerifyExpectedTimestampViaGetFileAttributesEx(L"sharedOpaque\\yetanothersubdir", expectedInputTime, true));
 
     result.Combine(VerifyExpectedTimestampViaFindFirstFileEnumeration(L"subdir\\input*", { 
         { SubdirInputFile1, expectedInputTime },
@@ -385,4 +417,9 @@ int TimestampsNormalize(void)
 int TimestampsNoNormalize(void)
 {
     return Timestamps(false);
+}
+
+int TimestampsForIncrementalTool(void)
+{
+    return Timestamps(false, true);
 }

@@ -646,6 +646,7 @@ namespace Test.BuildXL.Scheduler
                 NormalizeReadTimestamps = defaultSalts.NormalizeReadTimestamps,
                 MaskUntrackedAccesses = defaultSalts.MaskUntrackedAccesses
             };
+            sandboxConfig.ExperimentalSharedOpaqueTracking = defaultSalts.ExperimentalSharedOpaqueTracking;
 
             var contentHashLookup = GetContentHashLookup(executable);
 
@@ -657,16 +658,17 @@ namespace Test.BuildXL.Scheduler
                 FingerprintTextEnabled = true
             };
             
-            string fingerprintText;
-            fingerprinter.ComputeWeakFingerprint(process, out fingerprintText);
+            var defaultFingerprint = fingerprinter.ComputeWeakFingerprint(process, out string fingerprintText);
 
             // If the defaults are being used, don't include them in the fingerprint to prevent cache misses
             XAssert.IsFalse(fingerprintText.Contains("NormalizeReadTimestamps"));
             XAssert.IsFalse(fingerprintText.Contains("MaskUntrackedAccesses"));
+            XAssert.IsFalse(fingerprintText.Contains("ExperimentalSharedOpaqueTracking"));
 
             // Calculate a fingerprint with non-default settings
             sandboxConfig.NormalizeReadTimestamps = !defaultSalts.NormalizeReadTimestamps;
             sandboxConfig.MaskUntrackedAccesses = !defaultSalts.MaskUntrackedAccesses;
+            sandboxConfig.ExperimentalSharedOpaqueTracking = !defaultSalts.ExperimentalSharedOpaqueTracking;
 
             var configuration = new ConfigurationImpl
             {
@@ -684,9 +686,13 @@ namespace Test.BuildXL.Scheduler
             };
 
             // If the non-default values are specified by configuration, include the settings in the fingerprint to cause cache misses
-            nonDefaultFingerprinter.ComputeWeakFingerprint(process, out string nonDefaultFingerprintText);
+            var nonDefaultFingerprint = nonDefaultFingerprinter.ComputeWeakFingerprint(process, out string nonDefaultFingerprintText);
             XAssert.IsTrue(nonDefaultFingerprintText.Contains("NormalizeReadTimestamps"));
             XAssert.IsTrue(nonDefaultFingerprintText.Contains("MaskUntrackedAccesses"));
+            XAssert.IsTrue(nonDefaultFingerprintText.Contains("ExperimentalSharedOpaqueTracking"));
+            XAssert.AreNotEqual(defaultFingerprint, nonDefaultFingerprint);
+            XAssert.AreNotEqual(defaultSalts, nonDefaultSalts);
+            XAssert.AreNotEqual(defaultSalts.GetHashCode(), nonDefaultSalts.GetHashCode());
         }
 
         [Fact]

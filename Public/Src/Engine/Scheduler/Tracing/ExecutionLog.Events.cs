@@ -519,6 +519,11 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public bool TreatStatAsProbe;
 
+        /// <summary>
+        /// Whether experimental shared opaque tracking is enabled.
+        /// </summary>
+        public bool ExperimentalSharedOpaqueTracking;
+
         /// <inheritdoc />
         public ExecutionLogEventMetadata<BuildSessionConfigurationEventData> Metadata => ExecutionLogMetadata.BuildSessionConfiguration;
 
@@ -557,6 +562,7 @@ namespace BuildXL.Scheduler.Tracing
             UsingEBPFSandbox = salts.UsingEBPFSandbox;
             LinuxFingerprintingVersion = salts.LinuxFingerprintingVersion;
             TreatStatAsProbe = salts.TreatStatAsProbe;
+            ExperimentalSharedOpaqueTracking = salts.ExperimentalSharedOpaqueTracking;
         }
 
         /// <summary>
@@ -596,7 +602,8 @@ namespace BuildXL.Scheduler.Tracing
                        linuxOSName: LinuxOSName,
                        usingEBPFSandbox: UsingEBPFSandbox,
                        linuxFingerprintingVersion: LinuxFingerprintingVersion,
-                       treatStatAsProbe: TreatStatAsProbe
+                       treatStatAsProbe: TreatStatAsProbe,
+                       experimentalSharedOpaqueTracking: ExperimentalSharedOpaqueTracking
                    )
                    {
                        // Constructor appends EngineEnvironmentSettings.FingerprintSalt
@@ -639,6 +646,7 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(UsingEBPFSandbox);
             writer.Write((int)LinuxFingerprintingVersion);
             writer.Write(TreatStatAsProbe);
+            writer.Write(ExperimentalSharedOpaqueTracking);
         }
 
         /// <inheritdoc />
@@ -674,6 +682,7 @@ namespace BuildXL.Scheduler.Tracing
             UsingEBPFSandbox = reader.ReadBoolean();
             LinuxFingerprintingVersion = (LinuxFingerprintingVersion) reader.ReadInt32();
             TreatStatAsProbe = reader.ReadBoolean();
+            ExperimentalSharedOpaqueTracking = reader.ReadBoolean();
         }
     }
 

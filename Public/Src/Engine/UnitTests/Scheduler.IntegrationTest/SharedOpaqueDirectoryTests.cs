@@ -1095,6 +1095,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             t.Join();
         }
 
+        /// <summary>
+        /// Verifies that a dependency on a shared opaque allows an absent-path probe after a temporary write and delete.
+        /// </summary>
         [Fact]
         public void DynamicTemporaryFileWriteFollowedByAbsentPathFileProbeIsAllowedForDependencies()
         {
@@ -2732,11 +2735,11 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(LogEventId.FileMonitoringError, count: 1);
             if (dependencyBetweenPips)
             {
-                // If there is dependency, delete operation will be blocked by detours (due to restrictions in FileAccessManifest),
-                // and as a result the pip will fail.
-                // However, for EBPF we don't have blocking capabilities, and we'll just get a DFA
-                AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: UsingEBPFSandbox? 0 : 1);
-                AssertWarningEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: UsingEBPFSandbox? 1 : 0);
+                // Detours normally blocks the deletion and causes the process to fail. EBPF and experimental
+                // shared opaque tracking allow the operation, but post-execution validation still fails the build.
+                bool validateAfterExecution = UsingEBPFSandbox || Configuration.Sandbox.ExperimentalSharedOpaqueTracking;
+                AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: validateAfterExecution ? 0 : 1);
+                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: validateAfterExecution ? 1 : 0);
             }
         }
 

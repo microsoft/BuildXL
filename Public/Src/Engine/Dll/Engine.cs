@@ -982,7 +982,11 @@ namespace BuildXL.Engine
             //  * Turning off UnexpectedFileAccessesAreErrors (this code), or
             //  * Declaring a allowlist in config.
             // (story 169157) Tracks cleaning this up.
-            mutableConfig.Sandbox.FailUnexpectedFileAccesses = mutableConfig.Sandbox.UnsafeSandboxConfiguration.UnexpectedFileAccessesAreErrors;
+            // Experimental shared opaque tracking, like allowlists, requires the sandbox to allow and report accesses
+            // for post-execution validation. Keep UnexpectedFileAccessesAreErrors unchanged so real violations still fail.
+            mutableConfig.Sandbox.FailUnexpectedFileAccesses =
+                mutableConfig.Sandbox.UnsafeSandboxConfiguration.UnexpectedFileAccessesAreErrors
+                && !mutableConfig.Sandbox.ExperimentalSharedOpaqueTracking;
 
             // New semantics of /unsafe_DisableDetours --> fully disables sandboxing and runs processes using the plain .NET Process class.
             // This effectively means that MonitorFileAccesses should be disabled.
@@ -1022,6 +1026,10 @@ namespace BuildXL.Engine
                 // Validate the module specific configurations
                 success &= ValidateModuleConfig(moduleConfiguration, pathTable, loggingContext, mutableConfig.Sandbox);
             }
+
+            Contract.Assert(
+                !mutableConfig.Sandbox.ExperimentalSharedOpaqueTracking || !mutableConfig.Sandbox.FailUnexpectedFileAccesses,
+                "Experimental shared opaque tracking requires accesses to be reported for post-execution validation rather than blocked by the sandbox.");
 
             // Directory translation.
             success &= ValidateSubstAndDirectoryTranslation(mutableConfig, pathTable, loggingContext);

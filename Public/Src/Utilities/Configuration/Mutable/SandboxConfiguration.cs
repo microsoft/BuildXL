@@ -30,6 +30,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ForceReadOnlyForRequestedReadWrite = false;
             FlushPageCacheToFileSystemOnStoringOutputsToCache = true;
             NormalizeReadTimestamps = true;
+            ExperimentalSharedOpaqueTracking = false;
             UseLargeNtClosePreallocatedList = false;
             UseExtraThreadToDrainNtClose = true;
             MaskUntrackedAccesses = true;
@@ -84,6 +85,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ForceReadOnlyForRequestedReadWrite = template.ForceReadOnlyForRequestedReadWrite;
             FlushPageCacheToFileSystemOnStoringOutputsToCache = template.FlushPageCacheToFileSystemOnStoringOutputsToCache;
             NormalizeReadTimestamps = template.NormalizeReadTimestamps;
+            ExperimentalSharedOpaqueTracking = template.ExperimentalSharedOpaqueTracking;
             UseLargeNtClosePreallocatedList = template.UseLargeNtClosePreallocatedList;
             UseExtraThreadToDrainNtClose = template.UseExtraThreadToDrainNtClose;
             MaskUntrackedAccesses = template.MaskUntrackedAccesses;
@@ -202,6 +204,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool NormalizeReadTimestamps { get; set; }
+
+        /// <inheritdoc />
+        public bool ExperimentalSharedOpaqueTracking { get; set; }
 
         /// <inheritdoc />
         public bool UseLargeNtClosePreallocatedList { get; set; }

@@ -818,6 +818,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/experimentalSharedOpaqueTracking[+|-]",
+                Strings.HelpText_DisplayHelp_ExperimentalSharedOpaqueTracking,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/useLargeNtClosePreallocatedList[+|-]",
                 Strings.HelpText_DisplayHelp_UseLargeNtClosePreallocatedList,
                 HelpLevel.Verbose);

@@ -1090,6 +1090,9 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_Unsafe_UnexpectedFileAccessesAreErrors" xml:space="preserve">
     <value>When enabled, if {ShortProductName} detects that a tool accesses a file that was not declared in the specification dependencies, it is treated as an error instead of a warning. Turning this option off results in an unsafe configuration (for diagnostic purposes only). Defaults to on.</value>
   </data>
+  <data name="HelpText_DisplayHelp_ExperimentalSharedOpaqueTracking" xml:space="preserve">
+    <value>Enables experimental shared opaque tracking while preserving input and output timestamp policies. Automatically configures the sandbox to allow and report accesses for post-execution validation instead of blocking them immediately; undeclared accesses remain errors by default. Defaults to off.</value>
+  </data>
   <data name="HelpText_DisplayHelp_Unsafe_IgnoreReparsePoints" xml:space="preserve">
     <value>When enabled, {ShortProductName} will not track reparse points. This might lead to incorrect builds because some file accesses will not be enforced. Any reparse points (symlinks and mount points) will not be followed.</value>
   </data>

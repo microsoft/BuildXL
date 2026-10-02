@@ -3700,13 +3700,48 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        /// <summary>
+        /// Verifies that Detours normalizes timestamps when timestamp normalization is enabled.
+        /// </summary>
         [Fact]
-        public Task TimestampsNormalize() => Timestamps(normalize: true);
+        public Task TimestampsNormalize() => Timestamps(normalize: true, experimentalSharedOpaqueTracking: false);
 
-        [Fact]
-        public Task TimestampsNoNormalize() => Timestamps(normalize: false);
+        /// <summary>
+        /// Verifies that Detours exposes real timestamps when timestamp normalization is disabled.
+        /// </summary>
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public Task TimestampsNoNormalize(bool experimentalSharedOpaqueTracking) =>
+            Timestamps(normalize: false, experimentalSharedOpaqueTracking: experimentalSharedOpaqueTracking);
 
-        public async Task Timestamps(bool normalize)
+        /// <summary>
+        /// Verifies that shared opaque inputs retain normalized timestamps with experimental shared opaque tracking,
+        /// including when an input shared opaque overlaps a shared opaque output.
+        /// </summary>
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public Task TimestampsNormalizeWithExperimentalSharedOpaqueTracking(bool inputContainsOutput) =>
+            Timestamps(normalize: true, experimentalSharedOpaqueTracking: true, inputContainsOutput: inputContainsOutput);
+
+        /// <summary>
+        /// Incremental tools preserving outputs must see real timestamps even when normalization is globally enabled.
+        /// </summary>
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public Task TimestampsForIncrementalToolsWithExperimentalSharedOpaqueTracking(bool experimentalSharedOpaqueTracking) =>
+            Timestamps(normalize: true, experimentalSharedOpaqueTracking: experimentalSharedOpaqueTracking, incremental: true);
+
+        /// <summary>
+        /// Runs the Detours timestamp test with the specified normalization and shared opaque manifest settings.
+        /// </summary>
+        /// <param name="normalize">Whether input timestamps should be normalized.</param>
+        /// <param name="experimentalSharedOpaqueTracking">Whether to use experimental shared opaque tracking.</param>
+        /// <param name="inputContainsOutput">Whether the main input scope contains the output scope rather than sharing its root.</param>
+        /// <param name="incremental">Whether the pip is an incremental tool preserving outputs.</param>
+        private async Task Timestamps(bool normalize, bool experimentalSharedOpaqueTracking, bool inputContainsOutput = false, bool incremental = false)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;
@@ -3748,6 +3783,9 @@ namespace Test.BuildXL.Processes.Detours
                 tempFiles.GetDirectory("sharedOpaque\\anothersubdir\\nested");
                 AbsolutePath sharedOpaqueSubdirectoryAbsolutePath = AbsolutePath.Create(pathTable, sharedOpaqueSubdirectoryPath);
                 var sharedOpaqueSubdirectory = new DirectoryArtifact(AbsolutePath.Create(pathTable, sharedOpaqueSubdirectoryPath), partialSealId: 1, isSharedOpaque: true);
+                var sharedOpaqueDependency = inputContainsOutput
+                    ? new DirectoryArtifact(workingDirectoryAbsolutePath, partialSealId: 3, isSharedOpaque: true)
+                    : sharedOpaqueSubdirectory;
 
                 // This is a directory with one source file to become a source seal under a shared opaque
                 string sourceSealInsharedOpaqueSubdirectoryPath = Path.Combine(sharedOpaqueSubdirectoryPath, "sourceSealInSharedOpaque");
@@ -3771,6 +3809,31 @@ namespace Test.BuildXL.Processes.Detours
                 FileArtifact dynamicInputInSharedOpaque3 = WriteFile(
                     pathTable,
                     tempFiles.GetFileName(pathTable, sharedOpaqueSubdirectoryAbsolutePath, "dynamicInputInSharedOpaque3"));
+
+                // An input-only shared opaque must continue normalizing timestamps when member expansion is skipped.
+                string inputOnlySharedOpaquePath = Path.Combine(workingDirectory, "inputOnlySharedOpaque");
+                tempFiles.GetDirectory("inputOnlySharedOpaque");
+                AbsolutePath inputOnlySharedOpaqueAbsolutePath = AbsolutePath.Create(pathTable, inputOnlySharedOpaquePath);
+                var inputOnlySharedOpaque = new DirectoryArtifact(inputOnlySharedOpaqueAbsolutePath, partialSealId: 2, isSharedOpaque: true);
+                FileArtifact dynamicInputInInputOnlySharedOpaque = WriteFile(
+                    pathTable,
+                    tempFiles.GetFileName(pathTable, inputOnlySharedOpaqueAbsolutePath, "dynamicInputInInputOnlySharedOpaque"));
+                // The inverse overlap: a narrower input cone inside the produced shared opaque.
+                tempFiles.GetDirectory("sharedOpaque\\nestedInput");
+                var nestedInputPath = sharedOpaqueSubdirectoryAbsolutePath.Combine(pathTable, "nestedInput");
+                var nestedSharedOpaqueInput = new DirectoryArtifact(nestedInputPath, partialSealId: 4, isSharedOpaque: true);
+                FileArtifact dynamicInputInNestedSharedOpaque = WriteFile(
+                    pathTable,
+                    tempFiles.GetFileName(pathTable, nestedInputPath, "existingInput"));
+                FileArtifact oldInputInNestedSharedOpaque = WriteFile(
+                    pathTable,
+                    tempFiles.GetFileName(pathTable, nestedInputPath, "oldInput"));
+                // An incremental tool must retain the output scope's real-timestamp policy.
+                // Merely disabling normalization would still clamp this old input timestamp.
+                FileUtilities.SetFileTimestamps(
+                    oldInputInNestedSharedOpaque.Path.ToString(pathTable),
+                    new FileTimestamps(new DateTime(2001, 1, 1, 1, 1, 1, DateTimeKind.Utc)));
+
                 // A static rewritten output in a shared opaque
                 FileArtifact outputInSharedOpaqueToRewrite = WriteFile(
                     pathTable,
@@ -3778,7 +3841,11 @@ namespace Test.BuildXL.Processes.Detours
                 FileArtifact outputInSharedOpaqueAfterRewrite = outputInSharedOpaqueToRewrite.CreateNextWrittenVersion();
 
                 var arguments = new PipDataBuilder(pathTable.StringTable);
-                if (normalize)
+                if (incremental)
+                {
+                    arguments.Add("TimestampsForIncrementalTool");
+                }
+                else if (normalize)
                 {
                     arguments.Add("TimestampsNormalize");
                 }
@@ -3821,7 +3888,8 @@ namespace Test.BuildXL.Processes.Detours
                             subdirRewrittenOutput2AfterWrite.WithAttributes(),
                             outputInSharedOpaqueAfterRewrite.WithAttributes()
                         ]),
-                    directoryDependencies: ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy([inputSubdirectory, sourceSealSubdirectory, sharedOpaqueSubdirectory]),
+                    directoryDependencies: ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(
+                        [inputSubdirectory, sourceSealSubdirectory, sharedOpaqueDependency, inputOnlySharedOpaque, nestedSharedOpaqueInput]),
                     directoryOutputs: ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy([new DirectoryArtifact(sharedOpaqueSubdirectory.Path, sharedOpaqueSubdirectory.PartialSealId + 1, isSharedOpaque: true)]),
                     orderDependencies: ReadOnlyArray<PipId>.Empty,
                     untrackedPaths: ReadOnlyArray<AbsolutePath>.From(untrackedPaths),
@@ -3831,21 +3899,36 @@ namespace Test.BuildXL.Processes.Detours
                     semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
                     provenance: PipProvenance.CreateDummy(context),
                     toolDescription: StringId.Invalid,
-                    additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
+                    additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
+                    options: incremental ? Process.Options.IncrementalTool | Process.Options.AllowPreserveOutputs : Process.Options.None);
 
                 var sandboxConfiguration = new SandboxConfiguration
                 {
                     FileAccessIgnoreCodeCoverage = true,
-                    NormalizeReadTimestamps = normalize
+                    NormalizeReadTimestamps = normalize,
+                    FailUnexpectedFileAccesses = !experimentalSharedOpaqueTracking,
+                    ExperimentalSharedOpaqueTracking = experimentalSharedOpaqueTracking,
                 };
 
-                sandboxConfiguration.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = true;
+                if (incremental)
+                {
+                    sandboxConfiguration.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
+                }
+
                 await AssertProcessSucceedsAsync(
                     context,
                     sandboxConfiguration,
                     pip,
                     // There is no file content manager available, we need to manually tell which files belong to the shared opaque
-                    directoryArtifactContext: new TestDirectoryArtifactContext([dynamicInputInSharedOpaque1, dynamicInputInSharedOpaque2, dynamicInputInSharedOpaque3]));
+                    directoryArtifactContext: new TestDirectoryArtifactContext(SealDirectoryKind.SharedOpaque,
+                        [
+                            dynamicInputInSharedOpaque1,
+                            dynamicInputInSharedOpaque2,
+                            dynamicInputInSharedOpaque3,
+                            dynamicInputInInputOnlySharedOpaque,
+                            oldInputInNestedSharedOpaque,
+                            dynamicInputInNestedSharedOpaque,
+                        ]));
             }
         }
 

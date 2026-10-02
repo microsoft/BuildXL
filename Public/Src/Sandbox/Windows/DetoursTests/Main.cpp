@@ -1831,6 +1831,7 @@ int main(int argc, char** argv)
 
     IF_COMMAND(ReadExclusive);
     IF_COMMAND(TimestampsNoNormalize);
+    IF_COMMAND(TimestampsForIncrementalTool);
     IF_COMMAND(TimestampsNormalize);
     IF_COMMAND(ShortNames);
 

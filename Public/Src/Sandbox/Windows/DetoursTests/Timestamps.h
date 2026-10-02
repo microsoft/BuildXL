@@ -4,4 +4,5 @@
 #pragma once
 
 int TimestampsNoNormalize();
+int TimestampsForIncrementalTool();
 int TimestampsNormalize();

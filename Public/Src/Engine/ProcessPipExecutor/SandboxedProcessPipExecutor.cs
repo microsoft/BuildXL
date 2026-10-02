@@ -2587,9 +2587,59 @@ namespace BuildXL.ProcessPipExecutor
                     }
                 }
 
-                using (var wrapper = Pools.GetAbsolutePathSet())
+                // With experimental shared opaque tracking enabled, shared opaque inputs are
+                // normally represented by a single directory-scope FAM entry instead of one
+                // entry per member. Overlap with a shared opaque output requires additional
+                // care because the input and output policies differ:
+                //
+                //   - Known input members must retain input semantics: normalized timestamps and,
+                //     unless double writes are allowed, no write access.
+                //   - Paths newly created by the process must retain output semantics, including
+                //     real timestamps and write access.
+                //
+                // A directory scope alone cannot distinguish an existing input member from a new
+                // output in the same directory. The required FAM representation depends on the
+                // relationship between the input and output shared opaque directories:
+                //
+                //   1. No overlap:
+                //      Add only the input directory scope. Do NOT add individual input members
+                //      to the FAM.
+                //
+                //   2. The input contains an output:
+                //      Add the input directory scope and add exact-path FAM entries for the known
+                //      input members beneath the nested output directory. Do NOT add members
+                //      outside the input/output intersection. The exact entries restore input
+                //      semantics inside the output scope, while unlisted paths retain output
+                //      semantics and can become new outputs.
+                //
+                //   3. An output contains the input, or both have the same root:
+                //      Add exact-path FAM entries for every known member of the input directory,
+                //      because the entire input is within the output scope. Do not let the input
+                //      directory scope mask the enclosing output policy. The exact entries give
+                //      known members input semantics, while unlisted paths retain output
+                //      semantics and can become new outputs.
+                //
+                // Consequently, scenarios 2 and 3 require adding shared opaque directory members
+                // to the FAM; scenario 1 does not. Even in scenario 2, only members in the
+                // input/output intersection are added.
+                //
+                // To detect both overlap directions efficiently, sharedOpaqueOutputDirectories
+                // answers whether an output root is an ancestor of an input root, while
+                // sharedOpaqueOutputAncestors answers whether an input root is an ancestor of,
+                // or equal to, an output root.
+                //
+                // For NoFakeTimestamp pips, the timestamp distinction is intentionally disabled,
+                // so the caller skips timestamp-driven member expansion. Exact member entries also
+                // refine write access, so timestamp and write-enforcement requirements must be
+                // considered independently when changing this gating.
+                using (var outputDirectoriesWrapper = Pools.GetAbsolutePathSet())
+                using (var sharedOpaqueOutputDirectoriesWrapper = Pools.GetAbsolutePathAncestorChecker())
+                using (var sharedOpaqueOutputAncestorsWrapper = Pools.GetAbsolutePathSet())
                 {
-                    HashSet<AbsolutePath> outputDirectories = wrapper.Instance;
+                    HashSet<AbsolutePath> outputDirectories = outputDirectoriesWrapper.Instance;
+                    AbsolutePathAncestorChecker sharedOpaqueOutputDirectories = sharedOpaqueOutputDirectoriesWrapper.Instance;
+                    HashSet<AbsolutePath> sharedOpaqueOutputAncestors = sharedOpaqueOutputAncestorsWrapper.Instance;
+                    bool experimentalSharedOpaqueTracking = m_sandboxConfig.ExperimentalSharedOpaqueTracking;
 
                     foreach (DirectoryArtifact directory in pip.DirectoryOutputs)
                     {
@@ -2602,6 +2652,7 @@ namespace BuildXL.ProcessPipExecutor
                         var values =
                             // If under an exclusion, only allow reads. Otherwise all operations are allowed.
                             (isUnderAnExclusion ? FileAccessPolicy.AllowReadAlways : FileAccessPolicy.AllowAll)
+                            // Outputs must retain their real timestamps.
                             | FileAccessPolicy.AllowRealInputTimestamps
                             // For shared opaques, we need to know the (write) accesses that occurred, since we determine file ownership based on that.
                             | (directory.IsSharedOpaque ? FileAccessPolicy.ReportAccess : FileAccessPolicy.Deny)
@@ -2624,6 +2675,19 @@ namespace BuildXL.ProcessPipExecutor
                         AllowCreateDirectoryForDirectoriesOnPath(directoryPath, processedPaths);
 
                         outputDirectories.Add(directoryPath);
+                        if (directory.IsSharedOpaque)
+                        {
+                            sharedOpaqueOutputDirectories.AddPath(directoryPath);
+                            if (experimentalSharedOpaqueTracking)
+                            {
+                                // Index output ancestors once instead of scanning every output for each input directory.
+                                var ancestor = directoryPath;
+                                while (ancestor.IsValid && sharedOpaqueOutputAncestors.Add(ancestor))
+                                {
+                                    ancestor = ancestor.GetParent(m_pathTable);
+                                }
+                            }
+                        }
                     }
 
                     // Directory artifact dependencies are supposed to be immutable. Therefore it is never okay to write, but it is safe to probe for non-existent files
@@ -2631,10 +2695,33 @@ namespace BuildXL.ProcessPipExecutor
                     // failed probes can be used by the scheduler (rather than fingerprinting the precise directory contents).
                     foreach (DirectoryArtifact directory in pip.DirectoryDependencies)
                     {
+                        bool isWithinSharedOpaqueOutput = directory.IsSharedOpaque
+                            && sharedOpaqueOutputDirectories.HasKnownAncestor(m_pathTable, directory.Path);
+
                         if (directory.IsSharedOpaque)
                         {
-                            // All members of the shared opaque need to be added to the manifest explicitly so timestamp faking happens for them.
-                            AddSharedOpaqueInputContentToManifest(directory, allInputPathsUnderSharedOpaques, untrackedPaths, untrackedScopesChecker);
+                            if (!experimentalSharedOpaqueTracking)
+                            {
+                                // All members of the shared opaque need to be added to the manifest explicitly so timestamp faking happens for them.
+                                AddSharedOpaqueInputContentToManifest(directory, allInputPathsUnderSharedOpaques, untrackedPaths, untrackedScopesChecker);
+                            }
+                            else if (!NoFakeTimestamp
+                                && (isWithinSharedOpaqueOutput || sharedOpaqueOutputAncestors.Contains(directory.Path)))
+                            {
+                                // Output scopes allow real timestamps. Add only existing shared opaque members beneath those scopes
+                                // so prior-pip inputs remain normalized while files created by this pip retain output timestamps.
+                                AddSharedOpaqueInputContentToManifest(
+                                    directory,
+                                    allInputPathsUnderSharedOpaques,
+                                    untrackedPaths,
+                                    untrackedScopesChecker,
+                                    includedScopesFilter: sharedOpaqueOutputDirectories);
+                            }
+
+                            // With no overlapping output, the input scope below normalizes all input timestamps
+                            // without individual member entries. Accesses are still reported and validated against
+                            // the declared directory contents after execution. Incremental preserve-output tools
+                            // require real timestamps and do not need member entries for timestamp normalization.
                         }
 
                         // If this directory dependency is also a directory output, then we don't set any additional policy, i.e.,
@@ -2642,7 +2729,9 @@ namespace BuildXL.ProcessPipExecutor
                         if (!outputDirectories.Contains(directory.Path))
                         {
                             // Directories here represent inputs, we want to apply the timestamp faking logic
-                            var mask = DefaultMask;
+                            // An input nested inside an output must not normalize newly produced files in that cone.
+                            // Known input members have individual policies above; leave the inherited output scope intact.
+                            var mask = isWithinSharedOpaqueOutput ? FileAccessPolicy.MaskNothing : DefaultMask;
                             // Allow read accesses and reporting. Reporting is needed since these may be dynamic accesses and we need to cross check them
                             var values = FileAccessPolicy.AllowReadIfNonexistent | FileAccessPolicy.AllowRead | FileAccessPolicy.ReportAccess;
 
@@ -2797,11 +2886,20 @@ namespace BuildXL.ProcessPipExecutor
             return AbsolutePath.Invalid;
         }
 
+        /// <summary>
+        /// Adds known shared opaque input members to the file access manifest, optionally restricting them to selected scopes.
+        /// </summary>
+        /// <param name="directory">The shared opaque directory whose members should be considered.</param>
+        /// <param name="allInputPathsUnderSharedOpaques">Receives the included input paths for later policy handling.</param>
+        /// <param name="untrackedPaths">Paths that are already represented by untracked manifest policies.</param>
+        /// <param name="untrackedScopeChecker">Identifies paths already covered by untracked scopes.</param>
+        /// <param name="includedScopesFilter">When provided, only members beneath these scopes are included.</param>
         private void AddSharedOpaqueInputContentToManifest(
             DirectoryArtifact directory,
             HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
             HashSet<AbsolutePath> untrackedPaths,
-            AbsolutePathAncestorChecker untrackedScopeChecker)
+            AbsolutePathAncestorChecker untrackedScopeChecker,
+            AbsolutePathAncestorChecker includedScopesFilter = null)
         {
             var content = m_directoryArtifactContext.ListSharedOpaqueDirectoryContents(directory, out var temporaryMemberIndexes);
             using var inputFilesWrapper = Pools.GetAbsolutePathList();
@@ -2821,6 +2919,11 @@ namespace BuildXL.ProcessPipExecutor
                 }
 
                 var fileArtifact = content[contentIndex];
+
+                if (includedScopesFilter != null && !includedScopesFilter.HasKnownAncestor(m_pathTable, fileArtifact.Path))
+                {
+                    continue;
+                }
 
                 // If the shared opaque input is an untracked path of this pip, or is under an untracked scope, then we don't add it
                 // since we already added untracked artifacts and this operation will change the appropriate untracked masks & values

@@ -51,7 +51,8 @@ namespace BuildXL.Pips.Graph
             usingEBPFSandbox: false,
             linuxFingerprintingVersion: LinuxFingerprintingVersion.Version,
             // This matches the unsafe default
-            treatStatAsProbe: true);
+            treatStatAsProbe: true,
+            experimentalSharedOpaqueTracking: false);
 
         /// <summary>
         /// Returns a default value for this struct.
@@ -103,7 +104,8 @@ namespace BuildXL.Pips.Graph
                 OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty,
                 OperatingSystemHelper.IsLinuxOS && config.Sandbox.EnableEBPFLinuxSandbox,
                 LinuxFingerprintingVersion.Version,
-                config.Sandbox.UnsafeSandboxConfiguration.TreatStatAsProbe
+                config.Sandbox.UnsafeSandboxConfiguration.TreatStatAsProbe,
+                config.Sandbox.ExperimentalSharedOpaqueTracking
             )
         {
         }
@@ -152,6 +154,7 @@ namespace BuildXL.Pips.Graph
         /// <param name="usingEBPFSandbox">Whether the EBPF sandbox is being used (on Linux)</param>
         /// <param name="linuxFingerprintingVersion">Version for Linux-specific breaking changes in pip fingerprinting</param>
         /// <param name="treatStatAsProbe">Whether /unsafe_treatStatAsProbe was passed to BuildXL.</param>
+        /// <param name="experimentalSharedOpaqueTracking">Whether /experimentalSharedOpaqueTracking was passed to BuildXL.</param>
         public ExtraFingerprintSalts(
             bool ignoreSetFileInformationByHandle,
             bool ignoreZwRenameFileInformation,
@@ -181,7 +184,8 @@ namespace BuildXL.Pips.Graph
             string linuxOSName,
             bool usingEBPFSandbox,
             LinuxFingerprintingVersion linuxFingerprintingVersion,
-            bool treatStatAsProbe)
+            bool treatStatAsProbe,
+            bool experimentalSharedOpaqueTracking)
         {
             IgnoreSetFileInformationByHandle = ignoreSetFileInformationByHandle;
             IgnoreZwRenameFileInformation = ignoreZwRenameFileInformation;
@@ -213,6 +217,7 @@ namespace BuildXL.Pips.Graph
             UsingEBPFSandbox = usingEBPFSandbox;
             LinuxFingerprintingVersion = linuxFingerprintingVersion;
             TreatStatAsProbe = treatStatAsProbe;
+            ExperimentalSharedOpaqueTracking = experimentalSharedOpaqueTracking;
         }
 #pragma warning restore CS1572
 
@@ -369,6 +374,11 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         public bool TreatStatAsProbe { get; }
 
+        /// <summary>
+        /// Whether experimental shared opaque tracking is enabled.
+        /// </summary>
+        public bool ExperimentalSharedOpaqueTracking { get; }
+
         /// <nodoc />
         public static bool operator ==(ExtraFingerprintSalts left, ExtraFingerprintSalts right)
         {
@@ -418,7 +428,8 @@ namespace BuildXL.Pips.Graph
                 && string.Equals(LinuxOSName, other.LinuxOSName)
                 && UsingEBPFSandbox == other.UsingEBPFSandbox
                 && LinuxFingerprintingVersion == other.LinuxFingerprintingVersion
-                && TreatStatAsProbe == other.TreatStatAsProbe;
+                && TreatStatAsProbe == other.TreatStatAsProbe
+                && ExperimentalSharedOpaqueTracking == other.ExperimentalSharedOpaqueTracking;
         }
 
         /// <inheritdoc />
@@ -463,6 +474,7 @@ namespace BuildXL.Pips.Graph
                 // This is an unsafe flag with an unsafe default. Only change the hash code if the flag is explicitly set to false,
                 // which is the safe value, to avoid unnecessary cache misses.
                 hashCode = (hashCode * 397) ^ (TreatStatAsProbe ? 0 : 1).GetHashCode();
+                hashCode = (hashCode * 397) ^ ExperimentalSharedOpaqueTracking.GetHashCode();
 
                 return hashCode;
             }
@@ -562,6 +574,11 @@ namespace BuildXL.Pips.Graph
             if (OperatingSystemHelper.IsLinuxOS && !TreatStatAsProbe)
             {
                 fingerprinter.Add(nameof(TreatStatAsProbe), 1);
+            }
+
+            if (ExperimentalSharedOpaqueTracking)
+            {
+                fingerprinter.Add(nameof(ExperimentalSharedOpaqueTracking), 1);
             }
         }
 

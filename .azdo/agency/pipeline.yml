@@ -1,0 +1,18 @@
+trigger: none
+pr: none
+
+resources:
+  repositories:
+  - repository: 1esPipelines
+    type: git
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
+
+extends:
+  template: v1/1ES.Agency.PipelineTemplate.yml@1esPipelines
+  parameters:
+    pool:
+      # Use the explicit-pool path so the Agency template requests the repository's AutoManagedVHD.
+      name: Agency-Prod-Default
+      os: windows
+    agentContextRoot: $(Build.SourcesDirectory)

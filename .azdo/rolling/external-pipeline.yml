@@ -1,0 +1,13 @@
+trigger: none
+pr: none
+
+pool:
+  name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+  os: windows
+  demands:
+  - ImageOverride -equals 1ESPT-Win2022-PME-3
+
+steps:
+- checkout: none
+- powershell: Write-Host "Hello world"
+  displayName: Hello world

@@ -844,7 +844,7 @@ namespace BuildXL.Storage
 
                         // ConcurrentBigSet (and thus ConcurrentBigMap) has int.MaxValue maximum entries. Validate that here instead
                         // potentially blowing up in a less obvious place. As of early 2026, the largest existing FileContentTables are
-                        // around 200k entries, so only an order of magnitude off unfortunately.
+                        // around 200 million entries, so only an order of magnitude off unfortunately.
                         if (numberOfEntries > int.MaxValue)
                         {
                             return LoadResult.InvalidFormat(fileContentTablePath, "Number of entries is too large", sw.ElapsedMilliseconds);
@@ -887,7 +887,10 @@ namespace BuildXL.Storage
                             uint chunkGlobalOffset = globalOffset;
                             Parallel.For(0,
                                 entriesToRead,
-                                new ParallelOptions() { MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount, 8) },
+                                new ParallelOptions()
+                                {
+                                    MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount, 8),
+                                },
                                 (i) =>
                                 {
                                     if (Volatile.Read(ref invalidFormatMessage) != null)
@@ -940,10 +943,9 @@ namespace BuildXL.Storage
                         // Bulk-build the ConcurrentBigMap using UnsafeAddItems (no per-item locking).
                         var loadedTable = new FileContentTable(
                             loggingContext,
-                            entries: ConcurrentBigMap<FileIdAndVolumeId, Entry>.Create(
-                                capacity: (int)numberOfEntries,
-                                items: parsedItems,
-                                checkExistingItem: false));
+                            entries: ConcurrentBigMap<FileIdAndVolumeId, Entry>.CreateFromUniqueItems(
+                                parsedItems,
+                                capacity: (int)numberOfEntries));
 
                         loadedTable.Counters.AddToCounter(FileContentTableCounters.NumEntries, loadedTable.Count);
                         loadedTable.Counters.AddToCounter(FileContentTableCounters.LoadDuration, sw.Elapsed);
@@ -1072,6 +1074,52 @@ namespace BuildXL.Storage
                         FileEnvelopeId correlationId = FileEnvelopeId.Create();
                         s_fileEnvelope.WriteHeader(stream, correlationId);
 
+                        // .NET Core uses span-based serializers to batch fixed-size records and avoid per-field stream writes.
+                        // Legacy targets retain the BuildXLWriter-based implementation because those span APIs are unavailable.
+#if NETCOREAPP
+                        long numberOfEntriesPosition = stream.Position;
+                        Span<byte> entryCountBuffer = stackalloc byte[sizeof(uint)];
+                        stream.Write(entryCountBuffer);
+
+                        uint entriesWritten = 0;
+                        int serializedEntrySize = FileIdAndVolumeId.SerializedByteLength
+                            + Entry.GetSerializedByteLength(ContentHashingUtilities.HashInfo.ByteLength);
+                        // Benchmarking up to 4 MiB showed no benefit from using a buffer larger than 64 KiB.
+                        var serializationBuffer = new byte[64 * 1024];
+                        int serializationBufferOffset = 0;
+
+                        foreach (var fileAndEntryPair in m_entries)
+                        {
+                            // Skip saving anything with a TTL of zero. These entries were loaded
+                            // with a TTL of one (immediately decremented) and were not used since load.
+                            // See class remarks.
+                            if (fileAndEntryPair.Value.TimeToLive == 0)
+                            {
+                                numEvicted++;
+                                continue;
+                            }
+
+                            if (serializationBuffer.Length - serializationBufferOffset < serializedEntrySize)
+                            {
+                                stream.Write(serializationBuffer, 0, serializationBufferOffset);
+                                serializationBufferOffset = 0;
+                            }
+
+                            fileAndEntryPair.Key.Serialize(
+                                serializationBuffer.AsSpan(serializationBufferOffset, FileIdAndVolumeId.SerializedByteLength));
+                            serializationBufferOffset += FileIdAndVolumeId.SerializedByteLength;
+                            fileAndEntryPair.Value.Serialize(serializationBuffer, ref serializationBufferOffset);
+                            entriesWritten++;
+                        }
+
+                        stream.Write(serializationBuffer, 0, serializationBufferOffset);
+
+                        long endPosition = stream.Position;
+                        stream.Position = numberOfEntriesPosition;
+                        BinaryPrimitives.WriteUInt32LittleEndian(entryCountBuffer, entriesWritten);
+                        stream.Write(entryCountBuffer);
+                        stream.Position = endPosition;
+#else
                         using (var writer = new BuildXLWriter(debug: false, stream: stream, leaveOpen: true, logStats: false))
                         {
                             long numberOfEntriesPosition = writer.BaseStream.Position;
@@ -1105,6 +1153,7 @@ namespace BuildXL.Storage
                             writer.Write(entriesWritten);
                             writer.BaseStream.Position = endPosition;
                         }
+#endif
 
                         s_fileEnvelope.FixUpHeader(stream, correlationId);
                     }
@@ -1195,6 +1244,29 @@ namespace BuildXL.Storage
             }
 
 #if NETCOREAPP
+            /// <summary>
+            /// Serializes this entry into <paramref name="destination"/> and advances <paramref name="offset"/>.
+            /// </summary>
+            /// <remarks>
+            /// The caller must ensure that <paramref name="destination"/> has at least
+            /// <c>GetSerializedByteLength(ContentHashingUtilities.HashInfo.ByteLength)</c> bytes available
+            /// starting at <paramref name="offset"/>.
+            /// </remarks>
+            public void Serialize(byte[] destination, ref int offset)
+            {
+                BinaryPrimitives.WriteUInt64LittleEndian(destination.AsSpan(offset), Usn.Value);
+                offset += sizeof(ulong);
+
+                Hash.ToFixedBytes().Serialize(destination, ContentHashingUtilities.HashInfo.ByteLength, offset);
+                offset += ContentHashingUtilities.HashInfo.ByteLength;
+
+                BinaryPrimitives.WriteInt64LittleEndian(destination.AsSpan(offset), Length);
+                offset += sizeof(long);
+
+                BinaryPrimitives.WriteUInt16LittleEndian(destination.AsSpan(offset), TimeToLive);
+                offset += sizeof(ushort);
+            }
+
             /// <summary>
             /// Deserializes an <see cref="Entry"/> from <paramref name="source"/>.
             /// Returns null on success, or an error message if the data is invalid.

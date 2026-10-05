@@ -181,6 +181,32 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
+        public void TestCreateFromUniqueItems()
+        {
+            const int Length = 10_000;
+            var items = Enumerable.Range(0, Length)
+                .Select(i => new KeyValuePair<int, int>(i, i * 2))
+                .ToArray();
+
+            var map = ConcurrentBigMap<int, int>.CreateFromUniqueItems(
+                items,
+                keyComparer: new CollidingIntComparer(),
+                maxDegreeOfParallelism: 2);
+
+            XAssert.AreEqual(Length, map.Count);
+            for (int i = 0; i < Length; i++)
+            {
+                XAssert.IsTrue(map.TryGetValue(i, out int value));
+                XAssert.AreEqual(i * 2, value);
+            }
+
+            Assert.Equal(Enumerable.Range(0, Length), map.Keys.OrderBy(key => key));
+            XAssert.IsTrue(map.TryRemove(Length / 2, out int removedValue));
+            XAssert.AreEqual(Length, removedValue);
+            XAssert.IsTrue(map.TryAdd(Length, Length * 2));
+        }
+
+        [Fact]
         public void TestRemoveWhileEnumerateSingleThread()
         {
             const int Length = 10_000;
@@ -218,6 +244,13 @@ namespace Test.BuildXL.Utilities
                     action(i);
                 }
             }
+        }
+
+        private sealed class CollidingIntComparer : IEqualityComparer<int>
+        {
+            public bool Equals(int x, int y) => x == y;
+
+            public int GetHashCode(int obj) => obj % 16;
         }
     }
 }

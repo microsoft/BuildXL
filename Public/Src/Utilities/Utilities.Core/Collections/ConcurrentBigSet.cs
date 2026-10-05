@@ -156,6 +156,78 @@ namespace BuildXL.Utilities.Collections
             Contract.Requires(ratio >= 1);
         }
 
+        /// <summary>
+        /// Creates a set directly from a list of unique items.
+        /// </summary>
+        /// <remarks>
+        /// This method avoids per-item synchronization and duplicate checks. The caller must guarantee that
+        /// <paramref name="items"/> contains unique values according to <paramref name="comparer"/>. Subsequent
+        /// operations must use equality semantics compatible with <paramref name="comparer"/>.
+        /// </remarks>
+        /// <param name="items">List of unique items to insert.</param>
+        /// <param name="concurrencyLevel">Concurrency level for subsequent set operations.</param>
+        /// <param name="capacity">Initial bucket capacity.</param>
+        /// <param name="ratio">Desired ratio of items to buckets.</param>
+        /// <param name="comparer">Comparer used to hash the initial items.</param>
+        /// <param name="maxDegreeOfParallelism">Maximum parallelism for hashing and populating item and node slots.</param>
+        public static ConcurrentBigSet<TItem> CreateFromUniqueItems(
+            IReadOnlyList<TItem> items,
+            int concurrencyLevel = DefaultConcurrencyLevel,
+            int capacity = DefaultCapacity,
+            int ratio = DefaultBucketToItemsRatio,
+            IEqualityComparer<TItem> comparer = null,
+            int maxDegreeOfParallelism = 4)
+        {
+            Contract.RequiresNotNull(items);
+            Contract.Requires(ratio >= 1);
+            Contract.Requires(maxDegreeOfParallelism > 0);
+
+            comparer = comparer ?? EqualityComparer<TItem>.Default;
+            int requiredCapacity = checked((int)(((long)items.Count + ratio - 1) / ratio));
+            var result = new ConcurrentBigSet<TItem>(
+                concurrencyLevel: concurrencyLevel,
+                capacity: Math.Max(capacity, requiredCapacity),
+                ratio: ratio);
+
+            result.m_nodes.InitializeEagerly(items.Count);
+            result.m_items.InitializeEagerly(items.Count);
+
+            // Populate distinct item and node slots in parallel. Each worker needs its own accessors because
+            // they cache the last BigBuffer page they touched.
+            Parallel.For(
+                0,
+                items.Count,
+                new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount, maxDegreeOfParallelism),
+                },
+                () => new Accessors(result),
+                (nodeIndex, _, accessors) =>
+                {
+                    TItem item = items[nodeIndex];
+                    int bucketHashCode = GetBucketHashCode(comparer.GetHashCode(item));
+                    SetItemNode(nodeIndex, bucketHashCode, next: -1, item, ref accessors);
+                    return accessors;
+                },
+                _ => { });
+
+            // Bucket heads are shared, so link the collision chains sequentially after hashing and copying items.
+            Accessors accessors = result.m_accessors;
+            for (int nodeIndex = 0; nodeIndex < items.Count; nodeIndex++)
+            {
+                int bucketHashCode = accessors.Nodes[nodeIndex].Hashcode;
+                int bucketNo = result.m_buckets.GetBucketNo(bucketHashCode);
+                int headNodeIndex = result.m_buckets[bucketNo];
+
+                accessors.Nodes[nodeIndex] = new Node(bucketHashCode, headNodeIndex);
+                result.m_buckets[bucketNo] = nodeIndex;
+            }
+
+            result.m_nodeLength = items.Count;
+            result.m_count = items.Count;
+            return result;
+        }
+
         private ConcurrentBigSet(
             int concurrencyLevel,
             BigBuffer<TItem> backingItemsBuffer,

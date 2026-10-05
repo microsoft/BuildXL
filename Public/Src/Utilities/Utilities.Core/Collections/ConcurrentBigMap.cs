@@ -89,10 +89,55 @@ namespace BuildXL.Utilities.Collections
             var result = new ConcurrentBigMap<TKey, TValue>(concurrencyLevel: concurrencyLevel, capacity: capacity, ratio: ratio, keyComparer: keyComparer, valueComparer: valueComparer);
             if (items != null)
             {
-                result.BackingSet.UnsafeAddItems(items.Select(item => result.CreateKeyValuePendingItem(item.Key, item.Value)), checkExistingItem: checkExistingItem);
+                result.BackingSet.UnsafeAddItems(
+                    items.Select(item => result.CreateKeyValuePendingItem(item.Key, item.Value)),
+                    checkExistingItem: checkExistingItem);
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Creates a map directly from a list of unique items.
+        /// </summary>
+        /// <remarks>
+        /// This method avoids per-item synchronization and duplicate checks. The caller must guarantee that
+        /// <paramref name="items"/> contains unique keys and that the returned map is not observed until construction completes.
+        /// </remarks>
+        /// <param name="items">List of items with unique keys to insert.</param>
+        /// <param name="concurrencyLevel">Concurrency level for subsequent map operations.</param>
+        /// <param name="capacity">Initial bucket capacity.</param>
+        /// <param name="ratio">Desired ratio of items to buckets.</param>
+        /// <param name="keyComparer">Comparer for keys.</param>
+        /// <param name="valueComparer">Comparer for values used in compare-exchange operations.</param>
+        /// <param name="maxDegreeOfParallelism">
+        /// Maximum parallelism for hashing and populating item and node slots. Bucket-chain linking remains sequential.
+        /// In measurements, the parallel phase duration scaled approximately with the inverse square root of this value:
+        /// doubling parallelism reduced duration by roughly 15-40%, rather than by half, while increasing total CPU consumption.
+        /// The default of 4 limits interference with concurrent work while retaining some latency benefit.
+        /// </param>
+        public static ConcurrentBigMap<TKey, TValue> CreateFromUniqueItems(
+            IReadOnlyList<KeyValuePair<TKey, TValue>> items,
+            int concurrencyLevel = ConcurrentBigSet<KeyValuePair<TKey, TValue>>.DefaultConcurrencyLevel,
+            int capacity = ConcurrentBigSet<KeyValuePair<TKey, TValue>>.DefaultCapacity,
+            int ratio = ConcurrentBigSet<KeyValuePair<TKey, TValue>>.DefaultBucketToItemsRatio,
+            IEqualityComparer<TKey> keyComparer = null,
+            IEqualityComparer<TValue> valueComparer = null,
+            int maxDegreeOfParallelism = 4)
+        {
+            Contract.RequiresNotNull(items);
+            Contract.Requires(maxDegreeOfParallelism > 0);
+            Contract.Requires(ratio >= 1);
+
+            keyComparer = keyComparer ?? EqualityComparer<TKey>.Default;
+            var backingSet = ConcurrentBigSet<KeyValuePair<TKey, TValue>>.CreateFromUniqueItems(
+                items,
+                concurrencyLevel: concurrencyLevel,
+                capacity: capacity,
+                ratio: ratio,
+                comparer: new Comparer(keyComparer),
+                maxDegreeOfParallelism: maxDegreeOfParallelism);
+            return new ConcurrentBigMap<TKey, TValue>(backingSet, keyComparer, valueComparer);
         }
 
         /// <summary>

@@ -205,7 +205,25 @@ namespace BuildXL.Utilities.Collections
                 }
             }
         }
-        
+
+        /// <summary>
+        /// Ensures that the buffer has the given capacity and materializes the pages needed for that capacity.
+        /// </summary>
+        internal int InitializeEagerly(int minimumCapacity)
+        {
+            Contract.Assert(m_capacity == 0);
+
+            int capacity = Initialize(minimumCapacity);
+            int bufferCount = minimumCapacity == 0
+                ? 0
+                : ((minimumCapacity - 1) >> m_entriesPerBufferBitWidth) + 1;
+            Parallel.For(
+                0,
+                bufferCount,
+                bufferNumber => _ = m_entryBuffers[bufferNumber].Value);
+            return capacity;
+        }
+
         private void InternalInitializeToNewCapacity(int newCapacity, BufferInitializer? initializer, bool initializeSequentially)
         {
             Resize(newCapacity / m_entriesPerBuffer);

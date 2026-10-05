@@ -30,6 +30,30 @@ namespace Test.BuildXL.Utilities
             TestOperationsHelper(parallel: true);
         }
 
+        [Fact]
+        public void TestCreateFromUniqueItems()
+        {
+            const int Length = 10_000;
+            var items = new int[Length];
+            for (int i = 0; i < items.Length; i++)
+            {
+                items[i] = i;
+            }
+
+            var set = ConcurrentBigSet<int>.CreateFromUniqueItems(items, maxDegreeOfParallelism: 2);
+
+            XAssert.AreEqual(Length, set.Count);
+            for (int i = 0; i < Length; i++)
+            {
+                XAssert.AreEqual(i, set[i]);
+                XAssert.IsTrue(set.Contains(i));
+            }
+
+            XAssert.IsTrue(set.Remove(Length / 2).IsFound);
+            XAssert.IsFalse(set.Contains(Length / 2));
+            XAssert.IsFalse(set.GetOrAdd(Length).IsFound);
+        }
+
         private static void TestOperationsHelper(bool parallel)
         {
             var set = new ConcurrentBigSet<int>();

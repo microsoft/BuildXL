@@ -238,46 +238,25 @@ namespace Test.BuildXL.Scheduler.DynamicGraph
                 global::BuildXL.Pips.Operations.SealDirectoryKind.Opaque);
         }
 
-        [Theory(Skip = "The inherited theory includes a shared opaque scenario, which is unsupported by the dynamic scheduler.")]
+        [Theory(Skip = "Output-directory existence assertions are unsupported by the dynamic scheduler.")]
         public override void OutputExistenceAssertionsUnderOpaqueConsumptionBehavior(
             global::BuildXL.Pips.Operations.SealDirectoryKind kind)
         {
             base.OutputExistenceAssertionsUnderOpaqueConsumptionBehavior(kind);
         }
 
-        [Fact]
-        public void OutputExistenceAssertionsUnderExclusiveOpaqueConsumptionBehavior()
-        {
-            base.OutputExistenceAssertionsUnderOpaqueConsumptionBehavior(
-                global::BuildXL.Pips.Operations.SealDirectoryKind.Opaque);
-        }
-
-        [Theory(Skip = "The inherited theory includes a shared opaque scenario, which is unsupported by the dynamic scheduler.")]
+        [Theory(Skip = "Output-directory existence assertions are unsupported by the dynamic scheduler.")]
         public override void OutputExistenceAssertionsUnderOpaqueIsValidated(
             global::BuildXL.Pips.Operations.SealDirectoryKind kind)
         {
             base.OutputExistenceAssertionsUnderOpaqueIsValidated(kind);
         }
 
-        [Fact]
-        public void OutputExistenceAssertionsUnderExclusiveOpaqueAreValidated()
-        {
-            base.OutputExistenceAssertionsUnderOpaqueIsValidated(
-                global::BuildXL.Pips.Operations.SealDirectoryKind.Opaque);
-        }
-
-        [Theory(Skip = "The inherited theory includes a shared opaque scenario, which is unsupported by the dynamic scheduler.")]
+        [Theory(Skip = "Output-directory existence assertions are unsupported by the dynamic scheduler.")]
         public override void OutputExistenceAssertionsUnderOpaqueCachingBehavior(
             global::BuildXL.Pips.Operations.SealDirectoryKind kind)
         {
             base.OutputExistenceAssertionsUnderOpaqueCachingBehavior(kind);
-        }
-
-        [Fact]
-        public void OutputExistenceAssertionsUnderExclusiveOpaqueCachingBehavior()
-        {
-            base.OutputExistenceAssertionsUnderOpaqueCachingBehavior(
-                global::BuildXL.Pips.Operations.SealDirectoryKind.Opaque);
         }
     }
 

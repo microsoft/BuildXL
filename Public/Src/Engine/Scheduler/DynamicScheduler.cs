@@ -6338,11 +6338,28 @@ namespace BuildXL.Scheduler
                     servicePipKind == ServicePipKind.None,
                     $"Service-related pip '{pipId}' with kind '{servicePipKind}' is unsupported in dynamic graph mode.");
 
+                AddPipArtifactsToFileSystemView(PipGraph.GetPipFromPipId(pipId));
                 await PrioritizeAndScheduleAsync(loggingContext, pipId.ToNodeId());
             }
 
             // No additional work can be admitted after the graph signals completion.
             PipQueue.SetAsFinalized();
+        }
+
+        private void AddPipArtifactsToFileSystemView(Pip pip)
+        {
+            bool addArtifact(FileOrDirectoryArtifact artifact)
+            {
+                State.FileSystemView.AddArtifact(artifact);
+                return true;
+            }
+
+            PipArtifacts.ForEachInput(pip, addArtifact, includeLazyInputs: true);
+            PipArtifacts.ForEachOutput(
+                pip,
+                addArtifact,
+                getExistenceAssertionsUnderOpaqueDirectory: _ => CollectionUtilities.EmptySet<FileArtifact>(),
+                includeUncacheable: true);
         }
 
 #if false

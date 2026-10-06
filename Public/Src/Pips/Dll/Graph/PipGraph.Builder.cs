@@ -2100,6 +2100,12 @@ namespace BuildXL.Pips.Graph
                 var producerPipId = producerPipResult.ToPipId();
                 var producerPip = PipTable.HydratePip(producerPipId, PipQueryContext.PipGraphIsValidOutputFileArtifactRewrite1);
 
+                if (m_configuration.Engine.UnsafeEnableDynamicGraph)
+                {
+                    LogDynamicGraphUnsupportedFeature(producerPip, "output-directory existence assertions");
+                    return false;
+                }
+
                 // We don't allow assertions on composite shared opaques
                 // TODO: this can be implemented in the future. Making the composite opaque the producer of the file is not a big deal but
                 // we need to accommodate this into the file monitoring violation analyzer to not flag this as a double write

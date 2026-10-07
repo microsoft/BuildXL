@@ -13,7 +13,7 @@ namespace Native.Extensions {
             Native.dll,
             Utilities.Core.dll,
             ...frameworkDlls,
-            importFrom("CopyOnWrite").pkg,
+            importFrom("Microsoft.CopyOnWrite").pkg,
         ],
     });
 }

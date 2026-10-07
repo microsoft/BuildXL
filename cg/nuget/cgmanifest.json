@@ -257,15 +257,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "CopyOnWrite",
-          "Version": "0.3.8"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Crc32.NET",
           "Version": "1.2.0"
         }
@@ -1060,6 +1051,15 @@
         "NuGet": {
           "Name": "Microsoft.Composition",
           "Version": "1.0.30"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.CopyOnWrite",
+          "Version": "0.5.1"
         }
       }
     },

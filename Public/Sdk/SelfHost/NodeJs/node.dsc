@@ -64,7 +64,7 @@ namespace Node {
         return Transformer.execute(execArgs);
     }
 
-    const nodeVersion = "v22.15.0";
+    const nodeVersion = "v24.21.0";
     const nodeWinDir = `node-${nodeVersion}-win-x64`;
     const nodeOsxDir = `node-${nodeVersion}-darwin-x64`;
     const nodeOsxArm64Dir = `node-${nodeVersion}-darwin-arm64`;

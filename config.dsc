@@ -520,26 +520,26 @@ config({
                 // NodeJs
                 {
                     moduleName: "NodeJs.win-x64",
-                    url: "https://nodejs.org/dist/v22.15.0/node-v22.15.0-win-x64.zip",
-                    hash: "VSO0:74978BAE2CEA5B33E144919A9EF1634067B213C7E78D822E43DB3048BF3DC8C200",
+                    url: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
+                    hash: "VSO0:822942606F0951EC547B40DACB4B4079832ECFF3A8173C875FA6C8F611137DD100",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "NodeJs.osx-x64",
-                    url: "https://nodejs.org/dist/v22.15.0/node-v22.15.0-darwin-x64.tar.gz",
-                    hash: "VSO0:9B190DBB92C6F576E178CAFD85C0156719CF65F8D39D7C83E4AB12FC132E269500",
+                    url: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-darwin-x64.tar.gz",
+                    hash: "VSO0:AE3B2A327128DFCCA575830366364C1B3509CADF16F3679BC09BBD12A8A2C09C00",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "NodeJs.osx-arm64",
-                    url: "https://nodejs.org/dist/v22.15.0/node-v22.15.0-darwin-arm64.tar.gz",
-                    hash: "VSO0:4224841EC9F595C9806C016ED1924B13262B456A137D37F156BD387ACACA746600",
+                    url: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-darwin-arm64.tar.gz",
+                    hash: "VSO0:569975677F42DC3ADD7861BE366F4BC6F88D31127748CB43D3C950DF7C6EEEC800",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "NodeJs.linux-x64",
-                    url: "https://nodejs.org/dist/v22.15.0/node-v22.15.0-linux-x64.tar.gz",
-                    hash: "VSO0:CBE67C4B307810EB6D62ED80DDD8F9146353BAE2E448B6A4359553384A19BA5000",
+                    url: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.gz",
+                    hash: "VSO0:300DDB7F0432522192E24904836CA48D5CFCE3710089D57FFB3F06228041F62A00",
                     archiveType: "tgz",
                 },
                 {

@@ -46,6 +46,8 @@ export const qTestTool: Transformer.ToolDefinition = {
       ? undefined
       : [
           f`/etc/keysinuse/keysinuse.cnf`,
+          // The 1ES network isolation proxy CA is agent infrastructure, not a QTest input.
+          f`/usr/local/share/ca-certificates/1es-network-isolation-proxy-ca.crt`,
           f`${Context.getUserHomeDirectory().path}/.dotnet/corefx/cryptography/x509stores/my/defaultcertificate.pfx`
         ],
     dependsOnWindowsDirectories: true,

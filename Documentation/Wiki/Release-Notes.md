@@ -2,6 +2,17 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20261004.1 (Release [32181494](https://dev.azure.com/mseng/Domino/_build/results?buildId=32181494&view=results))
+- [Performance] Add memory-mapped directed graphs (`/directedGraphMode:Legacy` rollback); keep CloudBuild on legacy graphs.
+- [Performance] Add opt-in shared opaque input-manifest optimization (`/experimentalSharedOpaqueTracking+`).
+- [Scheduler] Default Pip Usage ML to `HistoricDataUnavailable` when historical performance data cannot be loaded.
+- [gRPC] Enable the `Grpc.Net` ephemeral cache server by default.
+- [macOS] Publish native ARM64 BuildXL packages.
+- [Lage] Fix newline-delimited graph parsing and surface graph diagnostics as warnings.
+- [Cache] Fix file materialization deadlocks and QTest regex-cache hashing failures.
+- [Distribution] Improve graph-cache diagnostics and batch execution-log events into 1 MiB payloads.
+- Various bug fixes and improvements.
+
 # 0.1.0-20260928.1 (Release [32134766](https://dev.azure.com/mseng/Domino/_build/results?buildId=32134766&view=results))
 - [gRPC] Enable the `Grpc.Net` ephemeral cache server by default.
 - [macOS] Add native ARM64 BuildXL packages, rolling validation, and unit-test support.

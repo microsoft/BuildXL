@@ -78,6 +78,20 @@ namespace BuildXL.Engine
         private static readonly HashSet<string> s_relevantExtensionsWithPdb = BuildRelevantExtensions(includePdb: true);
         private static readonly HashSet<string> s_relevantExtensionsWithoutPdb = BuildRelevantExtensions(includePdb: false);
 
+        // SPMI cannot load its security models without these shared regex definitions.
+        // CODESYNC: Sarif.PatternMatcher package assets from the upstream SPMI definitions linked below.
+        private static readonly HashSet<string> s_spmiDataFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            // https://dev.azure.com/mseng/1ES/_git/Spmi?path=/src/Plugins/Security.Internal/Security.SharedStrings.Internal.txt
+            "Security.SharedStrings.Internal.txt",
+            // https://dev.azure.com/mseng/1ES/_git/Spmi?path=/src/Plugins/Security.Internal/Security.SharedStrings.Internal.MicrosoftOnly.txt
+            "Security.SharedStrings.Internal.MicrosoftOnly.txt",
+            // https://dev.azure.com/mseng/1ES/_git/Spmi?path=/src/Plugins/Security.PushProtection/Security.SharedStrings.PushProtection.txt
+            "Security.SharedStrings.PushProtection.txt",
+            // https://dev.azure.com/mseng/1ES/_git/Spmi?path=/src/Plugins/Security.PushProtection/Security.SharedStrings.PushProtection.MicrosoftOnly.txt
+            "Security.SharedStrings.PushProtection.MicrosoftOnly.txt",
+        };
+
         private AppDeployment(string deploymentBaseDir, List<string> fileNamesInDeployment, bool skipManifestCheckTestHook)
         {
             BaseDirectory = deploymentBaseDir;
@@ -146,7 +160,8 @@ namespace BuildXL.Engine
             {
                 string extension = Path.GetExtension(fileName);
                 if ((!string.IsNullOrEmpty(extension) && relevantExtensions.Contains(extension))
-                    || string.Equals(BuildXLBrandingManifestFileName, fileName, StringComparison.OrdinalIgnoreCase))
+                    || string.Equals(BuildXLBrandingManifestFileName, fileName, StringComparison.OrdinalIgnoreCase)
+                    || s_spmiDataFileNames.Contains(Path.GetFileName(NormalizePath(fileName))))
                 {
                     result.Add(fileName);
                 }

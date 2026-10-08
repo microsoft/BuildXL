@@ -491,6 +491,7 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--targetIdForTelemetry ", args.qTestTargetIdForTelemetry),
         Cmd.option("--targetIdForFlakyTestSuppression ", args.qTestTargetIdForFlakyTestSuppression),
         Cmd.option("--additionalQTestArgumentsFile ", Artifact.none(args.additionalQTestArgumentsFile)),
+        Cmd.option("--isSharedTestRun ", args.isSharedTestRun ? "true" : "false"),
         Cmd.flag("--waitForDebugger", args.waitForDebugger),
         Cmd.flag("--logging", args.logging),
         // The default is to upload test results to VSTS if the context info file is provided, so make sure we opt out 
@@ -867,6 +868,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestMsTestPlatformRootPathValue?: Path;
     /** Specifies the input directory containing vstest.console.exe.  May be different from qTestMsTestPlatformRootPathValue if, for instance, it is the root of a nuget package.  If qTestMsTestPlatformRootPathValue is set, then qTestMsTestPlatformRootPath should contain the path qTestMsTestPlatformRootPathValue. */
     qTestMsTestPlatformRootPath?: StaticDirectory;
+    /** Indicates whether the ado test run is shared across multiple test targets */
+    isSharedTestRun?: boolean;
     /** Specifies the path for additional arguments to be passed to DBS.QTest.exe. Not to be confused with qTestAdditionalOptions which passes arguments to the test runner.
      * List of DBS.QTest.exe arguments can be found here: https://dev.azure.com/mseng/Domino/_git/CloudBuild?path=/private/QTest/QTestExe/QTestExeArgumentObject.cs
     */

@@ -88,6 +88,18 @@ namespace Test.eBPFSandbox {
         })
     : undefined;
 
+    const kernelHookSelectionObject = compile(f`kernel_hook_selection_test.cpp`);
+
+    @@public
+    export const kernelHookSelection = EBPF.eBPFSandbox.hostSupportsBuildingEBPF
+    ?
+        Native.Linux.Compilers.link({
+            outputName: a`kernel_hook_selection_test`,
+            tool: Native.Linux.Compilers.gxxTool,
+            objectFiles: [kernelHookSelectionObject]
+        })
+    : undefined;
+
     const pidNamespaceTestSources = [
         f`pid_namespace_test.cpp`,
     ];

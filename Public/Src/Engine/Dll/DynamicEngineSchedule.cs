@@ -138,6 +138,7 @@ namespace BuildXL.Engine
 
         private TimeSpan? m_schedulerStartTime;
         private bool m_schedulerStarted;
+        private RootFilter m_dynamicRootFilter;
 
         /// <summary>
         /// The default minimum amount of time the build must run before the optimization data structures are serialized.
@@ -1220,9 +1221,6 @@ namespace BuildXL.Engine
             Contract.Assert(configuration.Engine.UnsafeEnableDynamicGraph);
             Contract.Assert(configuration.Distribution.BuildRole == DistributedBuildRoles.None);
             Contract.Assert(!configuration.Schedule.IncrementalScheduling);
-            Contract.Assert(string.IsNullOrEmpty(configuration.Engine.DefaultFilter));
-            Contract.Assert(string.IsNullOrEmpty(commandLineConfiguration.Filter));
-            Contract.Assert(commandLineConfiguration.Startup.ImplicitFilters.Count == 0);
             Contract.Assert(!configuration.Engine.Scrub);
             Contract.Assert(configuration.Engine.ScrubDirectories.Count == 0);
             Contract.Assert(!configuration.Cache.CacheGraph);
@@ -1236,7 +1234,15 @@ namespace BuildXL.Engine
                 // Execution must already be consuming admissions by the time graph construction completes.
                 Contract.Assert(Scheduler.IsInitialized);
                 Contract.Assert(m_schedulerStarted);
+                Contract.Assert(m_dynamicRootFilter != null);
             }
+            else if (!TryCreateDynamicFilter(loggingContext, commandLineConfiguration, configuration))
+            {
+                // StartScheduler only runs when executing, but the filter is still needed (and validated) by later phases.
+                return false;
+            }
+
+            filter = m_dynamicRootFilter;
 
             return true;
         }
@@ -1246,6 +1252,8 @@ namespace BuildXL.Engine
         /// </summary>
         internal bool StartScheduler(
             LoggingContext loggingContext,
+            ICommandLineConfiguration commandLineConfiguration,
+            IConfiguration configuration,
             EnginePerformanceInfo enginePerformanceInfo)
         {
             Contract.Requires(loggingContext != null);
@@ -1264,12 +1272,16 @@ namespace BuildXL.Engine
                 return false;
             }
 
-            // DYNAMIC-GRAPH: Filtering, scrubbing, and previous scheduler state all require a closed graph
-            // and are disabled for this mode. Initialize only the runtime state needed to consume admissions.
+            if (!TryCreateDynamicFilter(loggingContext, commandLineConfiguration, configuration))
+            {
+                return false;
+            }
+
+            // DYNAMIC-GRAPH: Scrubbing and previous scheduler state require a closed graph and remain disabled.
             // Sideband examination is also unsupported, but execution still requires an explicit non-lazy state.
             Scheduler.SetSidebandState(SidebandState.CreateForEagerDeletion());
             var initStopwatch = System.Diagnostics.Stopwatch.StartNew();
-            bool result = Scheduler.InitForOrchestrator(loggingContext);
+            bool result = Scheduler.InitForOrchestrator(loggingContext, m_dynamicRootFilter);
             enginePerformanceInfo.SchedulerInitDurationMs = initStopwatch.ElapsedMilliseconds;
             if (!result)
             {
@@ -1283,9 +1295,41 @@ namespace BuildXL.Engine
             return true;
         }
 
+        private bool TryCreateDynamicFilter(
+            LoggingContext loggingContext,
+            ICommandLineConfiguration commandLineConfiguration,
+            IConfiguration configuration)
+        {
+            Contract.Assert(m_dynamicRootFilter == null);
+
+            if (!EngineSchedule.TryGetPipFilter(
+                loggingContext,
+                Context,
+                commandLineConfiguration,
+                configuration,
+                MountPathExpander.TryGetRootByMountName,
+                out var filter))
+            {
+                return false;
+            }
+
+            if (!DynamicFilterEvaluator.TryValidate(filter.PipFilter, out var unsupportedConstruct))
+            {
+                Logger.Log.DynamicGraphConfigurationIncompatible(
+                    loggingContext,
+                    $"pip filter construct '{unsupportedConstruct}'");
+                return false;
+            }
+
+            EngineSchedule.LogPipFilter(loggingContext, filter);
+            Logger.Log.FilterDetails(loggingContext, filter.GetStatistics());
+            m_dynamicRootFilter = filter;
+            return true;
+        }
+
 #if false
-        // DYNAMIC-GRAPH: Pip filtering and partial evaluation are unsupported because graph construction
-        // and execution overlap. Keep the original parsing helpers for future design work.
+        // DYNAMIC-GRAPH: These helpers calculate selection from a finalized graph. Dynamic mode instead
+        // parses the filter before execution and evaluates the supported subset from admission notifications.
 
         /// <summary>
         /// Gets the data used to do partial evaluation. This must be included in the pip fingerprint

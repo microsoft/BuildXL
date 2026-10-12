@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using BuildXL.Pips.Operations;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
@@ -21,6 +22,14 @@ namespace BuildXL.Pips.Filter
         public PipIdFilter(long value)
         {
             m_semiStableHash = value;
+        }
+
+        internal bool Matches(Pip pip)
+        {
+            return (pip.PipType == Operations.PipType.Process ||
+                    pip.PipType == Operations.PipType.WriteFile ||
+                    pip.PipType == Operations.PipType.CopyFile) &&
+                pip.Provenance?.SemiStableHash == m_semiStableHash;
         }
 
         /// <inheritdoc/>

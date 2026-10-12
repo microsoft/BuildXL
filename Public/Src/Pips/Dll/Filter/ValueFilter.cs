@@ -27,6 +27,13 @@ namespace BuildXL.Pips.Filter
             m_valueTransitive = valueTransitive;
         }
 
+        internal bool IsTransitive => m_valueTransitive;
+
+        internal bool Matches(Pip pip)
+        {
+            return pip.Provenance != null && pip.Provenance.OutputValueSymbol == m_value;
+        }
+
         /// <inheritdoc/>
         public override void AddStatistics(ref FilterStatistics statistics)
         {

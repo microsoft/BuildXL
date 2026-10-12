@@ -16,8 +16,15 @@ This list is intentionally conservative and not exhaustive.
   before execution begins.
 - Incremental scheduling is rejected because dirty-node computation and
   propagation currently require the complete graph.
-- Pip filtering is rejected because selection, especially negation and
-  dependent closure, requires the complete pip universe.
+- Dynamic filtering supports positive combinations of `id`, `tag`, `input`,
+  `output`, `module`, `spec`, and `value`, joined with `and` and `or`. Each
+  admitted pip is evaluated on its own, and a matching pip always selects its
+  dependency closure. A filter that matches no pip builds nothing and succeeds.
+- Negation, `dpc`, `requiredfor`, `dpt`, `copydpt`, `valuetransitive`,
+  `spec_valuetransitive`, and `specref` are rejected. Negation is inherently
+  non-monotonic. The closure constructs need to evaluate the inner filter across
+  admissions, and the rest need forward or meta-pip traversal that the admission
+  stream does not represent. These may be enabled later.
 - Scrubbing is rejected because it needs the complete set of declared paths
   before deciding which filesystem entries are extraneous.
 - Explicit graph loading is rejected because it supplies a finalized immutable

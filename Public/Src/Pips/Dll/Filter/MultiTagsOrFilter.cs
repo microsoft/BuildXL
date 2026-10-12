@@ -72,7 +72,7 @@ namespace BuildXL.Pips.Filter
             m_cachedHashCode = CalculateHashCode();
         }
 
-        private bool Matches(Pip pip)
+        internal bool Matches(Pip pip)
         {
             if (pip.Tags.IsValid)
             {

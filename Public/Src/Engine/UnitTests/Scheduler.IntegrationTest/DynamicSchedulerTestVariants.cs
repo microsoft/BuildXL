@@ -169,13 +169,13 @@ namespace Test.BuildXL.Scheduler.DynamicGraph
     {
         public DynamicNonStandardOptionsTests(ITestOutputHelper output) : base(output) => EnableDynamicGraphScheduler();
 
-        [Fact(Skip = "Dynamic graph mode does not support pip filtering or force-skip-dependencies selection.")]
+        [Fact(Skip = "Dynamic graph mode does not support force-skip-dependencies selection.")]
         public override void AllowEmptyFilterWithUnsafeForceSkipDeps_Bug1102785()
         {
             base.AllowEmptyFilterWithUnsafeForceSkipDeps_Bug1102785();
         }
 
-        [Fact(Skip = "Dynamic graph mode does not support pip filtering or force-skip-dependencies selection.")]
+        [Fact(Skip = "Dynamic graph mode does not support force-skip-dependencies selection.")]
         public override void ValidateUnsafeForceSkipDeps()
         {
             base.ValidateUnsafeForceSkipDeps();
@@ -190,12 +190,6 @@ namespace Test.BuildXL.Scheduler.DynamicGraph
         public override void EnumerateOpaqueDirectory()
         {
             base.EnumerateOpaqueDirectory();
-        }
-
-        [Fact(Skip = "Dynamic graph mode does not support pip filtering.")]
-        public override void ConsumeExplicitFileOutOfOpaque()
-        {
-            base.ConsumeExplicitFileOutOfOpaque();
         }
 
         [Theory(Skip = "The inherited theory includes shared opaque scenarios, which are unsupported by the dynamic scheduler.")]
@@ -376,18 +370,6 @@ namespace Test.BuildXL.Scheduler.DynamicGraph
     public class DynamicSchedulerCounterTests : SchedulerCounterTests
     {
         public DynamicSchedulerCounterTests(ITestOutputHelper output) : base(output) => EnableDynamicGraphScheduler();
-
-        [Fact(Skip = "Dynamic graph mode does not support pip filtering.")]
-        public override void ValidateProcessPipCountersByFilterForFailedPip()
-        {
-            base.ValidateProcessPipCountersByFilterForFailedPip();
-        }
-
-        [Fact(Skip = "Dynamic graph mode does not support pip filtering.")]
-        public override void ValidateProcessPipCountersByFilter()
-        {
-            base.ValidateProcessPipCountersByFilter();
-        }
     }
 
     public class DynamicSealFullDirectoryTests : SealFullDirectoryTests

@@ -2598,13 +2598,6 @@ namespace BuildXL.Engine
                 incompatibleOptions.Add($"filesystem mode '{mutableConfig.Sandbox.FileSystemMode}'");
             }
 
-            if (!string.IsNullOrEmpty(mutableConfig.Engine.DefaultFilter) ||
-                !string.IsNullOrEmpty(initialCommandLineConfiguration.Filter) ||
-                initialCommandLineConfiguration.Startup.ImplicitFilters.Count != 0)
-            {
-                incompatibleOptions.Add("pip filtering");
-            }
-
             if (mutableConfig.Engine.Scrub || mutableConfig.Engine.ScrubDirectories.Count != 0)
             {
                 incompatibleOptions.Add("scrubbing");
@@ -3242,7 +3235,11 @@ namespace BuildXL.Engine
                                 // DYNAMIC-GRAPH: Start before PopulateGraph so admitted pips can execute
                                 // while frontends continue constructing and publishing the remaining graph.
                                 if (phase.HasFlag(EnginePhases.Execute) &&
-                                    !dynamicEngineSchedule.StartScheduler(loggingContext, m_enginePerformanceInfo))
+                                    !dynamicEngineSchedule.StartScheduler(
+                                        loggingContext,
+                                        m_initialCommandLineConfiguration,
+                                        Configuration,
+                                        m_enginePerformanceInfo))
                                 {
                                     return false;
                                 }

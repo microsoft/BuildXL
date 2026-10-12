@@ -30,6 +30,15 @@ namespace BuildXL.Pips.Filter
             m_specDependencies = specDependencies;
         }
 
+        internal bool IsValueTransitive => m_valueTransitive;
+
+        internal bool IncludesReferencedSpecs => m_specDependencies;
+
+        internal bool Matches(Pip pip, PathTable pathTable)
+        {
+            return pip.Provenance != null && PathMatches(pip.Provenance.Token.Path, pathTable);
+        }
+
         /// <inheritdoc/>
         public override void AddStatistics(ref FilterStatistics statistics)
         {

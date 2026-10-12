@@ -1,11 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core;
 
@@ -21,9 +23,9 @@ namespace BuildXL.Scheduler
         private const bool Implicit = false;
 
         /// <summary>
-        /// Nodes that matched the build filter.
+        /// Whether a node matched the build filter.
         /// </summary>
-        private readonly HashSet<NodeId> m_explicitlyScheduledProcessNodes;
+        private readonly Func<NodeId, bool> m_isExplicitlyScheduled;
 
         /// <summary>
         /// Counters for process pips that match the build filter, defined as explicitly scheduled.
@@ -40,20 +42,44 @@ namespace BuildXL.Scheduler
         /// Creates an instance of <see cref="PipCountersByFilter"/>.
         /// </summary>
         public PipCountersByFilter(LoggingContext loggingContext, HashSet<NodeId> explicitlyScheduledProcessNodes)
+            : this(loggingContext, GetMembershipCheck(explicitlyScheduledProcessNodes))
+        {
+        }
+
+        /// <summary>
+        /// Creates an instance of <see cref="PipCountersByFilter"/> for a set that can grow while the counters are in use.
+        /// </summary>
+        public PipCountersByFilter(LoggingContext loggingContext, ConcurrentBigSet<NodeId> explicitlyScheduledProcessNodes)
+            : this(loggingContext, GetMembershipCheck(explicitlyScheduledProcessNodes))
+        {
+        }
+
+        private PipCountersByFilter(LoggingContext loggingContext, Func<NodeId, bool> isExplicitlyScheduled)
             : base(loggingContext)
         {
             Contract.Requires(loggingContext != null);
-            Contract.Requires(explicitlyScheduledProcessNodes != null);
 
-            m_explicitlyScheduledProcessNodes = explicitlyScheduledProcessNodes;
+            m_isExplicitlyScheduled = isExplicitlyScheduled;
             CountersByGroup.TryAdd(Explicit, new CounterCollection<PipCountersByGroup>());
             CountersByGroup.TryAdd(Implicit, new CounterCollection<PipCountersByGroup>());
+        }
+
+        private static Func<NodeId, bool> GetMembershipCheck(HashSet<NodeId> nodes)
+        {
+            Contract.Requires(nodes != null);
+            return node => nodes.Contains(node);
+        }
+
+        private static Func<NodeId, bool> GetMembershipCheck(ConcurrentBigSet<NodeId> nodes)
+        {
+            Contract.Requires(nodes != null);
+            return node => nodes.Contains(node);
         }
 
         /// <inheritdoc />
         protected override IEnumerable<bool> GetCategories(Process process)
         {
-            yield return m_explicitlyScheduledProcessNodes.Contains(process.PipId.ToNodeId());
+            yield return m_isExplicitlyScheduled(process.PipId.ToNodeId());
         }
 
         /// <inheritdoc />

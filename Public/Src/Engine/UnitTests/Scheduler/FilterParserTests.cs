@@ -673,6 +673,40 @@ namespace Test.BuildXL.Scheduler
             RunPositiveFilterParserTest($"input='*{Path.DirectorySeparatorChar}Program.cs'", expected);
         }
 
+        [Theory]
+        [InlineData("tag='Test'")]
+        [InlineData("input='C:\\src\\input.txt'")]
+        [InlineData("output='C:\\out\\output.txt'")]
+        [InlineData("spec='C:\\src\\spec.dsc'")]
+        [InlineData("module='TestModule'")]
+        [InlineData("id='1234'")]
+        [InlineData("value='TestValue'")]
+        [InlineData("(tag='Test' and output='C:\\out\\output.txt') or module='TestModule'")]
+        public void DynamicGraphSupportedFilterConstructs(string expression)
+        {
+            var filter = Deserialize(expression);
+            XAssert.IsTrue(DynamicFilterEvaluator.TryValidate(filter.PipFilter, out var unsupportedConstruct));
+            XAssert.IsNull(unsupportedConstruct);
+        }
+
+        [Theory]
+        [InlineData("~(tag='Test')", "negation (~)")]
+        [InlineData("dpc(tag='Test')", "dpc")]
+        [InlineData("requiredfor(tag='Test')", "requiredfor")]
+        [InlineData("tag='Test' and dpc(tag='Test2')", "dpc")]
+        [InlineData("dpt(tag='Test')", "dpt")]
+        [InlineData("+tag='Test'", "dpt")]
+        [InlineData("copydpt(tag='Test')", "copydpt")]
+        [InlineData("valuetransitive='TestValue'", "valuetransitive")]
+        [InlineData("spec_valuetransitive='C:\\src\\spec.dsc'", "spec_valuetransitive")]
+        [InlineData("specref='C:\\src\\spec.dsc'", "specref")]
+        public void DynamicGraphUnsupportedFilterConstructs(string expression, string expectedConstruct)
+        {
+            var filter = Deserialize(expression);
+            XAssert.IsFalse(DynamicFilterEvaluator.TryValidate(filter.PipFilter, out var unsupportedConstruct));
+            XAssert.AreEqual(expectedConstruct, unsupportedConstruct);
+        }
+
         #endregion
 
         private RootFilter Deserialize(string inputString)

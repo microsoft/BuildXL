@@ -26,6 +26,11 @@ namespace BuildXL.Pips.Filter
             m_modules = new HashSet<StringId>(modules);
         }
 
+        internal bool Matches(Pip pip)
+        {
+            return pip.Provenance != null && m_modules.Contains(pip.Provenance.ModuleName);
+        }
+
         /// <inheritdoc/>
         public override void AddStatistics(ref FilterStatistics statistics)
         {

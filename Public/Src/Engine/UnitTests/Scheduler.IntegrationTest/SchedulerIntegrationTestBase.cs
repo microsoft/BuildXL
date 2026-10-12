@@ -634,10 +634,20 @@ namespace Test.BuildXL.Scheduler
                 MountPathExpander mountPathExpander = null;
                 var frontEndNonScrubbablePaths = CollectionUtilities.EmptyArray<string>();
 
+                if (filter == null)
+                {
+                    EngineSchedule.TryGetPipFilter(localLoggingContext, Context, config, config, Expander.TryGetRootByMountName, out filter);
+                }
+
                 if (Configuration.Engine.UnsafeEnableDynamicGraph)
                 {
-                    XAssert.IsNull(filter, "Dynamic graph scheduler tests do not support an explicit pip filter.");
-                    XAssert.IsTrue(string.IsNullOrEmpty(config.Filter), "Dynamic graph scheduler tests do not support configured pip filtering.");
+                    if (filter != null)
+                    {
+                        XAssert.IsTrue(
+                            DynamicFilterEvaluator.TryValidate(filter.PipFilter, out var unsupportedFilterConstruct),
+                            $"Dynamic graph scheduler tests do not support the '{unsupportedFilterConstruct}' pip filter construct.");
+                    }
+
                     XAssert.AreNotEqual(
                         FileSystemMode.RealAndPipGraph,
                         config.Sandbox.FileSystemMode,
@@ -646,10 +656,6 @@ namespace Test.BuildXL.Scheduler
                         FileSystemMode.AlwaysMinimalWithAlienFilesGraph,
                         config.Sandbox.FileSystemMode,
                         "Dynamic graph scheduler tests do not support alien-file enumeration.");
-                }
-                else if (filter == null)
-                {
-                    EngineSchedule.TryGetPipFilter(localLoggingContext, Context, config, config, Expander.TryGetRootByMountName, out filter);
                 }
 
                 if (!Configuration.Engine.UnsafeEnableDynamicGraph)

@@ -258,6 +258,114 @@ const parent{i}Path = p`obj/fan-in-parent-{i}.txt`;
             Assert.Equal("child", File.ReadAllText(Path.Combine(objectDirectory, "fan-in-child.txt")).Trim());
         }
 
+        [Fact]
+        public void FilterSchedulesMatchingPipAndItsDependencies()
+        {
+            ConfigureDynamicGraph();
+            Configuration.Filter = "tag='selected'";
+
+            string spec = CreateSpec($@"
+const parentPath = p`obj/filter-parent.txt`;
+const childPath = p`obj/filter-child.txt`;
+const excludedPath = p`obj/filter-excluded.txt`;
+
+{CreateProcess("parent", "parentPath", "'echo', 'parent', '>', Artifact.output(parentPath)")}
+{CreateProcess("child", "childPath", "'type', Artifact.input(parent), '>', Artifact.output(childPath)", tags: "'selected'")}
+{CreateProcess("excluded", "excludedPath", "'echo', 'excluded', '>', Artifact.output(excludedPath)", tags: "'excluded'")}
+
+    return [parent, child, excluded];
+");
+
+            AddModule("DynamicGraphFilteredBuild", ("spec.dsc", spec), placeInRoot: true);
+            ConfigureInMemoryCache(new TestCache());
+
+            RunEngine();
+            AssertInformationalEventLogged(SchedulerEventId.ProcessPipCacheMiss, count: 2);
+
+            string objectDirectory = Configuration.Layout.ObjectDirectory.ToString(Context.PathTable);
+            Assert.Equal("parent", File.ReadAllText(Path.Combine(objectDirectory, "filter-parent.txt")).Trim());
+            Assert.Equal("parent", File.ReadAllText(Path.Combine(objectDirectory, "filter-child.txt")).Trim());
+            Assert.False(File.Exists(Path.Combine(objectDirectory, "filter-excluded.txt")));
+        }
+
+        [Fact]
+        public void FilterWithOrSchedulesEveryMatch()
+        {
+            ConfigureDynamicGraph();
+            Configuration.Filter = "tag='first' or tag='second'";
+
+            string spec = CreateSpec($@"
+const firstPath = p`obj/or-first.txt`;
+const secondPath = p`obj/or-second.txt`;
+const otherPath = p`obj/or-other.txt`;
+
+{CreateProcess("first", "firstPath", "'echo', 'first', '>', Artifact.output(firstPath)", tags: "'first'")}
+{CreateProcess("second", "secondPath", "'echo', 'second', '>', Artifact.output(secondPath)", tags: "'second'")}
+{CreateProcess("other", "otherPath", "'echo', 'other', '>', Artifact.output(otherPath)")}
+
+    return [first, second, other];
+");
+
+            AddModule("DynamicGraphOrFilter", ("spec.dsc", spec), placeInRoot: true);
+            ConfigureInMemoryCache(new TestCache());
+
+            RunEngine();
+            AssertInformationalEventLogged(SchedulerEventId.ProcessPipCacheMiss, count: 2);
+
+            string objectDirectory = Configuration.Layout.ObjectDirectory.ToString(Context.PathTable);
+            Assert.True(File.Exists(Path.Combine(objectDirectory, "or-first.txt")));
+            Assert.True(File.Exists(Path.Combine(objectDirectory, "or-second.txt")));
+            Assert.False(File.Exists(Path.Combine(objectDirectory, "or-other.txt")));
+        }
+
+        [Fact]
+        public void FilterWithAndSchedulesOnlyPipsMatchingBothSides()
+        {
+            ConfigureDynamicGraph();
+            Configuration.Filter = "tag='shared' and tag='narrow'";
+
+            string spec = CreateSpec($@"
+const bothPath = p`obj/and-both.txt`;
+const sharedOnlyPath = p`obj/and-shared-only.txt`;
+
+{CreateProcess("both", "bothPath", "'echo', 'both', '>', Artifact.output(bothPath)", tags: "'shared', 'narrow'")}
+{CreateProcess("sharedOnly", "sharedOnlyPath", "'echo', 'shared', '>', Artifact.output(sharedOnlyPath)", tags: "'shared'")}
+
+    return [both, sharedOnly];
+");
+
+            AddModule("DynamicGraphAndFilter", ("spec.dsc", spec), placeInRoot: true);
+            ConfigureInMemoryCache(new TestCache());
+
+            RunEngine();
+            AssertInformationalEventLogged(SchedulerEventId.ProcessPipCacheMiss, count: 1);
+
+            string objectDirectory = Configuration.Layout.ObjectDirectory.ToString(Context.PathTable);
+            Assert.True(File.Exists(Path.Combine(objectDirectory, "and-both.txt")));
+            Assert.False(File.Exists(Path.Combine(objectDirectory, "and-shared-only.txt")));
+        }
+
+        [Theory]
+        [InlineData("~(tag='selected')")]
+        [InlineData("dpc(tag='selected')")]
+        [InlineData("requiredfor(tag='selected')")]
+        public void UnsupportedFilterFailsBeforeDynamicExecutionStarts(string filter)
+        {
+            ConfigureDynamicGraph();
+            Configuration.Filter = filter;
+
+            string spec = CreateSpec($@"
+const outputPath = p`obj/unsupported-filter.txt`;
+{CreateProcess("process", "outputPath", "'echo', 'output', '>', Artifact.output(outputPath)", tags: "'selected'")}
+    return [process];
+");
+
+            AddModule("DynamicGraphUnsupportedFilter", ("spec.dsc", spec), placeInRoot: true);
+
+            RunEngine(expectSuccess: false);
+            AssertErrorEventLogged(EngineEventId.DynamicGraphConfigurationIncompatible);
+        }
+
         private string CreateSpec(string body)
         {
             return $@"
@@ -277,7 +385,8 @@ export const outputs = (() => {{
             string commandArguments,
             string dependencies = null,
             string successExitCodes = null,
-            bool allowUndeclaredSourceReads = false)
+            bool allowUndeclaredSourceReads = false,
+            string tags = null)
         {
             string dependenciesProperty = dependencies == null
                 ? string.Empty
@@ -288,6 +397,9 @@ export const outputs = (() => {{
             string allowUndeclaredSourceReadsProperty = allowUndeclaredSourceReads
                 ? $"        allowUndeclaredSourceReads: true,{Environment.NewLine}"
                 : string.Empty;
+            string tagsProperty = tags == null
+                ? string.Empty
+                : $"        tags: [{tags}],{Environment.NewLine}";
 
             return $@"    const {pipName} = Transformer.execute({{
         tool: tool,
@@ -299,7 +411,7 @@ export const outputs = (() => {{
             Cmd.args([{commandArguments}]),
             Cmd.rawArgument('""'),
         ],
-{dependenciesProperty}{successExitCodesProperty}{allowUndeclaredSourceReadsProperty}    }}).getOutputFile({outputPath});
+{dependenciesProperty}{successExitCodesProperty}{allowUndeclaredSourceReadsProperty}{tagsProperty}    }}).getOutputFile({outputPath});
 ";
         }
 

@@ -32,7 +32,7 @@ namespace BuildXL.Pips.DirectedGraph
         /// </summary>
         public void VisitTransitiveReachableNodes(
             IEnumerable<NodeId> startNodes,
-            VisitationTracker visitedNodes,
+            IVisitationTracker visitedNodes,
             VisitNode visitNodeDependencies,
             VisitNode visitNodeDependents)
         {
@@ -56,7 +56,7 @@ namespace BuildXL.Pips.DirectedGraph
         /// </summary>
         public void VisitTransitiveDependencies(
             IEnumerable<NodeId> startNodes,
-            VisitationTracker visitedNodes,
+            IVisitationTracker visitedNodes,
             VisitNode visitNode)
         {
             using (var queueWrapper = m_nodeQueuePool.GetInstance())
@@ -79,7 +79,7 @@ namespace BuildXL.Pips.DirectedGraph
         /// </summary>
         public void VisitTransitiveDependencies(
             NodeId startNode,
-            VisitationTracker visitedNodes,
+            IVisitationTracker visitedNodes,
             VisitNode visitNode)
         {
             using (var queueWrapper = m_nodeQueuePool.GetInstance())
@@ -102,7 +102,7 @@ namespace BuildXL.Pips.DirectedGraph
         /// </summary>
         public void VisitTransitiveDependents(
             IEnumerable<NodeId> startNodes,
-            VisitationTracker visitedNodes,
+            IVisitationTracker visitedNodes,
             VisitNode visitNode)
         {
             using (var queueWrapper = m_nodeQueuePool.GetInstance())
@@ -125,7 +125,7 @@ namespace BuildXL.Pips.DirectedGraph
         /// </summary>
         public void VisitTransitiveDependents(
             NodeId startNode,
-            VisitationTracker visitedNodes,
+            IVisitationTracker visitedNodes,
             VisitNode visitNode)
         {
             using (var queueWrapper = m_nodeQueuePool.GetInstance())
@@ -143,7 +143,7 @@ namespace BuildXL.Pips.DirectedGraph
             }
         }
 
-        private static void AddIfNotVisited(Queue<NodeId> queue, NodeId node, VisitationTracker visitedNodes)
+        private static void AddIfNotVisited(Queue<NodeId> queue, NodeId node, IVisitationTracker visitedNodes)
         {
             if (visitedNodes.MarkVisited(node))
             {
@@ -151,7 +151,7 @@ namespace BuildXL.Pips.DirectedGraph
             }
         }
 
-        private static void AddIfNotVisited(Queue<NodeId> queue, IEnumerable<NodeId> nodes, VisitationTracker visitedNodes)
+        private static void AddIfNotVisited(Queue<NodeId> queue, IEnumerable<NodeId> nodes, IVisitationTracker visitedNodes)
         {
             foreach (var node in nodes)
             {
@@ -164,7 +164,7 @@ namespace BuildXL.Pips.DirectedGraph
 
         private void VisitTransitiveClosure(
             Queue<NodeId> queue,
-            VisitationTracker visitedNodes,
+            IVisitationTracker visitedNodes,
             VisitNode visitNodeDependencies,
             VisitNode visitNodeDependents,
             bool dependencies,

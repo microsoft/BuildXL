@@ -724,6 +724,9 @@ namespace BuildXL.Scheduler
         // DYNAMIC-GRAPH: Replaces the one-shot scheduling pass with a consumer that stays alive until
         // IDynamicGraph closes its admission stream.
         private Task m_dynamicGraphAdmissionTask;
+        private DynamicFilterEvaluator m_dynamicFilterEvaluator;
+        private NodeVisitor m_dynamicNodeVisitor;
+        private IVisitationTracker m_dynamicPipsTracker;
 
         private HistoricPerfDataTable m_historicPerfDataTable;
         private readonly AsyncLazy<HistoricPerfDataTable> m_historicPerfDataTableTask;
@@ -749,8 +752,9 @@ namespace BuildXL.Scheduler
         /// Only includes the pips matching the filter itself, not their dependencies or dependents that may be included
         /// based on the filter's dependency selection settings
         /// </remarks>
-        // DYNAMIC-GRAPH: Filtering is disabled, so the explicit build sets remain unavailable.
-        private HashSet<NodeId> m_explicitlyScheduledNodes = null;
+        // DYNAMIC-GRAPH: Null when no filter is applied. The admission consumer adds to this set while pips are executing,
+        // so it has to support concurrent readers.
+        private ConcurrentBigSet<NodeId> m_explicitlyScheduledNodes = null;
 
         /// <summary>
         /// Process nodes that are explicitly scheduled by filtering.
@@ -759,8 +763,9 @@ namespace BuildXL.Scheduler
         /// Only includes the pips matching the filter itself, not their dependencies or dependents that may be included
         /// based on the filter's dependency selection settings
         /// </remarks>
-        // DYNAMIC-GRAPH: Filtering is disabled, so the explicit process build set remains unavailable.
-        private HashSet<NodeId> m_explicitlyScheduledProcessNodes = null;
+        // DYNAMIC-GRAPH: Null when no filter is applied. The admission consumer adds to this set while pips are executing,
+        // so it has to support concurrent readers.
+        private ConcurrentBigSet<NodeId> m_explicitlyScheduledProcessNodes = null;
 
         /// <summary>
         /// Nodes that must be executed when dirty build is enabled(/unsafe_forceSkipDeps+)
@@ -4563,11 +4568,12 @@ namespace BuildXL.Scheduler
 
             // Start by updating the pip to the ready state
             PipRuntimeInfo pipRuntimeInfo = GetPipRuntimeInfo(pipId);
-            pipRuntimeInfo.TryTransition(m_pipStateCounters, m_pipTable.GetPipType(pipId), PipState.Ignored, PipState.Waiting);
-            pipRuntimeInfo.TryTransition(m_pipStateCounters, m_pipTable.GetPipType(pipId), PipState.Waiting, PipState.Ready);
-            pipRuntimeInfo.TryTransition(m_pipStateCounters, m_pipTable.GetPipType(pipId), PipState.Ready, PipState.Running);
+            PipType pipType = m_pipTable.GetPipType(pipId);
+            pipRuntimeInfo.TryTransition(m_pipStateCounters, pipType, PipState.Ignored, PipState.Waiting);
+            pipRuntimeInfo.TryTransition(m_pipStateCounters, pipType, PipState.Waiting, PipState.Ready);
+            pipRuntimeInfo.TryTransition(m_pipStateCounters, pipType, PipState.Ready, PipState.Running);
 
-            SchedulePip(pipId, m_pipTable.GetPipType(pipId), observer, step: step, priority: priority).GetAwaiter().GetResult();
+            SchedulePip(pipId, pipType, observer, step: step, priority: priority).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -6269,8 +6275,18 @@ namespace BuildXL.Scheduler
 
                 InitPipStates(pm.LoggingContext);
 
-                // DYNAMIC-GRAPH: Filtering and calculating a complete build set require a closed graph.
-                // Keep the original selection path visible, but drive scheduling from admission notifications below.
+                m_dynamicPipsTracker = new DynamicPipsTracker(m_pipTable, m_pipStateCounters, GetPipRuntimeInfo, m_initialPipCount);
+
+                if (filter != null && !filter.IsEmpty)
+                {
+                    m_dynamicFilterEvaluator = new DynamicFilterEvaluator(filter, PipGraph, Context.PathTable);
+                    m_dynamicNodeVisitor = new NodeVisitor(DirectedGraph);
+                    m_explicitlyScheduledNodes = new ConcurrentBigSet<NodeId>();
+                    m_explicitlyScheduledProcessNodes = new ConcurrentBigSet<NodeId>();
+                }
+
+                // DYNAMIC-GRAPH: The complete static build set cannot be calculated while admissions remain open.
+                // The admission consumer below incrementally selects matching producers and their dependency closure.
 #if false
                 IEnumerable<NodeId> nodesToSchedule;
                 if (filter != null && !filter.IsEmpty)
@@ -6287,7 +6303,7 @@ namespace BuildXL.Scheduler
                 }
 #endif
 
-                ProcessPipCountersByFilter = new PipCountersByFilter(loggingContext, m_explicitlyScheduledProcessNodes ?? new HashSet<NodeId>());
+                ProcessPipCountersByFilter = new PipCountersByFilter(loggingContext, m_explicitlyScheduledProcessNodes ?? new ConcurrentBigSet<NodeId>());
                 ProcessPipCountersByTelemetryTag = new PipCountersByTelemetryTag(loggingContext, Context.StringTable, m_scheduleConfiguration.TelemetryTagPrefix);
 
                 m_groupedPipCounters = new PipCountersByGroupAggregator(loggingContext, ProcessPipCountersByFilter, ProcessPipCountersByTelemetryTag);
@@ -6339,11 +6355,58 @@ namespace BuildXL.Scheduler
                     $"Service-related pip '{pipId}' with kind '{servicePipKind}' is unsupported in dynamic graph mode.");
 
                 AddPipArtifactsToFileSystemView(PipGraph.GetPipFromPipId(pipId));
-                await PrioritizeAndScheduleAsync(loggingContext, pipId.ToNodeId());
+                if (m_dynamicFilterEvaluator == null)
+                {
+                    if (m_dynamicPipsTracker.MarkVisited(pipId.ToNodeId()))
+                    {
+                        await PrioritizeAndScheduleAsync(loggingContext, pipId.ToNodeId());
+                    }
+
+                    continue;
+                }
+
+                foreach (var artifact in m_dynamicFilterEvaluator.Admit(PipGraph.GetPipFromPipId(pipId)))
+                {
+                    var producer = PipGraph.GetProducer(artifact);
+                    if (!producer.IsValid)
+                    {
+                        continue;
+                    }
+
+                    var producerNode = producer.ToNodeId();
+                    m_explicitlyScheduledNodes.Add(producerNode);
+                    if (m_pipTable.GetPipType(producer) == PipType.Process)
+                    {
+                        m_explicitlyScheduledProcessNodes.Add(producerNode);
+                    }
+
+                    await SchedulePipAndDependenciesAsync(loggingContext, producerNode);
+                }
             }
 
             // No additional work can be admitted after the graph signals completion.
             PipQueue.SetAsFinalized();
+        }
+
+        private async Task SchedulePipAndDependenciesAsync(LoggingContext loggingContext, NodeId root)
+        {
+            // The tracker moves every pip it visits out of the Ignored state, so only pips that were not
+            // selected before are visited. Their relative order does not matter: whether a dependency or its
+            // dependent initializes first is resolved by the sequence number handshake in PrioritizeAndScheduleAsync.
+            var selectedNodes = new List<NodeId>();
+            m_dynamicNodeVisitor.VisitTransitiveDependencies(
+                root,
+                m_dynamicPipsTracker,
+                node =>
+                {
+                    selectedNodes.Add(node);
+                    return true;
+                });
+
+            foreach (var node in selectedNodes)
+            {
+                await PrioritizeAndScheduleAsync(loggingContext, node);
+            }
         }
 
         private void AddPipArtifactsToFileSystemView(Pip pip)
@@ -7006,28 +7069,16 @@ namespace BuildXL.Scheduler
             ScheduledGraph = DirectedGraph;
             m_criticalPathStats = new CriticalPathStats();
 
+            // The pip has been selected for scheduling by m_dynamicPipsTracker, which moved it out of the Ignored state.
             var pipId = node.ToPipId();
-            var pipType = m_pipTable.GetPipType(pipId);
-            if (pipType == PipType.HashSourceFile)
-            {
-                return;
-            }
-
-            if (pipId.Value > m_initialPipCount)
-            {
-                // The initial bulk count only included the pip-table snapshot taken during scheduler initialization.
-                // Register the initial state before transitioning a pip admitted after that snapshot.
-                m_pipStateCounters.AccumulateInitialState(PipState.Ignored, pipType);
-            }
-
             var pipRuntimeInfo = GetPipRuntimeInfo(pipId);
+            Contract.Assert(pipRuntimeInfo.State == PipState.Waiting);
             pipRuntimeInfo.Priority = m_pipTable.GetPipPriority(pipId) << CriticalPathPriorityBitCount;
 
             // Incoming edges are final when a topologically published pip is admitted. Outgoing edges are not.
             // The sequence handshake assigns each heavy edge to either admission or parent completion. The side
             // that performs the final decrement owns scheduling, so admission can stop traversing immediately.
             pipRuntimeInfo.RefCount = DirectedGraph.CountIncomingHeavyEdges(node);
-            pipRuntimeInfo.Transition(m_pipStateCounters, pipType, PipState.Waiting);
 
             // Before publishing the initialization sequence, parent threads cannot own an edge decrement.
             // A zero count here therefore means that the pip has no heavy dependencies and we can schedule right away.

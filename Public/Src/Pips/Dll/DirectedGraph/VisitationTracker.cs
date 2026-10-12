@@ -11,7 +11,7 @@ namespace BuildXL.Pips.DirectedGraph
     /// Allows for tracking of nodes that have been visited in a graph traversal.
     /// NOTE: All methods on this object are thread safe except <see cref="UnsafeReset"/>.
     /// </summary>
-    public sealed class VisitationTracker
+    public sealed class VisitationTracker : IVisitationTracker
     {
         private readonly ConcurrentBitArray m_visited;
 

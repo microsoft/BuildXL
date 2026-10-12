@@ -81,7 +81,7 @@ namespace BuildXL.Pips.Filter
             return MultiTagsOrFilter.UnionTagFilters(filters);
         }
 
-        private bool Matches(Pip pip)
+        internal bool Matches(Pip pip)
         {
             if (pip.Tags.IsValid)
             {

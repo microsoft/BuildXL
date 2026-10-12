@@ -160,6 +160,57 @@ namespace Test.BuildXL.Scheduler
                 new BinaryFilter(CreateTagFilter("T5"), FilterOperator.Or, CreateTagFilter("T6")).Negate(), p1));
         }
 
+        [Fact]
+        public void DynamicFilterEvaluationMatchesStaticFiltering()
+        {
+            FileArtifact parentOutput = CreateOutputFileArtifact();
+            Process parent = CreateAndScheduleProcess(
+                dependencies: new[] { CreateSourceFile() },
+                outputs: new[] { parentOutput },
+                tags: new[] { "parent" });
+
+            FileArtifact childOutput = CreateOutputFileArtifact();
+            Process child = CreateAndScheduleProcess(
+                dependencies: new[] { parentOutput },
+                outputs: new[] { childOutput },
+                tags: new[] { "selected" });
+
+            var graph = PipGraphBuilder.Build();
+            Assert.NotNull(graph);
+
+            var selectedTag = CreateTagFilter("selected");
+            var childOutputFilter = CreateOutputPathFilter(childOutput.Path);
+            var childInputFilter = new InputFileFilter(parentOutput.Path, null, MatchMode.FilePath, pathFromMount: false);
+
+            AssertDynamicFilterEquivalent(graph, selectedTag);
+            AssertDynamicFilterEquivalent(graph, childOutputFilter);
+            AssertDynamicFilterEquivalent(graph, childInputFilter);
+            AssertDynamicFilterEquivalent(graph, new PipIdFilter(child.Provenance.SemiStableHash));
+            AssertDynamicFilterEquivalent(graph, new ModuleFilter(child.Provenance.ModuleName));
+            AssertDynamicFilterEquivalent(
+                graph,
+                new SpecFileFilter(
+                    child.Provenance.Token.Path,
+                    pathWildcard: null,
+                    MatchMode.FilePath,
+                    pathFromMount: false,
+                    valueTransitive: false,
+                    specDependencies: false));
+            AssertDynamicFilterEquivalent(graph, new ValueFilter(child.Provenance.OutputValueSymbol));
+            AssertDynamicFilterEquivalent(
+                graph,
+                new BinaryFilter(selectedTag, FilterOperator.And, childOutputFilter));
+            AssertDynamicFilterEquivalent(
+                graph,
+                new BinaryFilter(
+                    CreateOutputPathFilter(parentOutput.Path),
+                    FilterOperator.And,
+                    childOutputFilter));
+            AssertDynamicFilterEquivalent(
+                graph,
+                new BinaryFilter(CreateTagFilter("parent"), FilterOperator.Or, selectedTag));
+        }
+
         //001
         [Fact]
         public void TestOutputFilter()
@@ -456,6 +507,21 @@ namespace Test.BuildXL.Scheduler
                 path = AbsolutePath.Invalid;
                 return false;
             }
+        }
+
+        private void AssertDynamicFilterEquivalent(PipGraph graph, PipFilter pipFilter)
+        {
+            var rootFilter = new RootFilter(pipFilter);
+            var expected = graph.FilterOutputs(rootFilter);
+            var actual = new HashSet<FileOrDirectoryArtifact>();
+            var evaluator = new DynamicFilterEvaluator(rootFilter, graph, Context.PathTable);
+
+            foreach (var pipId in graph.PipTable.StableKeys)
+            {
+                actual.UnionWith(evaluator.Admit(graph.GetPipFromPipId(pipId)));
+            }
+
+            AssertSetEquals(new HashSet<FileOrDirectoryArtifact>(expected), actual);
         }
 
         [Fact]

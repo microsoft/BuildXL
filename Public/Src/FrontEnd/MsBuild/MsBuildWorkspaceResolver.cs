@@ -43,11 +43,15 @@ namespace BuildXL.FrontEnd.MsBuild
         /// Keep in sync with the BuildXL deployment spec that places the tool
         /// </summary>
         private RelativePath RelativePathToGraphConstructionTool =>
-            RelativePath.Create(Context.StringTable, ResolverSettings.ShouldRunDotNetCoreMSBuild()
-                ? @"tools\MsBuildGraphBuilder\dotnetcore\ProjectGraphBuilder.dll"
-                : OperatingSystemHelper.IsWindowsOS
-                    ? @"tools\MsBuildGraphBuilder\net472\ProjectGraphBuilder.exe"
-                    : @"tools\MsBuildGraphBuilder\net472\ProjectGraphBuilder");
+            RelativePath.Create(Context.StringTable, GetRelativePathToGraphConstructionTool(
+                ResolverSettings.ShouldRunDotNetCoreMSBuild()));
+
+        internal static string GetRelativePathToGraphConstructionTool(bool useDotNetCore)
+        {
+            var frameworkFolder  = useDotNetCore ? "dotnetcore" : "net472";
+
+            return $@"tools\MsBuildGraphBuilder\{frameworkFolder}\ProjectGraphBuilder.exe";
+        }
 
         /// <inheritdoc/>
         public MsBuildWorkspaceResolver() => Name = MsBuildResolverName;
@@ -311,6 +315,7 @@ namespace BuildXL.FrontEnd.MsBuild
             BuildParameters.IBuildParameters buildParameters)
         {
             AbsolutePath dotnetExeLocation = AbsolutePath.Invalid;
+            AbsolutePath runtimeConfigFile = AbsolutePath.Invalid;
             if (ResolverSettings.ShouldRunDotNetCoreMSBuild())
             {
                 if (!TryFindDotNetExe(dotnetSearchLocations, out dotnetExeLocation, out string failure))
@@ -319,9 +324,28 @@ namespace BuildXL.FrontEnd.MsBuild
                         GraphConstructionError.CreateFailureWithoutLocation(failure),
                         CollectionUtilities.EmptyDictionary<string, AbsolutePath>(), AbsolutePath.Invalid);
                 }
+
+                // By default we use the runtime config file located next to the graph construction tool executable
+                AbsolutePath defaultRuntimeConfigFile = Configuration.Layout.BuildEngineDirectory
+                    .Combine(Context.PathTable, RelativePathToGraphConstructionTool)
+                    .GetParent(Context.PathTable)
+                    .Combine(Context.PathTable, "ProjectGraphBuilder.runtimeconfig.json");
+
+                if (!TryFindMsBuildRuntimeConfig(
+                    Context.PathTable,
+                    msBuidSearchLocations,
+                    defaultRuntimeConfigFile,
+                    path => Host.Engine.FileExists(path),
+                    out runtimeConfigFile,
+                    out failure))
+                {
+                    return ProjectGraphWithPredictionsResult<AbsolutePath>.CreateFailure(
+                        GraphConstructionError.CreateFailureWithoutLocation(failure),
+                        CollectionUtilities.EmptyDictionary<string, AbsolutePath>(), AbsolutePath.Invalid);
+                }
             }
 
-            SandboxedProcessResult result = await RunMsBuildGraphBuilderAsync(responseFile, projectEntryPoints, outputFile, msBuidSearchLocations, dotnetExeLocation, buildParameters);
+            SandboxedProcessResult result = await RunMsBuildGraphBuilderAsync(responseFile, projectEntryPoints, outputFile, msBuidSearchLocations, dotnetExeLocation, runtimeConfigFile, buildParameters);
 
             string standardError = result.StandardError.ReadValueAsync().GetAwaiter().GetResult();
 
@@ -398,15 +422,76 @@ namespace BuildXL.FrontEnd.MsBuild
             return false;
         }
 
+        /// <summary>
+        /// Finds the runtime configuration used to launch the framework-dependent DotNetCore graph builder.
+        /// Passing MSBuild.runtimeconfig.json to dotnet exec --runtimeconfig selects the runtime required by the
+        /// chosen MSBuild before any assemblies are loaded, avoiding conflicts with the graph builder's default runtime.
+        /// When no MSBuild search locations are configured, uses the graph builder's own runtime configuration instead.
+        /// </summary>
+        internal static bool TryFindMsBuildRuntimeConfig(
+            PathTable pathTable,
+            IEnumerable<AbsolutePath> msBuildSearchLocations,
+            AbsolutePath defaultRuntimeConfigFile,
+            Func<AbsolutePath, bool> fileExists,
+            out AbsolutePath runtimeConfigFile,
+            out string failure)
+        {
+            runtimeConfigFile = AbsolutePath.Invalid;
+            failure = string.Empty;
+            var searchLocations = msBuildSearchLocations.ToList();
+
+            if (searchLocations.Count == 0)
+            {
+                // Preserve MSBuildLocator's default discovery when no toolset was explicitly selected.
+                runtimeConfigFile = defaultRuntimeConfigFile;
+            }
+            else
+            {
+                foreach (AbsolutePath location in searchLocations)
+                {
+                    if (fileExists(location.Combine(pathTable, "MSBuild.dll")))
+                    {
+                        runtimeConfigFile = location.Combine(pathTable, "MSBuild.runtimeconfig.json");
+                        break;
+                    }
+                }
+            }
+
+            if (!runtimeConfigFile.IsValid)
+            {
+                failure = $"Cannot find MSBuild.dll in the configured DotNetCore MSBuild search locations: [{string.Join(", ", searchLocations.Select(path => path.ToString(pathTable)))}].";
+                return false;
+            }
+
+            if (!fileExists(runtimeConfigFile))
+            {
+                failure = $"Cannot find the runtime configuration '{runtimeConfigFile.ToString(pathTable)}' required to launch the DotNetCore MSBuild graph builder.";
+                return false;
+            }
+
+            return true;
+        }
+
+        internal static string GetGraphConstructionToolArguments(
+            bool useDotNetCore,
+            string graphConstructionToolPath,
+            string responseFilePath,
+            string runtimeConfigFilePath) =>
+            useDotNetCore
+                ? I($"exec --runtimeconfig \"{runtimeConfigFilePath}\" \"{graphConstructionToolPath}\" \"{responseFilePath}\"")
+                : I($"\"{responseFilePath}\"");
+
         private Task<SandboxedProcessResult> RunMsBuildGraphBuilderAsync(
             AbsolutePath responseFile,
             IEnumerable<AbsolutePath> projectEntryPoints,
             AbsolutePath outputFile,
             IEnumerable<AbsolutePath> msBuildSearchLocations,
             AbsolutePath dotnetExeLocation,
+            AbsolutePath runtimeConfigFile,
             BuildParameters.IBuildParameters buildParameters)
         {
             Contract.Assert(!ResolverSettings.ShouldRunDotNetCoreMSBuild() || dotnetExeLocation.IsValid);
+            Contract.Assert(!ResolverSettings.ShouldRunDotNetCoreMSBuild() || runtimeConfigFile.IsValid);
 
             AbsolutePath toolDirectory = Configuration.Layout.BuildEngineDirectory.Combine(Context.PathTable, RelativePathToGraphConstructionTool).GetParent(Context.PathTable);
             string outputDirectory = outputFile.GetParent(Context.PathTable).ToString(Context.PathTable);
@@ -430,19 +515,13 @@ namespace BuildXL.FrontEnd.MsBuild
             SerializeResponseFile(responseFilePath, arguments);
 
             string graphConstructionToolPath = Configuration.Layout.BuildEngineDirectory.Combine(Context.PathTable, RelativePathToGraphConstructionTool).ToString(Context.PathTable);
-            string pathToTool;
-            string toolArguments;
-            // if we should call the dotnet core version of MSBuild, we need to actually call dotnet.exe and pass the tool itself as its first argument
-            if (ResolverSettings.ShouldRunDotNetCoreMSBuild())
-            {
-                pathToTool = dotnetExeLocation.ToString(Context.PathTable);
-                toolArguments = I($"\"{graphConstructionToolPath}\" \"{responseFilePath}\"");
-            }
-            else
-            {
-                pathToTool = graphConstructionToolPath;
-                toolArguments = I($"\"{responseFilePath}\"");
-            }
+            bool useDotNetCore = ResolverSettings.ShouldRunDotNetCoreMSBuild();
+            string pathToTool = useDotNetCore ? dotnetExeLocation.ToString(Context.PathTable) : graphConstructionToolPath;
+            string toolArguments = GetGraphConstructionToolArguments(
+                useDotNetCore,
+                graphConstructionToolPath,
+                responseFilePath,
+                useDotNetCore ? runtimeConfigFile.ToString(Context.PathTable) : null);
 
             Tracing.Logger.Log.LaunchingGraphConstructionTool(Context.LoggingContext, ResolverSettings.Location(Context.PathTable), arguments.ToString(), pathToTool);
 

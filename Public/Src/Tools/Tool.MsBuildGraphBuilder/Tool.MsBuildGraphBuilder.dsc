@@ -16,6 +16,10 @@ namespace MsBuildGraphBuilder {
     @@public
     export const exe = BuildXLSdk.executable({
         assemblyName: "ProjectGraphBuilder",
+        // For dotnetcore, we use a framework dependent deployment since the runtime will provide the necessary framework assemblies
+        // (full framework operates with CLR-provided dlls plus binding redirects to resolve conflicts)
+        // Keep the managed .exe suffix on Linux too: dotnet exec accepts .exe or .dll, but rejects extensionless binaries.
+        deploymentStyle: BuildXLSdk.isDotNetCoreOrStandard ? "frameworkDependent" : undefined,
         skipDocumentationGeneration: true,
         skipDefaultReferences: true,
         sources: globR(d`.`, "*.cs"),

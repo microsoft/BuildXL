@@ -99,8 +99,8 @@ namespace RuntimeConfigFiles {
 
             // TODO: We have to change the way the dependency closure gets created - non assembly files e.g. `.dylib` are often times
             //        runtime dependencies inside the .deps.json file for a specifc assembly. Currently we only have a flat array of binaries.
-            //        Skip non-dll files for now, as the CoreCLR does not enforce a full runtime dependency list to be provided for each assembly.
-            if (assemblyFile.extension !== a`.dll`) {
+            //        Include .dll and managed .exe references; skip other files for now, as the CoreCLR does not enforce a full runtime dependency list.
+            if (assemblyFile.extension !== a`.dll` && assemblyFile.extension !== a`.exe`) {
                 continue;
             }
 

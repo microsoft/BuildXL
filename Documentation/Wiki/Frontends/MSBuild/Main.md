@@ -45,6 +45,9 @@ can be found at [Prelude.Configuration.Resolvers.dsc](../../../../Public/Sdk/Pub
 *msBuildSearchLocations*. This property specifies the directories to search for MSBuild toolset. When not specified, the location
 is determined using [Microsoft build locator](https://github.com/Microsoft/MSBuildLocator).
 
+*msBuildRuntime*. This property selects the MSBuild runtime: `"FullFramework"` for .NET Framework MSBuild or
+`"DotNetCore"` for MSBuild shipped with a .NET SDK.
+
 *fileNameEntryPoints*. This property specifies the relative paths from the root to the projects or solutions to start parsing the MSBuild repository.
 
 *initialTargets*. This property specifies targets to execute on the entry point project. If not provided, the default targets are used.
@@ -109,4 +112,3 @@ BuildXL pip graph. The [execution phase](../../CoreConcepts.md) of BuildXL will 
 - [Building a simple Hello World C# project](./Walkthrough-Building-CSProj.md)
 - [Building a simple Hello World VCX project](./Walkthrough-Building-VCXProj.md)
 - [Building a hybrid MSBuild and DScript projects](./Walkthrough-Building-Hybrid.md)
-

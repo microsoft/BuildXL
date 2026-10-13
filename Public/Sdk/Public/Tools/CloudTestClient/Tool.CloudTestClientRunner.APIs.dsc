@@ -24,7 +24,9 @@ namespace APIs {
         dependsOnCurrentHostOSDirectories: true,
         prepareTempDirectory: true,
         untrackedFiles: [
-            f`${Context.getBuildEngineDirectory().path}`
+            f`${Context.getBuildEngineDirectory().path}`,
+            // The 1ES network isolation proxy CA is agent infrastructure, not a CloudTest input.
+            ...addIfLazy(!isWindows, () => [f`/usr/local/share/ca-certificates/1es-network-isolation-proxy-ca.crt`])
         ],
         untrackedDirectoryScopes: [
             d`${Context.getUserHomeDirectory().path}/.dotnet/corefx/cryptography`

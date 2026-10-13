@@ -749,7 +749,7 @@ namespace Helpers {
         let updateDynamicJob : APIs.UpdateDynamicJobArguments = {
             sessionId: args.configAndSessionResult.sessionResult.sessionIdFile,
             bodyFile: configResult.configFile,
-            dependencies: [...inputArtifacts, configResult.configFile, ...addArtifactsResult.outputs],
+            dependencies: [configResult.configFile, ...addArtifactsResult.outputs],
             tokenEnvVar: args.configAndSessionResult.configArguments.tokenEnvVar,
             timeoutMinutes: args.timeoutMinutes,
             environmentVariables: args.environmentVariables,

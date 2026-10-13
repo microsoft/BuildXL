@@ -369,6 +369,24 @@ namespace Test.Tool.AdoBuildRunner
             var adoBuildRunnerService = harness.RunnerService;
             var args = harness.BuildExecutor.ConstructArguments(buildInfo, TestDefaultArgs);
             AssertContains(args, expectedArgs);
+
+            string[] certificateArgs =
+            {
+                "/unsafe_GlobalUntrackedScopes:/usr/local/share/ca-certificates/1es-network-isolation-proxy-ca.crt",
+                "/unsafe_GlobalUntrackedScopes:/etc/pki/ca-trust/"
+            };
+
+            foreach (var certificateArg in certificateArgs)
+            {
+                if (OperatingSystem.IsLinux())
+                {
+                    Assert.Contains(certificateArg, args);
+                }
+                else
+                {
+                    Assert.DoesNotContain(certificateArg, args);
+                }
+            }
         }
 
         /// <summary>

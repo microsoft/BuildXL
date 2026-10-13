@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.AdoBuildRunner.Vsts;
@@ -71,6 +72,13 @@ namespace BuildXL.AdoBuildRunner
                 // By default, set the timeout to 20min in the workers to avoid unnecessary waiting upon connection failures
                 "/p:BuildXLWorkerAttachTimeoutMin=20"
             };
+
+            if (OperatingSystem.IsLinux())
+            {
+                // The 1ES proxy CA and Linux trust store are agent infrastructure, not build inputs.
+                defaultArguments.Add("/unsafe_GlobalUntrackedScopes:/usr/local/share/ca-certificates/1es-network-isolation-proxy-ca.crt");
+                defaultArguments.Add("/unsafe_GlobalUntrackedScopes:/etc/pki/ca-trust/");
+            }
 
             // Enable gRPC encryption
             if (!AdoBuildRunnerService.Config.DisableEncryption)

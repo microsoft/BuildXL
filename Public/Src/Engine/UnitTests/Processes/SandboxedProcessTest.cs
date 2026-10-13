@@ -3,16 +3,21 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
+using System.IO.Pipes;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Pips;
 using BuildXL.Processes;
+using BuildXL.Processes.Internal;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using Microsoft.Win32.SafeHandles;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -26,6 +31,16 @@ namespace Test.BuildXL.Processes
 {
     public sealed class SandboxedProcessTest : SandboxedProcessTestBase
     {
+        private const uint HandleFlagInherit = 1;
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetHandleInformation(SafeFileHandle handle, out uint flags);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool PeekNamedPipe(SafeHandle handle, byte[] buffer, int bufferSize, out int bytesRead, out int bytesAvailable, IntPtr bytesLeftThisMessage);
+
         private ITestOutputHelper TestOutput { get; }
 
         public SandboxedProcessTest(ITestOutputHelper output)
@@ -97,6 +112,102 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(0, result.ExitCode, "Unexpected error code; stdout: '{0}', stderr: '{1}'", stdout, stderr);
             XAssert.AreEqual(string.Empty, stderr.Trim());
             XAssert.AreEqual(echoMessage, stdout.Trim());
+        }
+
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task SandboxRootDoesNotInheritUnrelatedHandle(bool hookOutputs)
+        {
+            using NamedPipeServerStream pipe = Pipes.CreateNamedPipeServerStream(
+                PipeDirection.In,
+                PipeOptions.Asynchronous,
+                PipeOptions.None,
+                out SafeFileHandle writer,
+                markClientHandleInheritable: true);
+            using (writer)
+            {
+                if (!GetHandleInformation(writer, out uint flags))
+                {
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "GetHandleInformation");
+                }
+
+                XAssert.IsTrue((flags & HandleFlagInherit) != 0, "The unrelated host pipe writer must be inheritable.");
+
+                string marker = Guid.NewGuid().ToString("N");
+                var outputFile = CreateOutputFileArtifact();
+                var operations = new List<Operation>
+                {
+                    Operation.WriteToInheritedHandle(writer.DangerousGetHandle(), marker),
+                    Operation.WriteFile(outputFile, "reported"),
+                };
+
+                if (hookOutputs)
+                {
+                    operations.Add(Operation.Echo("standard output"));
+                    operations.Add(Operation.Echo("standard error", useStdErr: true));
+                }
+
+                var process = ToProcess(operations.ToArray());
+                var info = new SandboxedProcessInfo(
+                    Context.PathTable,
+                    fileStorage: null,
+                    fileName: process.Executable.Path.ToString(Context.PathTable),
+                    disableConHostSharing: false,
+                    loggingContext: LoggingContext)
+                {
+                    Arguments = process.Arguments.ToString(Context.PathTable),
+                    WorkingDirectory = TemporaryDirectory,
+                    PipSemiStableHash = 0x1234,
+                    PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
+                };
+                info.FileAccessManifest.FailUnexpectedFileAccesses = false;
+                info.FileAccessManifest.ReportFileAccesses = true;
+
+                var stdout = new List<string>();
+                var stderr = new List<string>();
+                if (hookOutputs)
+                {
+                    info.StandardOutputObserver = stdout.Add;
+                    info.StandardErrorObserver = stderr.Add;
+                }
+
+                SandboxedProcessResult result = await RunProcess(info);
+                XAssert.AreEqual(0, result.ExitCode);
+                XAssert.IsFalse(result.Killed);
+                XAssert.IsNotNull(result.FileAccesses);
+                XAssert.IsTrue(result.FileAccesses.Any(access => access.Operation == ReportedFileOperation.Process));
+                string outputPath = outputFile.Path.ToString(Context.PathTable);
+                XAssert.IsTrue(result.FileAccesses.Any(access => access.GetPath(Context.PathTable) == outputPath));
+                XAssert.AreEqual("reported", File.ReadAllText(outputPath));
+
+                if (hookOutputs)
+                {
+                    XAssert.AreEqual("standard output", string.Join("", stdout).Trim());
+                    XAssert.AreEqual("standard error", string.Join("", stderr).Trim());
+                }
+
+                byte[] buffer = new byte[128];
+                if (!PeekNamedPipe(pipe.SafePipeHandle, buffer, buffer.Length, out int bytesRead, out int bytesAvailable, IntPtr.Zero))
+                {
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "PeekNamedPipe");
+                }
+
+                XAssert.AreEqual(0, bytesAvailable, $"The sandbox root wrote to an unrelated inherited host pipe: {Encoding.UTF8.GetString(buffer, 0, bytesRead)}");
+            }
+        }
+
+        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        public async Task UnixInheritedDescriptorWritesToStandardOutput()
+        {
+            string marker = Guid.NewGuid().ToString("N");
+            var info = ToProcessInfo(ToProcess(
+                Operation.WriteToInheritedHandle(new IntPtr(-1), "excluded"),
+                Operation.WriteToInheritedHandle(new IntPtr(1), marker)));
+
+            SandboxedProcessResult result = await RunProcess(info);
+            XAssert.AreEqual(0, result.ExitCode);
+            XAssert.AreEqual(marker, (await result.StandardOutput.ReadValueAsync()).Trim());
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // reported files are not consistent on Mac

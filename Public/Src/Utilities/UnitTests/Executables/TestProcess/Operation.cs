@@ -3,8 +3,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -24,6 +26,9 @@ namespace Test.BuildXL.Executables.TestProcess
     public sealed class Operation
     {
         private const int NumArgsExpected = 7;
+        private const int ERROR_ACCESS_DENIED = 5;
+        private const int ERROR_INVALID_HANDLE = 6;
+        private const int EBADF = 9;
         private const int ERROR_ALREADY_EXISTS = 183;
         private const string StdErrMoniker = "stderr";
         private const string WaitToFinishMoniker = "wait";
@@ -286,6 +291,11 @@ namespace Test.BuildXL.Executables.TestProcess
             /// Sleeps for a specified amount of time
             /// </summary>
             Sleep,
+
+            /// <summary>
+            /// Attempts to write to a handle supplied by the parent process
+            /// </summary>
+            WriteToInheritedHandle,
         }
 
         /// <summary>
@@ -322,6 +332,13 @@ namespace Test.BuildXL.Executables.TestProcess
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true, EntryPoint = "CreateDirectory")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool ExternWinCreateDirectory(string lpPathName, IntPtr lpSecurityAttributes);
+
+        [DllImport("kernel32.dll", SetLastError = true, EntryPoint = "WriteFile")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool ExternWinWriteFile(IntPtr hFile, byte[] lpBuffer, int nNumberOfBytesToWrite, out int lpNumberOfBytesWritten, IntPtr lpOverlapped);
+
+        [DllImport("libc", SetLastError = true, EntryPoint = "write")]
+        private static extern IntPtr ExternUnixWrite(int fileDescriptor, byte[] buffer, UIntPtr count);
 
         /*** STATE FOR BUILDXL TESTING ***/
 
@@ -592,6 +609,9 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     case Type.Sleep:
                         DoSleep();
+                        return;
+                    case Type.WriteToInheritedHandle:
+                        DoWriteToInheritedHandle();
                         return;
                 }
             }
@@ -1120,6 +1140,14 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation Sleep(int milliseconds)
         {
             return new Operation(Type.Sleep, content: milliseconds.ToString());
+        }
+
+        /// <summary>
+        /// Attempts to write a marker to an inherited handle or file descriptor.
+        /// </summary>
+        public static Operation WriteToInheritedHandle(IntPtr handle, string marker)
+        {
+            return new Operation(Type.WriteToInheritedHandle, content: EncodeList(handle.ToInt64().ToString(CultureInfo.InvariantCulture), marker));
         }
 
         /*** FILESYSTEM OPERATION FUNCTIONS ***/
@@ -1854,6 +1882,44 @@ namespace Test.BuildXL.Executables.TestProcess
         private void DoSleep()
         {
             Thread.Sleep(TimeSpan.FromMilliseconds(int.Parse(Content)));
+        }
+
+        private void DoWriteToInheritedHandle()
+        {
+            string[] args = DecodeList(Content);
+            var handle = new IntPtr(long.Parse(args[0], CultureInfo.InvariantCulture));
+            byte[] marker = Encoding.UTF8.GetBytes(args[1]);
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                long unixBytesWritten = ExternUnixWrite(checked((int)handle.ToInt64()), marker, (UIntPtr)marker.Length).ToInt64();
+                if (unixBytesWritten == -1)
+                {
+                    int error = Marshal.GetLastWin32Error();
+                    if (error != EBADF)
+                    {
+                        throw new Win32Exception(error, "write");
+                    }
+                }
+                else if (unixBytesWritten != marker.Length)
+                {
+                    throw new IOException("Failed to write the complete inherited-handle marker.");
+                }
+
+                return;
+            }
+
+            if (!ExternWinWriteFile(handle, marker, marker.Length, out int bytesWritten, IntPtr.Zero))
+            {
+                int error = Marshal.GetLastWin32Error();
+                if (error != ERROR_ACCESS_DENIED && error != ERROR_INVALID_HANDLE) // An excluded handle can be invalid or reused without write access.
+                {
+                    throw new Win32Exception(error, "WriteFile");
+                }
+            }
+            else if (bytesWritten != marker.Length)
+            {
+                throw new IOException("Failed to write the complete inherited-handle marker.");
+            }
         }
 
         /*** COMMAND LINE PARSING FUNCTION ***/

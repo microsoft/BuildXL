@@ -971,7 +971,7 @@ CreateDetouredProcess(
         /* lpCommandLine */ buffer.get(),
         /* lpProcessAttributes */ NULL,
         /* lpThreadAttributes */ NULL,
-        /* bInheritHandles */ TRUE,
+        /* bInheritHandles */ processCreationAttributes.handles.empty() ? FALSE : TRUE,
         dwCreationFlags | EXTENDED_STARTUPINFO_PRESENT,
         lpEnvironment,
         lpcwWorkingDirectory,

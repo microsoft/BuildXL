@@ -17,7 +17,6 @@
 
 char LICENSE[] SEC("license") = "Dual MIT/GPL";
 
-
 /**
  * wake_up_new_task() - Hook for clone syscall on wake_up_new_task.
  *
@@ -395,11 +394,10 @@ int BPF_PROG(security_path_rename_enter, const struct path *old_dir, struct dent
 	return 0;
 }
 
-/**
- * do_mkdirat_exit() - mkdirat syscall.
- */
-SEC("fexit/do_mkdirat")
-int BPF_PROG(do_mkdirat_exit, int dfd, struct filename *name, umode_t mode, int ret)
+__attribute__((always_inline)) static inline int mkdirat_exit_common(
+    int dfd,
+    struct filename *name,
+    int ret)
 {
     pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
@@ -446,13 +444,24 @@ int BPF_PROG(do_mkdirat_exit, int dfd, struct filename *name, umode_t mode, int 
     return 0;
 }
 
-/**
- * vfs_rmdir_exit() - rmdir system call hook at the VFS layer.
- *
- * The exit code is used to determine whether the file that was accesssed was a directory or not.
- */
-SEC("fexit/do_rmdir")
-int BPF_PROG(do_rmdir_exit, int dfd, struct filename *name, int ret)
+// Linux 7.0 renamed do_mkdirat to filename_mkdirat. Autoload is selected on user side
+// based on the running kernel version.
+SEC("?fexit/do_mkdirat")
+int BPF_PROG(do_mkdirat_exit, int dfd, struct filename *name, umode_t mode, int ret)
+{
+    return mkdirat_exit_common(dfd, name, ret);
+}
+
+SEC("?fexit/filename_mkdirat")
+int BPF_PROG(filename_mkdirat_exit, int dfd, struct filename *name, umode_t mode, int ret)
+{
+    return mkdirat_exit_common(dfd, name, ret);
+}
+
+__attribute__((always_inline)) static inline int rmdir_exit_common(
+    int dfd,
+    struct filename *name,
+    int ret)
 {
     pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
@@ -500,6 +509,20 @@ int BPF_PROG(do_rmdir_exit, int dfd, struct filename *name, int ret)
     );
 
     return 0;
+}
+
+// Linux 7.0 renamed do_rmdir to filename_rmdir. Autoload is selected on user side
+// based on the running kernel version.
+SEC("?fexit/do_rmdir")
+int BPF_PROG(do_rmdir_exit, int dfd, struct filename *name, int ret)
+{
+    return rmdir_exit_common(dfd, name, ret);
+}
+
+SEC("?fexit/filename_rmdir")
+int BPF_PROG(filename_rmdir_exit, int dfd, struct filename *name, int ret)
+{
+    return rmdir_exit_common(dfd, name, ret);
 }
 
 /**
@@ -606,71 +629,91 @@ int BPF_PROG(security_path_link_entry, struct dentry *old_dentry, const struct p
 }
 
 /**
- * step_into_exit() - Tracks negative dentries (absent path components) during path walks and takes
- * care of symlink traversal (the latter only for older kernels).
+ * track_negative_dentry() - Tracks absent path components during path walks.
  *
- * step_into is the single funnel point for ALL component resolutions in the VFS path walk — both
- * dcache hits (lookup_fast → step_into) and dcache misses (lookup_slow → step_into). It receives
- * the dentry as a parameter.
+ * When a negative dentry is encountered, store its cache key as a candidate for
+ * the current path walk. The corresponding path exit decides whether the operation actually reports an
+ * absent probe. This prevents intermediate negative dentries, such as O_CREAT candidates,
+ * from being marked as reported before the final operation result is known.
  *
- * We insert whether the absent probe is a cache hit or miss when a negative dentry is actually encountered. 
- * This avoids overhead on successful path walks. The counterpart is that we need to clean up this entry
- * when all known callers exit to avoid stale entries. Luckily all known callers (path_lookupat, 
- * path_parentat and path_openat) are already being traced.
- *
- * When the dentry is negative (d_inode == NULL), we resolve the pid, check the per-pip negative dentry cache:
- * - Cache miss: insert REPORT (first-time absent probe for this pip)
- * - Cache hit: insert SKIP (repeat absent probe, already reported)
- *
+ * The reporting exits check the per-pip cache using the stored key.
  * We only insert once per walk — the first negative dentry is the one that matters. Subsequent
  * negative dentries in the same walk are ignored because an entry already exists.
  *
  * The dentry is still cache-hot at this point, so the BPF_CORE_READ of d_inode is essentially free.
  */
-SEC("fexit/step_into")
-int BPF_PROG(step_into_exit, struct nameidata *nd, int flags, struct dentry *dentry, const char *ret)
+__attribute__((always_inline)) static inline int track_negative_dentry(struct dentry *dentry)
 {
-    u64 pid_tgid = bpf_get_current_pid_tgid();
-
-    // This is the symlink traversal part. Just cleans up the map used to store mounts in step_into_entry.
-    // This is only used in older kernels where pick_link does not have BTF information.
-    // On >= 6.8 the follow_link_mount map is not even created (autocreate disabled in sandbox.cpp).
-    if (LINUX_KERNEL_VERSION < KERNEL_VERSION(6, 8, 0))
-    {
-        bpf_map_delete_elem(&follow_link_mount, &pid_tgid);
+    if (!dentry || IS_ERR(dentry)) {
+        return 0;
     }
 
     // Only interested in negative dentries (d_inode == NULL means path component doesn't exist).
-    // This check is very cheap — the dentry is cache-hot from the just-completed step_into call.
+    // This check is very cheap because the dentry was just returned by the path lookup.
     if (BPF_CORE_READ(dentry, d_inode) != NULL) {
         return 0;
     }
 
-    // If we already inserted a decision for this walk (from a previous component), don't override.
-    // The first negative dentry in a walk is the one that matters.
-    if (bpf_map_lookup_elem(&should_send_absent_probe, &pid_tgid) != NULL) {
-        return 0;
-    }
-
-    // Pid resolution is pushed down here so it only runs when a negative dentry is found.
-    // In non-root pid namespaces, bpf_get_current_ns_pid() is more expensive (namespace walk),
-    // so avoiding it on the hot path (successful walks) is a meaningful win.
+    // These hooks run system-wide; only track candidates whose exit hooks will consume them.
     pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
-    // should_send_neg_dentry returns true on cache miss (first time), false on cache hit (repeat)
-    u8 status = should_send_neg_dentry(runner_pid, dentry)
-        ? ABSENT_PROBE_REPORT
-        : ABSENT_PROBE_SKIP;
+    u64 pid_tgid = bpf_get_current_pid_tgid();
 
-    if (bpf_map_update_elem(&should_send_absent_probe, &pid_tgid, &status, BPF_NOEXIST)) {
+    // Preserve the first negative-dentry key for this walk.
+    if (bpf_map_lookup_elem(&should_send_absent_probe, &pid_tgid) != NULL) {
+        return 0;
+    }
+
+    neg_dentry_cache_key candidate = {
+        .dentry_ptr = ptr_to_long(dentry),
+        .d_parent_ptr = ptr_to_long(BPF_CORE_READ(dentry, d_parent)),
+        .d_name_hash_len = BPF_CORE_READ(dentry, d_name.hash_len),
+    };
+
+    if (bpf_map_update_elem(&should_send_absent_probe, &pid_tgid, &candidate, BPF_NOEXIST)) {
         report_ring_buffer_error(runner_pid, "[ERROR]: Could not update should_send_absent_probe map");
     }
 
     return 0;
+}
+
+// Before Linux 7.0, step_into was the single funnel point for both fast and slow path
+// component resolution. Linux 7.0 inlined its fast path, so lookup_fast observes
+// negative dcache hits and step_into_slowpath observes negative slow lookups.
+SEC("?fexit/step_into")
+int BPF_PROG(step_into_exit, struct nameidata *nd, int flags, struct dentry *dentry, const char *ret)
+{
+    // This is the symlink traversal part. Just cleans up the map used to store mounts in step_into_entry.
+    // This is only used in older kernels where pick_link does not have BTF information.
+    // On >= 6.8 the follow_link_mount map is not even created (autocreate disabled in sandbox.cpp).
+    if (LINUX_KERNEL_VERSION < KERNEL_VERSION(6, 8, 0))
+    {
+        u64 pid_tgid = bpf_get_current_pid_tgid();
+        bpf_map_delete_elem(&follow_link_mount, &pid_tgid);
+    }
+
+    return track_negative_dentry(dentry);
+}
+
+SEC("?fexit/lookup_fast")
+int BPF_PROG(lookup_fast_exit, struct nameidata *nd, struct dentry *ret)
+{
+    return track_negative_dentry(ret);
+}
+
+// Attach on entry because step_into_slowpath may drop the dentry reference before returning.
+SEC("?fentry/step_into_slowpath")
+int BPF_PROG(
+    step_into_slowpath_entry,
+    struct nameidata *nd,
+    int flags,
+    struct dentry *dentry)
+{
+    return track_negative_dentry(dentry);
 }
 
 /**
@@ -688,15 +731,17 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
         return 0;
     }
 
-    // Always clean up any should_send_absent_probe entry step_into may have inserted during
+    // Always consume and clean up any candidate a path-walk hook inserted during
     // this walk. This must happen before any early return because:
     // - On success (ret == 0): step_into shouldn't have seen a negative dentry, but during
     //   retries (after -ECHILD/-ESTALE) a stale entry from a previous aborted walk may linger.
     // - On -ECHILD/-ESTALE: the walk will be retried — don't carry stale state into the retry.
     u64 pid_tgid = bpf_get_current_pid_tgid();
-    u8 *request = bpf_map_lookup_elem(&should_send_absent_probe, &pid_tgid);
-    u8 request_value = request ? *request : ABSENT_PROBE_NOT_SET;
-    if (request) {
+    neg_dentry_cache_key candidate = {};
+    neg_dentry_cache_key *candidate_ptr = bpf_map_lookup_elem(&should_send_absent_probe, &pid_tgid);
+    bool has_candidate = candidate_ptr != NULL;
+    if (has_candidate) {
+        candidate = *candidate_ptr;
         bpf_map_delete_elem(&should_send_absent_probe, &pid_tgid);
     }
 
@@ -714,9 +759,10 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
         return 0;
     }
 
-    // If step_into determined this is a repeat absent probe (negative dentry already in per-pip cache),
-    // skip it. We've already reported this absent path for this pip.
-    if (request_value == ABSENT_PROBE_SKIP)
+    // A missing key can mean insertion failed or lookup failed before a negative dentry was
+    // observed, including ENOENT for a deleted directory. Preserve failure reporting;
+    // only a stored key found in the per-pip cache identifies a duplicate.
+    if (has_candidate && !should_send_neg_dentry(runner_pid, &candidate))
     {
         return 0;
     }
@@ -736,8 +782,6 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
         return 0;
     }
 
-    // Here the request value can be either REPORT or NOT_SET. For both cases, check the string cache
-    // Even if we got a REPORT back, the kernel cache is also lossy, so we may have seen this path before.
     if (!should_send_string(runner_pid, kGenericProbe, temp_path, path_length))
     {
         return 0;
@@ -757,6 +801,10 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
         path_length
     );
 
+    if (has_candidate) {
+        mark_neg_dentry_reported(runner_pid, &candidate);
+    }
+
     return 0;
 }
 
@@ -775,15 +823,17 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
         return 0;
     }
 
-    // Always clean up any should_send_absent_probe entry step_into may have inserted during
+    // Always consume and clean up any candidate a path-walk hook inserted during
     // this walk. This must happen before any early return because:
     // - On success (ret == 0): step_into shouldn't have seen a negative dentry, but during
     //   retries (after -ECHILD/-ESTALE) a stale entry from a previous aborted walk may linger.
     // - On -ECHILD/-ESTALE: the walk will be retried — don't carry stale state into the retry.
     u64 pid_tgid = bpf_get_current_pid_tgid();
-    u8 *request = bpf_map_lookup_elem(&should_send_absent_probe, &pid_tgid);
-    u8 request_value = request ? *request : ABSENT_PROBE_NOT_SET;
-    if (request) {
+    neg_dentry_cache_key candidate = {};
+    neg_dentry_cache_key *candidate_ptr = bpf_map_lookup_elem(&should_send_absent_probe, &pid_tgid);
+    bool has_candidate = candidate_ptr != NULL;
+    if (has_candidate) {
+        candidate = *candidate_ptr;
         bpf_map_delete_elem(&should_send_absent_probe, &pid_tgid);
     }
 
@@ -801,9 +851,10 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
         return 0;
     }
 
-    // If step_into determined this is a repeat absent probe (negative dentry already in per-pip cache),
-    // skip it. We've already reported this absent path for this pip.
-    if (request_value == ABSENT_PROBE_SKIP)
+    // A missing key can mean insertion failed or lookup failed before a negative dentry was
+    // observed, including ENOENT for a deleted directory. Preserve failure reporting;
+    // only a stored key found in the per-pip cache identifies a duplicate.
+    if (has_candidate && !should_send_neg_dentry(runner_pid, &candidate))
     {
         return 0;
     }
@@ -822,9 +873,7 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
         return 0;
     }
 
-    // Here the request value can be either REPORT or NOT_SET. For both cases, check the string cache
-    // Even if we got a REPORT back, the kernel cache is also lossy, so we may have seen this path before.
-      if (!should_send_string(runner_pid, kGenericProbe, temp_path, path_length))
+    if (!should_send_string(runner_pid, kGenericProbe, temp_path, path_length))
     {
         return 0;
     }
@@ -843,6 +892,10 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
         path_length
     );
 
+    if (has_candidate) {
+        mark_neg_dentry_reported(runner_pid, &candidate);
+    }
+
     return 0;
 }
 
@@ -860,11 +913,10 @@ int BPF_PROG(path_openat_exit, struct nameidata *nd, const struct open_flags *op
         return 0;
     }
 
-    // Always clean up any should_send_absent_probe entry step_into may have inserted during
-    // this walk, before any early return. On -ECHILD/-ESTALE the walk will be retried and we
-    // must not carry stale state into the retry.
-    // We don't use the neg dentry status here — path_openat already deduplicates via
-    // event_cache (success) and string_cache (failure).
+    // Always clean up any candidate a path-walk hook inserted during this walk,
+    // before any early return. On -ECHILD/-ESTALE the walk will be retried and we must not
+    // carry stale state into the retry. path_openat reports and deduplicates its own result,
+    // so an intermediate O_CREAT candidate is discarded rather than committed to the cache.
     u64 pid_tgid = bpf_get_current_pid_tgid();
     bpf_map_delete_elem(&should_send_absent_probe, &pid_tgid);
 

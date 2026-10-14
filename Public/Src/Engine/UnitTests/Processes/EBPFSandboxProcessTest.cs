@@ -314,6 +314,338 @@ namespace Test.BuildXL.Processes
             XAssert.Contains(sandboxMessages, $"Avoided sending to user side {(expectUntracked ? "1" : "0")} untracked");
         }
 
+        [Theory]
+        [InlineData(2, false)]
+        [InlineData(10, false)]
+        [InlineData(2, true)]
+        [InlineData(10, true)]
+        public void RepeatedAbsentProbeDoesNotSuppressFollowingDistinctProbe(int repetitions, bool lookupParent)
+        {
+            var firstAbsentPath = Path.Combine(TemporaryDirectory, "repeated_absent_probe");
+            var secondAbsentPath = Path.Combine(TemporaryDirectory, "following_absent_probe");
+            if (lookupParent)
+            {
+                firstAbsentPath = Path.Combine(firstAbsentPath, "child");
+                secondAbsentPath = Path.Combine(secondAbsentPath, "child");
+            }
+
+            var kernelFunction = lookupParent ? "path_parentat" : "path_lookupat";
+
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+                EnableLinuxSandboxLogging = true,
+            };
+
+            var info =
+                new SandboxedProcessInfo(
+                    Context.PathTable,
+                    new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                    lookupParent ? "/usr/bin/rmdir" : "/usr/bin/stat",
+                    fileAccessManifest,
+                    disableConHostSharing: false,
+                    loggingContext: LoggingContext,
+                    useGentleKill: true)
+                {
+                    Arguments = $"{string.Join(" ", Enumerable.Repeat(firstAbsentPath, repetitions))} {secondAbsentPath}",
+                    WorkingDirectory = TemporaryDirectory,
+                    PipSemiStableHash = fileAccessManifest.PipId,
+                    PipDescription = "EBPF repeated absent probe deduplication test",
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
+                };
+
+            var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
+            var result = process.GetResultAsync().GetAwaiter().GetResult();
+
+            // All requested paths are absent, so stat or rmdir returns an error.
+            AssertExitCode(result, 1);
+
+            var probePaths = result.FileAccesses?
+                .Where(access => access.Operation == ReportedFileOperation.Probe)
+                .Select(access => access.GetPath(Context.PathTable))
+                .ToList() ?? new List<string>();
+
+            XAssert.AreEqual(
+                1,
+                probePaths.Count(path => path == firstAbsentPath),
+                $"Expected the repeated absent path to be reported exactly once.{Environment.NewLine}" +
+                $"All reported accesses:{Environment.NewLine}{string.Join(Environment.NewLine, result.FileAccesses?.Select(a => a.Describe()) ?? Array.Empty<string>())}");
+
+            XAssert.AreEqual(
+                1,
+                probePaths.Count(path => path == secondAbsentPath),
+                $"Expected the distinct absent path following a deduplicated probe to be reported.{Environment.NewLine}" +
+                $"All reported accesses:{Environment.NewLine}{string.Join(Environment.NewLine, result.FileAccesses?.Select(a => a.Describe()) ?? Array.Empty<string>())}");
+
+            // Count native reports so managed deduplication cannot hide repeated sandbox events.
+            var messages = m_eventListener.GetLogMessagesForEventId((int)LogEventId.LogDetoursDebugMessage);
+            var firstProbeMessages = messages
+                .Where(message => message.Contains($"kernel function: {kernelFunction}") && message.Contains($"path: '{firstAbsentPath}'"))
+                .ToList();
+            XAssert.AreEqual(
+                1,
+                firstProbeMessages.Count,
+                $"Expected {repetitions} absent probes to produce exactly one native report.{Environment.NewLine}" +
+                $"Matching messages:{Environment.NewLine}{string.Join(Environment.NewLine, firstProbeMessages)}");
+
+            XAssert.AreEqual(
+                1,
+                messages.Count(message => message.Contains($"kernel function: {kernelFunction}") && message.Contains($"path: '{secondAbsentPath}'")),
+                "Expected the following distinct probe to retain its own candidate and report.");
+        }
+
+        [Fact]
+        public void NonDirectoryLookupWithoutCandidateIsReported()
+        {
+            var filePath = Path.Combine(TemporaryDirectory, "not_a_directory");
+            var failedPath = Path.Combine(filePath, "child");
+            File.WriteAllText(filePath, "content");
+
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+                EnableLinuxSandboxLogging = true,
+            };
+
+            var info =
+                new SandboxedProcessInfo(
+                    Context.PathTable,
+                    new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                    "/usr/bin/stat",
+                    fileAccessManifest,
+                    disableConHostSharing: false,
+                    loggingContext: LoggingContext,
+                    useGentleKill: true)
+                {
+                    Arguments = failedPath,
+                    WorkingDirectory = TemporaryDirectory,
+                    PipSemiStableHash = fileAccessManifest.PipId,
+                    PipDescription = "EBPF ENOTDIR probe without a negative-dentry candidate test",
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
+                };
+
+            var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
+            var result = process.GetResultAsync().GetAwaiter().GetResult();
+            AssertExitCode(result, 1);
+
+            XAssert.IsTrue(
+                result.FileAccesses?.Any(access => access.Operation == ReportedFileOperation.Probe &&
+                    access.GetPath(Context.PathTable) == failedPath && access.Error != 0) == true,
+                "Expected the ENOTDIR access report to retain its error.");
+
+            // The existing regular file stops traversal with ENOTDIR before a negative dentry is observed.
+            var messages = m_eventListener.GetLogMessagesForEventId((int)LogEventId.LogDetoursDebugMessage).ToList();
+            XAssert.IsTrue(
+                messages.Any(message => message.Contains("kernel function: path_lookupat") && message.Contains($"path: '{failedPath}'")),
+                $"Expected the failed lookup to be reported through the no-candidate fallback.{Environment.NewLine}" +
+                $"Sandbox messages:{Environment.NewLine}{string.Join(Environment.NewLine, messages)}");
+        }
+
+        [Fact]
+        public void DeletedDirectoryLookupWithoutCandidateIsReported()
+        {
+            var deletedDirectory = Path.Combine(TemporaryDirectory, "deleted_lookup_directory");
+            var missingPath = Path.Combine(deletedDirectory, "missing_child");
+            var scriptPath = Path.Combine(TemporaryDirectory, "deleted-directory-lookup.sh");
+            FileUtilities.CreateDirectory(deletedDirectory);
+            File.WriteAllLines(
+                scriptPath,
+                [
+                    "#!/bin/bash",
+                    $"/usr/bin/rmdir \"{deletedDirectory}\" || exit 2",
+                    "if /usr/bin/stat missing_child; then",
+                    "  exit 3",
+                    "fi",
+                ]);
+
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+                EnableLinuxSandboxLogging = true,
+            };
+
+            var info =
+                new SandboxedProcessInfo(
+                    Context.PathTable,
+                    new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                    "/bin/bash",
+                    fileAccessManifest,
+                    disableConHostSharing: false,
+                    loggingContext: LoggingContext,
+                    useGentleKill: true)
+                {
+                    Arguments = scriptPath,
+                    WorkingDirectory = deletedDirectory,
+                    PipSemiStableHash = fileAccessManifest.PipId,
+                    PipDescription = "EBPF ENOENT lookup in a deleted directory test",
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
+                };
+
+            using var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
+            var result = process.GetResultAsync().GetAwaiter().GetResult();
+            AssertExitCode(result, 0);
+            XAssert.IsFalse(Directory.Exists(deletedDirectory));
+            XAssert.IsTrue(
+                result.FileAccesses?.Any(access => access.Operation == ReportedFileOperation.Probe &&
+                    access.GetPath(Context.PathTable) == missingPath && access.Error != 0) == true,
+                "Expected ENOENT from the deleted working directory to retain its probe report.");
+
+            var messages = m_eventListener.GetLogMessagesForEventId((int)LogEventId.LogDetoursDebugMessage).ToList();
+            XAssert.AreEqual(
+                1,
+                messages.Count(message => message.Contains("kernel function: path_lookupat") &&
+                    message.Contains($"path: '{missingPath}'")),
+                $"Expected the no-candidate ENOENT lookup to use the string-path fallback.{Environment.NewLine}" +
+                $"Sandbox messages:{Environment.NewLine}{string.Join(Environment.NewLine, messages)}");
+            XAssert.IsFalse(
+                m_eventListener.GetLogMessagesForEventId((int)LogEventId.FullSandboxInternalErrorMessage)
+                    .Any(message => message.Contains("Could not update should_send_absent_probe map")),
+                "The deleted-directory case must not depend on a candidate-map insertion failure.");
+        }
+
+        [Fact]
+        public void PermissionDeniedLookupWithoutCandidateIsReported()
+        {
+            var deniedDirectory = Path.Combine(TemporaryDirectory, "denied_lookup_directory");
+            var targetPath = Path.Combine(deniedDirectory, "existing_file");
+            var scriptPath = Path.Combine(TemporaryDirectory, "denied-lookup.sh");
+            FileUtilities.CreateDirectory(deniedDirectory);
+            File.WriteAllText(targetPath, "content");
+            File.WriteAllLines(
+                scriptPath,
+                [
+                    "#!/bin/bash",
+                    $"directory=\"{deniedDirectory}\"",
+                    $"target=\"{targetPath}\"",
+                    "/usr/bin/chmod 0600 \"$directory\"",
+                    "trap '/usr/bin/chmod 0755 \"$directory\"' EXIT",
+                    "if /usr/bin/stat \"$target\"; then",
+                    "  exit 2",
+                    "fi",
+                ]);
+
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+                EnableLinuxSandboxLogging = true,
+            };
+
+            var info =
+                new SandboxedProcessInfo(
+                    Context.PathTable,
+                    new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                    "/bin/bash",
+                    fileAccessManifest,
+                    disableConHostSharing: false,
+                    loggingContext: LoggingContext,
+                    useGentleKill: true)
+                {
+                    Arguments = scriptPath,
+                    WorkingDirectory = TemporaryDirectory,
+                    PipSemiStableHash = fileAccessManifest.PipId,
+                    PipDescription = "EBPF EACCES probe without a negative-dentry candidate test",
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
+                };
+
+            var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
+            var result = process.GetResultAsync().GetAwaiter().GetResult();
+            AssertExitCode(result, 0);
+            XAssert.IsTrue(File.Exists(targetPath));
+            XAssert.IsTrue(
+                result.FileAccesses?.Any(access => access.Operation == ReportedFileOperation.Probe &&
+                    access.GetPath(Context.PathTable) == targetPath && access.Error != 0) == true,
+                "Expected the permission-denied access report to retain its error.");
+
+            var messages = m_eventListener.GetLogMessagesForEventId((int)LogEventId.LogDetoursDebugMessage);
+            XAssert.IsTrue(
+                messages.Any(message => message.Contains("kernel function: path_lookupat") && message.Contains($"path: '{targetPath}'")),
+                "Expected the permission-denied lookup to use the no-candidate fallback.");
+        }
+
+        [Fact]
+        public void FailedCreateDoesNotSuppressFollowingAbsentProbe()
+        {
+            var deniedDirectory = Path.Combine(TemporaryDirectory, "denied_create_directory");
+            var absentPath = Path.Combine(deniedDirectory, "failed_create_then_probe");
+            var scriptPath = Path.Combine(TemporaryDirectory, "failed-create-then-probe.sh");
+
+            FileUtilities.CreateDirectory(deniedDirectory);
+            // Populate the kernel dcache before the sandbox starts so the O_CREAT lookup reaches
+            // lookup_fast with a negative dentry, reproducing the lookup_fast_for_open scenario.
+            XAssert.IsFalse(File.Exists(absentPath));
+            File.WriteAllLines(
+                scriptPath,
+                [
+                    "#!/bin/bash",
+                    $"directory=\"{deniedDirectory}\"",
+                    $"target=\"{absentPath}\"",
+                    "/usr/bin/chmod 0555 \"$directory\"",
+                    "trap '/usr/bin/chmod 0755 \"$directory\"' EXIT",
+                    "if : > \"$target\"; then",
+                    "  exit 2",
+                    "fi",
+                    "if /usr/bin/stat \"$target\"; then",
+                    "  exit 3",
+                    "fi",
+                ]);
+
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+                EnableLinuxSandboxLogging = true,
+            };
+
+            var info =
+                new SandboxedProcessInfo(
+                    Context.PathTable,
+                    new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                    "/bin/bash",
+                    fileAccessManifest,
+                    disableConHostSharing: false,
+                    loggingContext: LoggingContext,
+                    useGentleKill: true)
+                {
+                    Arguments = scriptPath,
+                    WorkingDirectory = TemporaryDirectory,
+                    PipSemiStableHash = fileAccessManifest.PipId,
+                    PipDescription = "EBPF failed create followed by absent probe test",
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
+                };
+
+            var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
+            var result = process.GetResultAsync().GetAwaiter().GetResult();
+            AssertExitCode(result, 0);
+            XAssert.IsFalse(File.Exists(absentPath));
+
+            var messages = m_eventListener.GetLogMessagesForEventId((int)LogEventId.LogDetoursDebugMessage);
+            var targetMessages = messages.Where(message => message.Contains($"path: '{absentPath}'")).ToList();
+
+            XAssert.IsTrue(
+                targetMessages.Any(message => message.Contains("kernel function: path_openat")),
+                $"Expected the denied create to be reported by path_openat.{Environment.NewLine}" +
+                $"Matching messages:{Environment.NewLine}{string.Join(Environment.NewLine, targetMessages)}");
+
+            XAssert.IsTrue(
+                targetMessages.Any(message => message.Contains("kernel function: path_lookupat")),
+                $"Expected the stat following the denied create to report a genuine absent probe through path_lookupat.{Environment.NewLine}" +
+                $"Matching messages:{Environment.NewLine}{string.Join(Environment.NewLine, targetMessages)}");
+        }
+
         [Fact]
         public void UntrackedScopesExceedingTheLimitAreNotAdded()
         {

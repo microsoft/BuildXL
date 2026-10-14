@@ -23,9 +23,9 @@
  * Libbpf, bpf skeleton, and shared bpf includes
  */
 #include "bpf/bpf.h"
+#include "bpf/btf.h"
 #include "bpf/libbpf.h"
 #include "sandbox.skel.h"
-#include "bpf/btf.h"
 
 /**
  * BuildXL includes
@@ -1590,6 +1590,19 @@ int SetAutoLoad(struct sandbox_bpf *skel) {
     }
 
     int currentVersion = KERNEL_VERSION(versions[0], versions[1], versions[2]);
+
+    if (currentVersion < KERNEL_VERSION(7, 0, 0)) {
+        bpf_program__set_autoload(skel->progs.step_into_exit, true);
+        bpf_program__set_autoload(skel->progs.do_mkdirat_exit, true);
+        bpf_program__set_autoload(skel->progs.do_rmdir_exit, true);
+    }
+    else {
+        bpf_program__set_autoload(skel->progs.lookup_fast_exit, true);
+        bpf_program__set_autoload(skel->progs.step_into_slowpath_entry, true);
+        bpf_program__set_autoload(skel->progs.filename_mkdirat_exit, true);
+        bpf_program__set_autoload(skel->progs.filename_rmdir_exit, true);
+    }
+
     if (currentVersion < KERNEL_VERSION(6, 8, 0)) {
         // Enable auto loading for programs that are used on older kernels
         bpf_program__set_autoload(skel->progs.step_into_entry, true);

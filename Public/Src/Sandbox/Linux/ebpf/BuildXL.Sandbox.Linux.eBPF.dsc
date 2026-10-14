@@ -12,10 +12,16 @@ namespace eBPFSandbox {
 
     // Kernel 6.6+ is required to build the eBPF sandbox.
     // TODO: The inbox dscript SDK has support for this, remove this once the dscript SDK is updated.
+    const majorKernelVersion = Environment.hasVariable("MAJOR_KERNEL_VERSION")
+        ? Environment.getNumberValue("MAJOR_KERNEL_VERSION")
+        : 0;
+    const minorKernelVersion = Environment.hasVariable("MINOR_KERNEL_VERSION")
+        ? Environment.getNumberValue("MINOR_KERNEL_VERSION")
+        : 0;
+
     @@public
     export const hostSupportsBuildingEBPF = Context.getCurrentHost().os === "unix"
-        && (Environment.hasVariable("MAJOR_KERNEL_VERSION") && Environment.getNumberValue("MAJOR_KERNEL_VERSION") >= 6)
-        && (Environment.hasVariable("MINOR_KERNEL_VERSION") && Environment.getNumberValue("MINOR_KERNEL_VERSION") >= 6);
+        && (majorKernelVersion > 6 || (majorKernelVersion === 6 && minorKernelVersion >= 6));
 
     const bpfTool : Transformer.ToolDefinition = {
         exe: importFrom("bpftool").extracted.assertExistence(r`bpftool`),

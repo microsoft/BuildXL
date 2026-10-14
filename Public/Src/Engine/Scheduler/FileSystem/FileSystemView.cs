@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -50,7 +51,7 @@ namespace BuildXL.Scheduler.FileSystem
 
         private PathTable PathTable { get; }
 
-        private ConcurrentBigMap<AbsolutePath, FileSystemEntry> PathExistenceCache { get; }
+        private ConcurrentBigMap<AbsolutePath, FileSystemEntry> PathExistenceCache { get; set; }
 
         private readonly bool m_inferNonExistenceBasedOnParentPathInRealFileSystem;
 
@@ -81,15 +82,154 @@ namespace BuildXL.Scheduler.FileSystem
             bool inferNonExistenceBasedOnParentPathInRealFileSystem = true)
         {
             var fileSystemView = new FileSystemView(pathTable, pipGraph, localDiskContentStore, inferNonExistenceBasedOnParentPathInRealFileSystem);
+            int workerCount = GetInitializationWorkerCount(
+                maxInitializationDegreeOfParallelism,
+                pipGraph.ArtifactContentCount,
+                Environment.ProcessorCount);
+            var maps = new Dictionary<AbsolutePath, FileSystemEntry>[workerCount];
+            var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = workerCount };
 
-            Parallel.For(0, pipGraph.ArtifactContentCount,
-                new ParallelOptions { MaxDegreeOfParallelism = maxInitializationDegreeOfParallelism },
-                contentIndex =>
+            // Build independent maps so graph traversal does not contend on the concurrent existence cache.
+            Parallel.For(
+                0,
+                workerCount,
+                parallelOptions,
+                worker =>
                 {
-                    fileSystemView.AddArtifact(pipGraph.GetArtifactContent(contentIndex));
+                    int start = (int)((long)pipGraph.ArtifactContentCount * worker / workerCount);
+                    int end = (int)((long)pipGraph.ArtifactContentCount * (worker + 1) / workerCount);
+                    var map = new Dictionary<AbsolutePath, FileSystemEntry>();
+                    for (int contentIndex = start; contentIndex < end; contentIndex++)
+                    {
+                        fileSystemView.AddArtifact(map, pipGraph.GetArtifactContent(contentIndex));
+                    }
+
+                    maps[worker] = map;
                 });
 
+            // Reduce the worker maps in rounds. Each round merges the second half of every group into the first;
+            // doubling the group size forms a balanced tree that leaves the complete result in maps[0].
+            for (int groupSize = 2; groupSize < workerCount * 2; groupSize *= 2)
+            {
+                int sourceOffset = groupSize / 2;
+                int mergeCount = (workerCount + groupSize - 1) / groupSize;
+
+                // Parallel.For is also the barrier between rounds, so a map cannot be read by the next round
+                // until the worker writing it in this round has completed.
+                Parallel.For(
+                    0,
+                    mergeCount,
+                    parallelOptions,
+                    mergeIndex =>
+                    {
+                        int targetIndex = mergeIndex * groupSize;
+                        int sourceIndex = targetIndex + sourceOffset;
+                        if (sourceIndex >= workerCount)
+                        {
+                            return;
+                        }
+
+                        var target = maps[targetIndex];
+                        var source = maps[sourceIndex];
+
+                        // Merge the smaller map into the larger one to minimize dictionary insertions and resizing.
+                        if (source.Count > target.Count)
+                        {
+                            (target, source) = (source, target);
+                            maps[targetIndex] = target;
+                        }
+
+                        foreach (var entry in source)
+                        {
+                            AddOrMerge(target, entry.Key, entry.Value);
+                        }
+
+                        maps[sourceIndex] = null;
+                    });
+            }
+
+            var mergedMap = maps[0];
+            fileSystemView.PathExistenceCache = ConcurrentBigMap<AbsolutePath, FileSystemEntry>.CreateFromUniqueItems(
+                new List<KeyValuePair<AbsolutePath, FileSystemEntry>>(mergedMap),
+                maxDegreeOfParallelism: Math.Min(workerCount, 4));
+
             return fileSystemView;
+        }
+
+        internal static int GetInitializationWorkerCount(int requestedDegree, int artifactCount, int processorCount)
+        {
+            Contract.Requires(artifactCount >= 0);
+            Contract.Requires(processorCount > 0);
+
+            int requestedWorkerCount = requestedDegree > 0 ? requestedDegree : processorCount;
+            return Math.Max(1, Math.Min(Math.Min(requestedWorkerCount, processorCount), artifactCount));
+        }
+
+        private void AddArtifact(Dictionary<AbsolutePath, FileSystemEntry> map, in FileOrDirectoryArtifact artifact)
+        {
+            var parentPath = artifact.Path.GetParent(PathTable);
+            if (!parentPath.IsValid)
+            {
+                return;
+            }
+
+            bool isOutput = artifact.IsDirectory
+                ? artifact.DirectoryArtifact.IsOutputDirectory()
+                : artifact.FileArtifact.IsOutputFile;
+            if (artifact.IsDirectory && !isOutput)
+            {
+                return;
+            }
+
+            var entry = FileSystemEntry.Create(FileSystemViewMode.FullGraph, PathExistence.ExistsAsDirectory);
+            if (isOutput)
+            {
+                entry = entry.TryUpdate(FileSystemViewMode.Output, PathExistence.ExistsAsDirectory);
+                if (!artifact.IsDirectory)
+                {
+                    entry = entry.SetFlag(FileSystemEntryFlags.DirectoryContainingFiles);
+                }
+            }
+
+            AddDirectoryAndParents(map, artifact.IsDirectory ? artifact.Path : parentPath, entry);
+        }
+
+        private void AddDirectoryAndParents(Dictionary<AbsolutePath, FileSystemEntry> map, AbsolutePath path, FileSystemEntry entry)
+        {
+            while (path.IsValid)
+            {
+                if (!AddOrMerge(map, path, entry))
+                {
+                    return;
+                }
+
+                path = path.GetParent(PathTable);
+            }
+        }
+
+        private static bool AddOrMerge(Dictionary<AbsolutePath, FileSystemEntry> map, AbsolutePath path, FileSystemEntry entry)
+        {
+            if (!map.TryGetValue(path, out var currentEntry))
+            {
+                map.Add(path, entry);
+                return true;
+            }
+
+            // Initialization entries always contain FullGraph directory existence, so only Output and flags need merging.
+            if ((entry.OutputGraphExistence == null || currentEntry.OutputGraphExistence != null) &&
+                currentEntry.HasFlag(entry.Flags))
+            {
+                // This path was previously propagated, so all of its ancestors already contain the same entry.
+                return false;
+            }
+
+            if (entry.OutputGraphExistence != null)
+            {
+                currentEntry = currentEntry.TryUpdate(FileSystemViewMode.Output, PathExistence.ExistsAsDirectory);
+            }
+
+            map[path] = currentEntry.SetFlag(entry.Flags);
+            return true;
         }
 
         /// <summary>

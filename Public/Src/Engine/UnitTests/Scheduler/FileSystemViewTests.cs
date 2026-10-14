@@ -121,6 +121,17 @@ namespace Test.BuildXL.Scheduler
             harness.ResetProbes();
         }
 
+        [Theory]
+        [InlineData(int.MaxValue, 100, 8, 8)]
+        [InlineData(2, 100, 8, 2)]
+        [InlineData(0, 100, 8, 8)]
+        [InlineData(8, 3, 8, 3)]
+        [InlineData(8, 0, 8, 1)]
+        public void InitializationWorkerCountIsBounded(int requestedDegree, int artifactCount, int processorCount, int expected)
+        {
+            Assert.Equal(expected, FileSystemView.GetInitializationWorkerCount(requestedDegree, artifactCount, processorCount));
+        }
+
         private FileOrDirectoryArtifact File(string path)
         {
             return FileArtifact.CreateSourceFile(AbsolutePath.Create(Context.PathTable, path));

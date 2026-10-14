@@ -533,6 +533,26 @@ namespace BuildXL.Scheduler
             return nodesToSchedule;
         }
 
+        /// <summary>
+        /// Populates <paramref name="nodesToSchedule"/> with the portion of <paramref name="buildCone"/> required for execution.
+        /// </summary>
+        /// <remarks>
+        /// <paramref name="buildCone"/> already contains the complete transitive dependency closure of the explicitly selected
+        /// nodes and any dependents requested by the caller. <paramref name="nodesToSchedule"/> initially contains only those
+        /// selected nodes and requested dependents.
+        ///
+        /// When incremental scheduling is disabled, every node is dirty and non-materialized, so the complete build cone must
+        /// be scheduled. When incremental scheduling is enabled, this method walks dependencies while applying dirty and
+        /// materialization state, stopping at the clean-materialized frontier and propagating dirty state where required.
+        /// </remarks>
+        /// <param name="nodesToSchedule">
+        /// Initially contains the explicitly selected nodes and any transitive dependents requested by the caller, but not
+        /// their transitive dependencies. This method replaces its contents with the final set of nodes to schedule.
+        /// </param>
+        /// <param name="buildCone">
+        /// The complete transitive dependency closure of the nodes initially contained in <paramref name="nodesToSchedule"/>.
+        /// </param>
+        /// <param name="stats">Receives statistics about the clean-materialized frontier.</param>
         private void ScheduleDependenciesUntilCleanAndMaterialized(
             HashSet<NodeId> nodesToSchedule,
             VisitationTracker buildCone,
@@ -544,89 +564,117 @@ namespace BuildXL.Scheduler
             int processesAddedDueToNotCleanMaterializedCount = 0;
             int nodesAddedDueToCollateralDirtyCount = 0;
             int processesAddedDueToCollateralDirtyCount = 0;
-
-            // TODO: If this method turns out to be the bottleneck, we can make it parallel later.
             var cleanMaterializedNodes = new HashSet<NodeId>();
 
             using (m_counters.StartStopwatch(PipExecutorCounter.BuildSetCalculatorScheduleDependenciesUntilCleanAndMaterialized))
             {
-                // Add all dirty nodes from nodesToSchedule. From those dirty nodes, we try to add to nodesToSchedule
-                // their dependencies that need to be built.
-                // Nodes that are not materialized should have been marked dirty by CalculateDirtyNodes.
-                nodesToSchedule.RemoveWhere(node => !IsNodeDirty(node));
+                if (m_dirtyNodeTracker == null)
+                {
+                    // Without incremental scheduling, every node is dirty and none are materialized.
+                    // The dependency closure has already been computed in buildCone, so avoid walking
+                    // every dependency edge again just to reconstruct the same set.
+                    nodesToSchedule.Clear();
+                    nodesToSchedule.EnsureCapacity(buildCone.VisitedCount);
 
-                var nodeQueue = new Queue<NodeId>(nodesToSchedule);
-
-                Action<NodeId> addNode =
-                    markedNode =>
-                    {
-                        if (buildCone.WasVisited(markedNode) && !GetPipType(markedNode).IsMetaPip() &&
-                            nodesToSchedule.Add(markedNode))
-                        {
-                            // Node is in the build cone, and has not been scheduled yet.
-                            nodeQueue.Enqueue(markedNode);
-                            ++nodesAddedDueToCollateralDirtyCount;
-
-                            if (IsProcess(markedNode))
-                            {
-                                ++processesAddedDueToCollateralDirtyCount;
-                            }
-                        }
-                    };
-
-                Action<NodeId> scheduleDependencyNode =
-                    node =>
+                    int scheduledProcessCount = 0;
+                    foreach (var node in m_graph.Nodes)
                     {
                         if (buildCone.WasVisited(node))
                         {
-                            // The node is in the build cone.
-                            var pipType = GetPipType(node);
+                            nodesToSchedule.Add(node);
 
-                            // The node is clean if it's (1) marked as clean and materialized and (2) none of its outputs are rewritten.
-                            // Condition (2) is conservative, and is needed for correctness in the presence of rewritten files.
-                            bool isPipRewritten = IsRewrittenPip(node);
-                            bool isCleanMaterialized = IsNodeCleanAndMaterialized(node) && !isPipRewritten;
-
-                            if (!isCleanMaterialized && nodesToSchedule.Add(node))
+                            if (IsProcess(node))
                             {
-                                // (1) Node is dirty or has not materialized its outputs.
-                                // (2) Node has not been scheduled yet.
-
-                                // By keeping the materialization status here for most pips, we give the build an opportunity to incrementally skip 'node'.
-                                // This will happen when no upstreams of 'node' run during the build
-                                // If a pip is rewritten, then the original output is not there on disk, so it needs to be non-materialized.
-                                MarkProcessNodeRecursivelyDirty(node, markNonMaterialized: isPipRewritten, addNode);
-
-                                ++nodesAddedDueToNotCleanMaterializedCount;
-                                if (pipType != PipType.HashSourceFile)
-                                {
-                                    nodeQueue.Enqueue(node);
-                                }
-
-                                if (IsProcess(node))
-                                {
-                                    ++processesAddedDueToNotCleanMaterializedCount;
-                                }
-                            }
-
-                            if (isCleanMaterialized)
-                            {
-                                cleanMaterializedNodes.Add(node);
+                                ++scheduledProcessCount;
                             }
                         }
-                    };
-
-                while (nodeQueue.Count > 0)
-                {
-                    NodeId node = nodeQueue.Dequeue();
-
-                    foreach (Edge inEdge in m_graph.GetIncomingEdges(node))
-                    {
-                        scheduleDependencyNode(inEdge.OtherNode);
                     }
-                }
 
-                nodesToSchedule.UnionWith(cleanMaterializedNodes);
+                    nodesAddedDueToNotCleanMaterializedCount = nodesToSchedule.Count - initialNodesToScheduleCount;
+                    processesAddedDueToNotCleanMaterializedCount = scheduledProcessCount - initialProcessesToScheduleCount;
+                }
+                else
+                {
+                    // TODO: If this path turns out to be the bottleneck, we can make it parallel later.
+
+                    // Add all dirty nodes from nodesToSchedule. From those dirty nodes, we try to add to nodesToSchedule
+                    // their dependencies that need to be built.
+                    // Nodes that are not materialized should have been marked dirty by CalculateDirtyNodes.
+                    nodesToSchedule.RemoveWhere(node => !IsNodeDirty(node));
+
+                    var nodeQueue = new Queue<NodeId>(nodesToSchedule);
+
+                    Action<NodeId> addNode =
+                        markedNode =>
+                        {
+                            if (buildCone.WasVisited(markedNode) && !GetPipType(markedNode).IsMetaPip() &&
+                                nodesToSchedule.Add(markedNode))
+                            {
+                                // Node is in the build cone, and has not been scheduled yet.
+                                nodeQueue.Enqueue(markedNode);
+                                ++nodesAddedDueToCollateralDirtyCount;
+
+                                if (IsProcess(markedNode))
+                                {
+                                    ++processesAddedDueToCollateralDirtyCount;
+                                }
+                            }
+                        };
+
+                    Action<NodeId> scheduleDependencyNode =
+                        node =>
+                        {
+                            if (buildCone.WasVisited(node))
+                            {
+                                // The node is in the build cone.
+                                var pipType = GetPipType(node);
+
+                                // The node is clean if it's (1) marked as clean and materialized and (2) none of its outputs are rewritten.
+                                // Condition (2) is conservative, and is needed for correctness in the presence of rewritten files.
+                                bool isPipRewritten = IsRewrittenPip(node);
+                                bool isCleanMaterialized = IsNodeCleanAndMaterialized(node) && !isPipRewritten;
+
+                                if (!isCleanMaterialized && nodesToSchedule.Add(node))
+                                {
+                                    // (1) Node is dirty or has not materialized its outputs.
+                                    // (2) Node has not been scheduled yet.
+
+                                    // By keeping the materialization status here for most pips, we give the build an opportunity to incrementally skip 'node'.
+                                    // This will happen when no upstreams of 'node' run during the build
+                                    // If a pip is rewritten, then the original output is not there on disk, so it needs to be non-materialized.
+                                    MarkProcessNodeRecursivelyDirty(node, markNonMaterialized: isPipRewritten, addNode);
+
+                                    ++nodesAddedDueToNotCleanMaterializedCount;
+                                    if (pipType != PipType.HashSourceFile)
+                                    {
+                                        nodeQueue.Enqueue(node);
+                                    }
+
+                                    if (IsProcess(node))
+                                    {
+                                        ++processesAddedDueToNotCleanMaterializedCount;
+                                    }
+                                }
+
+                                if (isCleanMaterialized)
+                                {
+                                    cleanMaterializedNodes.Add(node);
+                                }
+                            }
+                        };
+
+                    while (nodeQueue.Count > 0)
+                    {
+                        NodeId node = nodeQueue.Dequeue();
+
+                        foreach (Edge inEdge in m_graph.GetIncomingEdges(node))
+                        {
+                            scheduleDependencyNode(inEdge.OtherNode);
+                        }
+                    }
+
+                    nodesToSchedule.UnionWith(cleanMaterializedNodes);
+                }
             }
 
             stats.CleanMaterializedNodeFrontierCount = cleanMaterializedNodes.Count;

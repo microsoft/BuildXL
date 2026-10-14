@@ -2,6 +2,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20261009.1 (Release [32234966](https://dev.azure.com/mseng/Domino/_build/results?buildId=32234966&view=results))
+- [Performance] Speed up `FileContentTable` loading and saving.
+- [QTest] Expose `isSharedTestRun` for ADO test runs shared across a machine's test targets.
+- [Security] Fix CVE-2026-102277 by updating the VS Code extension's `brace-expansion` dependency to 5.0.12.
+- Various bug fixes and improvements.
+
 # 0.1.0-20261004.1 (Release [32181494](https://dev.azure.com/mseng/Domino/_build/results?buildId=32181494&view=results))
 - [Performance] Add memory-mapped directed graphs (`/directedGraphMode:Legacy` rollback); keep CloudBuild on legacy graphs.
 - [Performance] Add opt-in shared opaque input-manifest optimization (`/experimentalSharedOpaqueTracking+`).

@@ -41,10 +41,6 @@ parameters:
   type: boolean
   default: true
 
-- name: runPTraceValidation
-  type: boolean
-  default: true
-
 - name: sdkVersion
   type: string
   default: '9.x'
@@ -99,17 +95,6 @@ stages:
       preBuildSteps:
       - ${{ each step in parameters.preBuildSteps }}:
         - ${{ step }}
-
-- ${{ if parameters.runPTraceValidation }}:
-  - stage: Verify_PTrace${{ parameters.suffix }}
-    displayName: ${{ parameters.displayPrefix }}PTrace validation
-    dependsOn: Bootstrap_Internal
-    jobs:
-    - template: /.azdo/linux/jobs/job-ptrace.yml@self
-      parameters:
-        BxlCommonArgs: ${{ parameters.BxlCommonArgs }} ${{ parameters.BxlExtraArgs }}
-        pool: ${{ parameters.pool }}
-        sdkVersion: ${{ parameters.sdkVersion }}
 
 - ${{ if parameters.runDistributedTest }}:
   - stage: Build_Distributed${{ parameters.suffix }}

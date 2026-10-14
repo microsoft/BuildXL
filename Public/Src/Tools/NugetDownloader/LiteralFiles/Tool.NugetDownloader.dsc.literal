@@ -111,6 +111,7 @@ export function downloadPackage(args: Arguments) : PartialStaticContentDirectory
         unsafe: <Transformer.UnsafeExecuteArguments>{
             passThroughEnvironmentVariables: [
                 ...addIf(args.credentialProviderPath !== undefined, {name: "NUGET_CREDENTIALPROVIDERS_PATH", value: args.credentialProviderPath}),
+                "PATH",
                 "VSS_NUGET_EXTERNAL_FEED_ENDPOINTS",
                 "LocalAppData",
                 "QAUTHMATERIALROOT",
@@ -118,7 +119,7 @@ export function downloadPackage(args: Arguments) : PartialStaticContentDirectory
                 "__CLOUDBUILD_AUTH_HELPER_ROOT__",
                 "__CLOUDBUILD_AUTH_HELPER_CONFIG__",
             ],
-            requireGlobalDependencies: false,
+            requireGlobalDependencies: true,
             // The only child process this tool spawns is the credential provider process. This process may write log files that are hard to predict upfront.
             hasUntrackedChildProcesses: true,
             // This is to avoid a cache miss on a NuGet download due to changes on the nuget download tool (changes in downtream dependencies for the 
@@ -130,11 +131,12 @@ export function downloadPackage(args: Arguments) : PartialStaticContentDirectory
             // included in the weak fingerprint. Observe this option is not exposed in DScript, so we are forcing the hand of the type checker with the cast above
             // to not complain about this extra field (which will be picked up at runtime)
             bypassFingerprintSalt: true,
-            untrackedPaths: (args.excludedFiles || []).map(relativePath => f`${downloadDirectory}/${directoryName}/${relativePath}`)
+            untrackedPaths: [
+                ...(args.excludedFiles || []).map(relativePath => f`${downloadDirectory}/${directoryName}/${relativePath}`),
+                // Authentication does not affect package contents, and credential-provider child processes are already untracked.
+                ...addIfLazy(args.credentialProviderPath !== undefined, () => [args.credentialProviderPath]),
+            ]
         },
-        // This is to avoid DFAs under the credential provider directory, which is an arbitrarily specified directory that would need to
-        // be contained in a statically declared read mount otherwise
-        allowUndeclaredSourceReads: true,
         retryExitCodes: [2],
         processRetries: 2
     };

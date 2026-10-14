@@ -13,6 +13,7 @@ An example is:
       url: "https://github.com/PowerShell/PowerShell/releases/download/v6.1.3/PowerShell-6.1.3-win-x64.zip",
       hash: "VSO0:E8E98155383EDFE3CA6D06854638560EAB57C8225880B5308547A916DBE9A9A900",
       archiveType: "zip",
+      requiredFiles: [r`pwsh.exe`],
     },
   ],
 },
@@ -31,18 +32,28 @@ There are several optional fields:
   * `tgz`: This is a gziped version of the tar archive. The file will be un-g-zipped and then the tar file will be extracted into individual files
   * `tar`: This is a Tape Archive format where there is no compression but all the files are concatenated with file structure metadata. 
 * `filename`: By default the filename will be inferred from the URL, but sometimes the URL is not a valid filename or plain ugly like: http://go.microsoft.com/fwlink/p/?LinkID=2033686
+* `requiredFiles`: An optional list of relative paths, written as `r` literals, identifying files in the extracted archive to declare as required file outputs. Extraction must be enabled (`archiveType` must not be `file`). Paths must be nonempty, unique, and remain within the extraction directory. Extraction fails if any declared file is missing.
 
 ## Using the output.
-If you want to use the file (or the extracted) archive the download will expose a module with two fields:
-* `file` which if of type `File`
-* `extracted` which is of type `StaticDirectory`. 
-The extracted field is a Partial Sealed Directory.
-When the archiveType is `file` the extracted folder will contain just the downloaded file.
+The download resolver exposes a module with these fields:
+* `download`, of type `File`. Its name can be changed with `downloadedValueName`.
+* `extracted`, of type `OpaqueDirectory`, when archive extraction is enabled. Its name can be changed with `extractedValueName`.
+* `extractedFiles`, of type `File[]`, when `requiredFiles` is nonempty. Its name is `extractedValueName` followed by `Files`, so setting `extractedValueName: "tools"` exposes `toolsFiles`.
 
 An example consumption of the one above would be:
 ```
-const pwshExecutable = importFrom("PowerShell.Core.win-x64").extracted.getFile(r`pwsh.exe`);
+const pwshExecutable = importFrom("PowerShell.Core.win-x64").extractedFiles[0];
 ```
+
+The file array follows the order of `requiredFiles`. These files are declared individually when constructing the graph, so consumers can depend on them without enumerating the extracted directory.
+The entire archive is still extracted and exposed through the opaque directory; `requiredFiles` does not restrict its contents.
+If `requiredFiles` is omitted or empty, no file array is exported and existing directory-based consumption is unchanged.
+
+Alternatively, without configuring `requiredFiles`, a consumer can assert that a file exists in the opaque directory:
+```
+const pwshExecutable = importFrom("PowerShell.Core.win-x64").extracted.assertExistence(r`pwsh.exe`);
+```
+The assertion is checked at execution time. Use `assertExistence` rather than `getFile`, since an opaque directory has no statically known contents.
 
 
 ##Motivation for the download resolver

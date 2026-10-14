@@ -16,7 +16,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
 {
     public class NuSpecGeneratorTests
     {
-        private const int CurrentSpecGenVersion = 26;
+        private const int CurrentSpecGenVersion = 27;
 
         private readonly ITestOutputHelper m_output;
         private readonly FrontEndContext m_context;

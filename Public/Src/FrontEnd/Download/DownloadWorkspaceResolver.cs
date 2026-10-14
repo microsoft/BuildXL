@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -37,6 +38,7 @@ namespace BuildXL.FrontEnd.Download
         // These are set during Initialize
         private FrontEndContext m_context;
         private FrontEndHost m_host;
+        private AbsolutePath m_credentialProviderPath;
 
         /// <nodoc />
         public IReadOnlyDictionary<string, DownloadData> Downloads { get; private set; }
@@ -60,6 +62,17 @@ namespace BuildXL.FrontEnd.Download
             m_context = context;
             m_host = host;
             Name = resolverSettings.Name;
+            m_credentialProviderPath = AbsolutePath.Invalid;
+
+            var result = CredentialProviderUtilities.TryResolveCredentialProvider(context, host.Engine, KnownResolverKind.DownloadResolverKind, allowMissing: true);
+            if (result.Succeeded)
+            {
+                m_credentialProviderPath = result.Result;
+            }
+            else
+            {
+                Logger.Log.CredentialProviderDiscoveryFailed(context.LoggingContext, result.Failure.DescribeIncludingInnerFailures());
+            }
 
             var resolverFolder = host.GetFolderForFrontEnd(resolverSettings.Name ?? Kind);
 
@@ -144,6 +157,51 @@ namespace BuildXL.FrontEnd.Download
             }
 
             downloadData = new DownloadData(context, downloadSettings, downloadLocation, resolverFolder, contentHash, downloadSettings.DownloadedValueName, downloadSettings.ExtractedValueName);
+            return ValidateRequiredFiles(context, downloadData);
+        }
+
+        private bool ValidateRequiredFiles(FrontEndContext context, DownloadData downloadData)
+        {
+            var downloadSettings = downloadData.Settings;
+            if (downloadSettings.RequiredFiles?.Count > 0 == true)
+            {
+                if (!downloadData.ShouldExtractBits)
+                {
+                    Logger.Log.InvalidRequiredFiles(m_context.LoggingContext, downloadSettings.ModuleName, "Archive extraction must be enabled.");
+                    return false;
+                }
+
+                if (downloadData.DownloadedValueName == downloadData.ExtractedValueName + "Files")
+                {
+                    Logger.Log.InvalidRequiredFiles(m_context.LoggingContext, downloadSettings.ModuleName, "The extracted file array name conflicts with the downloaded value name.");
+                    return false;
+                }
+
+                var extractedPaths = new HashSet<AbsolutePath>();
+                foreach (var file in downloadSettings.RequiredFiles)
+                {
+                    if (!file.IsValid)
+                    {
+                        Logger.Log.InvalidRequiredFiles(m_context.LoggingContext, downloadSettings.ModuleName, "Each extracted file must be a nonempty path within the extraction directory.");
+                        return false;
+                    }
+
+                    var extractedPath = downloadData.ContentsFolder.Path.Combine(context.PathTable, file);
+                    if (!extractedPath.IsWithin(context.PathTable, downloadData.ContentsFolder.Path) ||
+                        extractedPath == downloadData.ContentsFolder.Path)
+                    {
+                        Logger.Log.InvalidRequiredFiles(m_context.LoggingContext, downloadSettings.ModuleName, "Each extracted file must be a nonempty path within the extraction directory.");
+                        return false;
+                    }
+
+                    if (!extractedPaths.Add(extractedPath))
+                    {
+                        Logger.Log.InvalidRequiredFiles(m_context.LoggingContext, downloadSettings.ModuleName, "Extracted file paths must be unique.");
+                        return false;
+                    }
+                }
+            }
+
             return true;
         }
 
@@ -256,6 +314,14 @@ namespace BuildXL.FrontEnd.Download
                     const extractResult = {CreateExtractPip(downloadData)}
                     @@public export const {downloadData.ExtractedValueName} : OpaqueDirectory = extractResult.getOutputDirectory(d`{downloadData.ContentsFolder.Path.ToString(m_context.PathTable)}`);
                     ";
+                if (downloadData.Settings.RequiredFiles != null && downloadData.Settings.RequiredFiles.Count != 0)
+                {
+                    var files = downloadData.Settings.RequiredFiles.Select(
+                        file => $"extractResult.getOutputFile(p`{downloadData.ContentsFolder.Path.Combine(m_context.PathTable, file).ToString(m_context.PathTable)}`)");
+                    spec += $@"
+                        @@public export const {downloadData.ExtractedValueName}Files : File[] = [{string.Join(", ", files)}];
+                        ";
+                }
             }
 
             // No need to check for errors here since they are embedded in the source file and downstream consumers check for those
@@ -289,13 +355,10 @@ namespace BuildXL.FrontEnd.Download
             // We disable reparse point resolving for this pip (and the extract one below) since the frontend directory
             // sometimes is placed under a junction (typically when CB junction outputs) and with full reparse point resolution enabled this 
             // would generate a DFA. We know these pips do not interact with reparse points, so this is safe.
-            // allowUndeclaredSourceReads is needed to avoid DFAs under the credential provider directory, which is
-            // an arbitrarily specified directory that would need to be contained in a statically declared read mount
-            // otherwise. On Linux, the credential provider also runs via dotnet, pulling in the .NET runtime from a
-            // machine-dependent location. This is the same approach used by the NuGet downloader SDK.
-            // CODESYNC: Public\Src\Tools\NugetDownloader\LiteralFiles\Tool.NugetDownloader.dsc.literal
             // passThroughEnvironmentVariables is needed to support downloading from authenticated feeds (e.g. Azure DevOps).
             // The credential provider reads VSS_NUGET_EXTERNAL_FEED_ENDPOINTS to find pre-configured auth tokens.
+            // The downloader only spawns credential providers, whose dependencies should remain untracked.
+            // Untracked children preserve redirected JSON output, unlike Windows breakaway.
             return $@"<TransformerExecuteResult> _PreludeAmbientHack_Transformer.execute({{
                 tool: downloadTool,
                 tags: ['download'],
@@ -309,9 +372,10 @@ namespace BuildXL.FrontEnd.Download
                 ],
                 outputs: [f`{data.DownloadedFilePath.ToString(m_context.PathTable)}`],
                 isLight: true,
-                allowUndeclaredSourceReads: true,
                 unsafe: {{
                     disableFullReparsePointResolving: true,
+                    hasUntrackedChildProcesses: true,
+                    untrackedPaths: [{(m_credentialProviderPath.IsValid ? $"f`{m_credentialProviderPath.ToString(m_context.PathTable)}`" : string.Empty)}],
                     passThroughEnvironmentVariables: [
                         ""VSS_NUGET_EXTERNAL_FEED_ENDPOINTS"",
                     ],
@@ -322,6 +386,10 @@ namespace BuildXL.FrontEnd.Download
         private string CreateExtractPip(DownloadData data)
         {
             string extractDirectory = data.ContentsFolder.Path.ToString(m_context.PathTable);
+            string fileOutputs = data.Settings.RequiredFiles == null
+                ? string.Empty
+                : string.Concat(data.Settings.RequiredFiles.Select(
+                    file => $", f`{data.ContentsFolder.Path.Combine(m_context.PathTable, file).ToString(m_context.PathTable)}`"));
 
             // The result of the extraction goes into an exclusive opaque
             return $@"<TransformerExecuteResult> _PreludeAmbientHack_Transformer.execute({{
@@ -334,7 +402,7 @@ namespace BuildXL.FrontEnd.Download
                     {{name: '/extractTo:', value: p`{extractDirectory}`}},
                     {{name: '/archiveType:', value: '{data.Settings.ArchiveType}'}},
                 ],
-                outputs: [d`{extractDirectory}`],
+                outputs: [d`{extractDirectory}`{fileOutputs}],
                 dependencies: [{data.DownloadedValueName}],
                 unsafe: {{disableFullReparsePointResolving: true}},
             }});";

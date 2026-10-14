@@ -79,6 +79,13 @@ namespace Test.BuildXL.FrontEnd.Download
         /// </summary>
         protected BuildXLEngineResult RunEngine(ICommandLineConfiguration config, TestCache testCache = null, IDetoursEventListener detoursListener = null)
         {
+            // Anonymous download tests must not discover host credential providers. Discovery tests supply their own paths.
+            var commandLineConfig = (CommandLineConfiguration)config;
+            if (!commandLineConfig.Startup.Properties.ContainsKey("NUGET_CREDENTIALPROVIDERS_PATH"))
+            {
+                commandLineConfig.Startup.Properties["NUGET_CREDENTIALPROVIDERS_PATH"] = string.Empty;
+            }
+
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TestOutputDirectory))
             {
                 var appDeployment = CreateAppDeployment(tempFiles);
@@ -139,6 +146,7 @@ config({{
     {(!string.IsNullOrEmpty(settings.Hash) ? $"hash: '{settings.Hash}'," : string.Empty)}
     {(!string.IsNullOrEmpty(settings.ExtractedValueName) ? $"extractedValueName: '{settings.ExtractedValueName}'," : string.Empty)}
     {(!string.IsNullOrEmpty(settings.DownloadedValueName) ? $"downloadedValueName: '{settings.DownloadedValueName}'," : string.Empty)}
+    {(settings.RequiredFiles == null ? string.Empty : $"requiredFiles: [{string.Join(", ", settings.RequiredFiles.Select(file => $"r`{file.ToString(FrontEndContext.StringTable, global::BuildXL.Utilities.Core.PathFormat.Script)}`"))}],")}
 }}";
         }
 

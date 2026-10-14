@@ -40,7 +40,6 @@ extends:
         displayPrefix: '[Ub22.04] '
         runDistributedTest: false
         runExternalValidation: false
-        runPTraceValidation: false
         pool:
           name: BuildXL-DevOpsAgents-Selfhost-BuildCache
           image: ubuntu-22.04-PME-GPT
@@ -54,7 +53,6 @@ extends:
         suffix: _Ubuntu2404
         displayPrefix: '[Ub24.04] '
         runDistributedTest: false
-        runPTraceValidation: false
         pool:
           name: BuildXL-DevOpsAgents-Selfhost-BuildCache
           image: ubuntu-24.04-PME-GPT

@@ -149,6 +149,14 @@ interface DownloadSettings {
      * This value will be exposed with type 'StaticDirectory'
      */
     extractedValueName?: string,
+
+    /**
+     * Files relative to the extraction directory to declare as required file outputs.
+     * Requires archiveType other than "file". When nonempty, exposes a File[] in the
+     * same order, named extractedValueName followed by "Files" (by default "extractedFiles").
+     * The remaining archive contents are still exposed through the opaque directory.
+     */
+    requiredFiles?: RelativePath[],
 }
 
 /** We represent a passthrough environment variable with the value unit */ 

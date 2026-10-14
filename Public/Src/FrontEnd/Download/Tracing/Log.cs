@@ -89,6 +89,24 @@ namespace BuildXL.FrontEnd.Download.Tracing
         public abstract void NameContainsInvalidCharacters(LoggingContext context, string fieldName, string name);
 
         [GeneratedEvent(
+            (ushort)LogEventId.CredentialProviderDiscoveryFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (ushort)(Keywords.UserMessage),
+            EventTask = (ushort)Tasks.Parser,
+            Message = "Unable to resolve a credential provider for the Download resolver: {reason} Authentication may fail for protected downloads.")]
+        public abstract void CredentialProviderDiscoveryFailed(LoggingContext context, string reason);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.InvalidRequiredFiles,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (ushort)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (ushort)Tasks.Parser,
+            Message = ResolverSettingsPrefix + "Invalid 'requiredFiles' for module '{moduleName}': {reason}")]
+        public abstract void InvalidRequiredFiles(LoggingContext context, string moduleName, string reason);
+
+        [GeneratedEvent(
             (ushort)LogEventId.ContextStatistics,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

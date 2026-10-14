@@ -28,7 +28,8 @@ namespace BuildXL.FrontEnd.Download
         public override string Name => KnownResolverKind.DownloadResolverKind;
 
         /// <inheritdoc />
-        public override bool ShouldRestrictBuildParameters { get; } = true;
+        // Credential-provider discovery reads a tracked build parameter before evaluation.
+        public override bool ShouldRestrictBuildParameters { get; } = false;
 
         /// <nodoc/>
         public DownloadFrontEnd()

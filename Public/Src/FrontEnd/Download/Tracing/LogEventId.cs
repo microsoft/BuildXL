@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 namespace BuildXL.FrontEnd.Download.Tracing
@@ -37,5 +37,7 @@ namespace BuildXL.FrontEnd.Download.Tracing
         // was AuthenticationViaIWAFailed = 11820,
         ContextStatistics = 11821,
         BulkStatistic = 11822,
+        InvalidRequiredFiles = 11823,
+        CredentialProviderDiscoveryFailed = 11825,
     }
 }

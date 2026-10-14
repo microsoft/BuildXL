@@ -59,7 +59,6 @@ namespace Tool.Download
             var target = arguments.ExtractDirectory;
             try
             {
-                FileUtilities.DeleteDirectoryContents(target, false);
                 FileUtilities.CreateDirectory(target);
             }
             catch (BuildXLException e)

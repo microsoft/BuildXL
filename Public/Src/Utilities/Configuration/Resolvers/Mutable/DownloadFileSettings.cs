@@ -1,6 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
+using BuildXL.Utilities.Core;
+
 namespace BuildXL.Utilities.Configuration.Mutable
 {
     /// <nodoc />
@@ -21,6 +24,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Hash = template.Hash;
             DownloadedValueName = template.DownloadedValueName;
             ExtractedValueName = template.ExtractedValueName;
+            RequiredFiles = template.RequiredFiles == null ? null : new List<RelativePath>(template.RequiredFiles);
         }
 
         /// <inheritdoc />
@@ -43,5 +47,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public string ExtractedValueName { get; set; }
+
+        /// <inheritdoc />
+        public IReadOnlyList<RelativePath> RequiredFiles { get; set; }
     }
 }

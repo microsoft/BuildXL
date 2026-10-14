@@ -1,6 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
+using BuildXL.Utilities.Core;
+
 namespace BuildXL.Utilities.Configuration
 {
     /// <summary>
@@ -28,6 +31,12 @@ namespace BuildXL.Utilities.Configuration
         /// Defaults to 'extracted' if not specified. This value will be exposed with type 'StaticDirectory'. 
         /// </remarks>
         string ExtractedValueName { get; }
+
+        /// <summary>
+        /// Files relative to the extraction directory to declare as required file outputs alongside the opaque directory.
+        /// They are exposed in the same order as a File array named ExtractedValueName followed by "Files".
+        /// </summary>
+        IReadOnlyList<RelativePath> RequiredFiles { get; }
 
         /// <summary>
         /// Url of the download

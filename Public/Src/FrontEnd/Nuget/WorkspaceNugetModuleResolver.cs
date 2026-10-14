@@ -56,8 +56,6 @@ namespace BuildXL.FrontEnd.Nuget
 
         private const string SpecGenerationVersionFileSuffix = ".version";
 
-        private const string NugetCredentialProviderEnv = "NUGET_CREDENTIALPROVIDERS_PATH";
-
         private NugetFrameworkMonikers m_nugetFrameworkMonikers;
 
         // These are set during Initialize
@@ -370,40 +368,10 @@ namespace BuildXL.FrontEnd.Nuget
 
         private Possible<AbsolutePath> TryResolveCredentialProvider()
         {
-            if (!m_host.Engine.TryGetBuildParameter(NugetCredentialProviderEnv, nameof(NugetFrontEnd), out string credentialProvidersPaths) || string.IsNullOrEmpty(credentialProvidersPaths))
-            {
-                return new NugetFailure(NugetFailure.FailureType.FetchCredentialProvider, $"Environment variable {NugetCredentialProviderEnv} is not set");
-            }
-
-            // Here we do something slightly simpler than what NuGet does and just look for the first credential
-            // provider we can find
-            AbsolutePath credentialProviderPath = AbsolutePath.Invalid;
-            foreach (string path in credentialProvidersPaths.Split(new[] { Path.PathSeparator }, StringSplitOptions.RemoveEmptyEntries))
-            {
-                if (!AbsolutePath.TryCreate(m_context.PathTable, path, out var absolutePath))
-                {
-                    break;
-                }    
-
-                // Use the engine to enumerate, since the result of the enumeration should be sensitive
-                // to the graph building process
-                credentialProviderPath = m_host.Engine.EnumerateFiles(absolutePath, "CredentialProvider*.exe").FirstOrDefault();
-                if (credentialProviderPath.IsValid)
-                {
-                    break;
-                }
-            }
-
-            if (!credentialProviderPath.IsValid)
-            {
-                return new NugetFailure(NugetFailure.FailureType.FetchCredentialProvider, $"Unable to authenticate using a credential provider: Credential provider was not found under '{credentialProvidersPaths}'.");
-            }
-
-            // We want to rebuild the build graph if the credential provider changed. Running the whole auth process under detours sounds like too much,
-            // let's just read the credential provider main .exe so presence/hash gets recorded instead.
-            m_host.Engine.TryGetFrontEndFile(credentialProviderPath, nameof(NugetFrontEnd), out _);
-
-            return m_host.Engine.Translate(credentialProviderPath);
+            var result = CredentialProviderUtilities.TryResolveCredentialProvider(m_context, m_host.Engine, nameof(NugetFrontEnd));
+            return result.Succeeded
+                ? result
+                : new NugetFailure(NugetFailure.FailureType.FetchCredentialProvider, result.Failure.DescribeIncludingInnerFailures());
         }
 
         private Possible<NugetGenerationResult> DownloadPackagesAndGenerateSpecs()
@@ -457,10 +425,7 @@ namespace BuildXL.FrontEnd.Nuget
                     {
                         var aggregateResult = new Possible<NugetAnalyzedPackage>[nugetProgress.Length];
 
-                        if (!m_host.Engine.TryGetBuildParameter(NugetCredentialProviderEnv, nameof(NugetFrontEnd), out string allCredentialProviderPaths))
-                        {
-                            allCredentialProviderPaths = string.Empty;
-                        }
+                        string allCredentialProviderPaths = CredentialProviderUtilities.GetCredentialProviderPaths(m_host.Engine, nameof(NugetFrontEnd));
 
                         var loopState = Parallel.For(fromInclusive: 0,
                             toExclusive: aggregateResult.Length,

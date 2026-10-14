@@ -114,15 +114,29 @@ namespace Tool.Download
 
                     // If the download URI is pointing to a VSTS feed and we get a valid auth token, make it part of the request
                     // We only want to send the token over HTTPS and to a VSTS domain to avoid security issues
-                    if (VSTSAuthenticationHelper.IsVSTSPackageSecureURI(arguments.Url) &&
-                        await VSTSAuthenticationHelper.IsAuthenticationRequiredAsync(arguments.Url, CancellationToken.None, logger) &&
-                        await VSTSAuthenticationHelper.TryGetAuthenticationCredentialsAsync(arguments.Url, isRetry, CancellationToken.None) is var maybeAuthCredentials &&
-                        maybeAuthCredentials.Succeeded &&
-                        VSTSAuthenticationHelper.GetAuthenticationHeaderFromPAT(maybeAuthCredentials.Result.pat) is var authHeader)
+                    if (VSTSAuthenticationHelper.IsVSTSPackageSecureURI(arguments.Url))
                     {
-                        httpRequest.Headers.Accept.Clear();
-                        httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                        httpRequest.Headers.Authorization = authHeader;
+                        bool authenticationRequired = await VSTSAuthenticationHelper.IsAuthenticationRequiredAsync(arguments.Url, CancellationToken.None, logger);
+                        Console.Write(logger.ToString());
+
+                        if (authenticationRequired)
+                        {
+                            Console.WriteLine($"Authentication required for {arguments.Url}. Trying to acquire credentials.");
+                            var maybeAuthCredentials = await VSTSAuthenticationHelper.TryGetAuthenticationCredentialsAsync(arguments.Url, isRetry, CancellationToken.None);
+
+                            if (maybeAuthCredentials.Succeeded)
+                            {
+                                httpRequest.Headers.Accept.Clear();
+                                httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                                httpRequest.Headers.Authorization = VSTSAuthenticationHelper.GetAuthenticationHeaderFromPAT(maybeAuthCredentials.Result.pat);
+                                Console.WriteLine($"Authentication successfully acquired for {arguments.Url}");
+                            }
+                            else
+                            {
+                                Console.Error.WriteLine($"Failed to authenticate {arguments.Url}: {maybeAuthCredentials.Failure.DescribeIncludingInnerFailures()}");
+                                Console.Error.WriteLine("Trying to download without authentication.");
+                            }
+                        }
                     }
 
                     var response = await httpClient.SendAsync(httpRequest);

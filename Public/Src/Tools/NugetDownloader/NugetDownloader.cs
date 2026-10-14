@@ -48,6 +48,13 @@ namespace Tool.Download
         /// <nodoc />
         public static int Main(string[] arguments)
         {
+            // Historically NuGet pips have not allowed injected SDK plugins. We need global untracked dependencies,
+            // but cannot opt into those without also honoring global passthrough environment variables.
+            // Clear SDK plugin discovery to preserve that behavior while still honoring global dependencies.
+            Environment.SetEnvironmentVariable("NUGET_PLUGIN_PATHS", null);
+            Environment.SetEnvironmentVariable("NUGET_NETCORE_PLUGIN_PATHS", null);
+            Environment.SetEnvironmentVariable("NUGET_NETFX_PLUGIN_PATHS", null);
+
             return new NugetDownloader().MainHandler(arguments);
         }
 

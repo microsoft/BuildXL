@@ -6,6 +6,8 @@ using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -14,6 +16,76 @@ using Xunit;
 
 namespace Test.BuildXL.FrontEnd.Download
 {
+    public class DownloadResolverCredentialProviderTests : DownloadResolverIntegrationTestBase
+    {
+        private const string CredentialProviderEnv = "NUGET_CREDENTIALPROVIDERS_PATH";
+
+        protected override EnginePhases Phase => EnginePhases.Schedule;
+
+        public DownloadResolverCredentialProviderTests(ITestOutputHelper output) : base(output)
+        {
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void OnlyCredentialProviderExecutableIsUntracked(bool executablePath)
+        {
+            string providerDirectory = Path.Combine(TestRoot, "Provider With Spaces");
+            Directory.CreateDirectory(providerDirectory);
+            string providerExecutable = Path.Combine(providerDirectory, "CredentialProvider.Microsoft.exe");
+            File.WriteAllText(providerExecutable, "credential provider");
+            string otherDirectory = Path.Combine(TestRoot, "Another Provider");
+            Directory.CreateDirectory(otherDirectory);
+            string providerPaths = string.Join(Path.PathSeparator.ToString(),
+                otherDirectory, executablePath ? providerExecutable : providerDirectory);
+            var config = Build(new[] { GetSampleData("http://localhost:9753/file.zip", DownloadArchiveType.Zip) }).PersistSpecsAndGetConfiguration();
+            ((CommandLineConfiguration)config).Startup.Properties[CredentialProviderEnv] = providerPaths;
+
+            var result = RunEngine(config);
+            Assert.True(result.IsSuccess);
+            var processes = result.EngineState.RetrieveProcesses().ToArray();
+            var download = processes.Single(process => process.Tags.Contains(StringId.Create(FrontEndContext.StringTable, "download")));
+            var extract = processes.Single(process => process.Tags.Contains(StringId.Create(FrontEndContext.StringTable, "extract")));
+            foreach (string directory in new[] { providerDirectory, otherDirectory })
+            {
+                var path = AbsolutePath.Create(FrontEndContext.PathTable, directory);
+                Assert.DoesNotContain(path, download.UntrackedScopes);
+                Assert.DoesNotContain(path, extract.UntrackedScopes);
+            }
+            Assert.DoesNotContain(download.EnvironmentVariables, variable =>
+                !variable.IsPassThrough && variable.Name.ToString(FrontEndContext.StringTable) == CredentialProviderEnv);
+            var executable = AbsolutePath.Create(FrontEndContext.PathTable, providerExecutable);
+            Assert.Contains(executable, download.UntrackedPaths);
+            Assert.DoesNotContain(executable, extract.UntrackedPaths);
+            Assert.True(download.HasUntrackedChildProcesses);
+            Assert.Empty(download.ChildProcessesToBreakawayFromSandbox);
+            Assert.Empty(extract.ChildProcessesToBreakawayFromSandbox);
+            Assert.False(extract.HasUntrackedChildProcesses);
+            Assert.False(download.AllowUndeclaredSourceReads);
+            Assert.True(config.Sandbox.FailUnexpectedFileAccesses);
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void UnresolvableCredentialProviderDoesNotBlockAnonymousDownloads(bool invalidPath)
+        {
+            string providerPath = invalidPath ? "relative-provider" : Path.Combine(TestRoot, "Empty Provider");
+            if (!invalidPath)
+            {
+                Directory.CreateDirectory(providerPath);
+            }
+
+            var config = Build(new[] { GetSampleData("http://localhost:9753/file.txt", DownloadArchiveType.File) }).PersistSpecsAndGetConfiguration();
+            ((CommandLineConfiguration)config).Startup.Properties[CredentialProviderEnv] = providerPath;
+            var result = RunEngine(config);
+
+            Assert.True(result.IsSuccess);
+            AssertWarningEventLogged(global::BuildXL.FrontEnd.Download.Tracing.LogEventId.CredentialProviderDiscoveryFailed);
+        }
+    }
+
     public class DownloadResolverUnitTests : DownloadResolverIntegrationTestBase
     {
         private const string TestServer = "http://localhost:9753/";
@@ -121,6 +193,81 @@ namespace Test.BuildXL.FrontEnd.Download
 
             string error = EventListener.GetLogMessagesForEventId((int)global::BuildXL.Processes.Tracing.LogEventId.PipProcessError).Single();
             Assert.Contains("data on the server has been altered", error);
+        }
+
+        [Fact]
+        public void DeclaredRequiredFilesAreRequiredOutputsAndCanBeConsumed()
+        {
+            var data = new DownloadFileSettings(GetSampleData(TestServer + "file.zip", DownloadArchiveType.Zip))
+            {
+                ExtractedValueName = "payload",
+                RequiredFiles = new[]
+                {
+                    RelativePath.Create(FrontEndContext.StringTable, "world"),
+                    RelativePath.Create(FrontEndContext.StringTable, "multi/universe"),
+                },
+            };
+
+            string spec = @"
+import {Transformer} from 'Sdk.Transformers';
+const files = importFrom('TestDownload').payloadFiles;
+const objectRoot = Context.getMount('ObjectRoot').path;
+const first = Transformer.copyFile(files[0], p`${objectRoot}/world-copy`);
+const second = Transformer.copyFile(files[1], p`${objectRoot}/universe-copy`);
+";
+            var configuration = Build(new[] { data })
+                .AddSpec("test.dsc", spec)
+                .PersistSpecsAndGetConfiguration();
+
+            var result = RunEngineWithServer(configuration);
+            Assert.True(result.IsSuccess);
+
+            var extractPip = result.EngineState.RetrieveProcesses()
+                .Single(process => process.Tags.Contains(StringId.Create(FrontEndContext.StringTable, "extract")));
+            Assert.Equal(2, extractPip.FileOutputs.Length);
+            Assert.All(extractPip.FileOutputs, file => Assert.True(file.IsRequiredOutputFile));
+            Assert.Empty(result.EngineState.PipGraph.GetExistenceAssertionsUnderOpaqueDirectory(extractPip.DirectoryOutputs.Single()));
+            string extractRoot = extractPip.DirectoryOutputs.Single().Path.ToString(FrontEndContext.PathTable);
+            Assert.True(File.Exists(Path.Combine(extractRoot, "galaxy")));
+
+            string objectRoot = configuration.Layout.ObjectDirectory.ToString(FrontEndContext.PathTable);
+            Assert.Equal("Hello World", File.ReadAllText(Path.Combine(objectRoot, "world-copy")));
+            Assert.Equal("Hello Universe", File.ReadAllText(Path.Combine(objectRoot, "universe-copy")));
+        }
+
+        [Theory]
+        [InlineData(DownloadArchiveType.File, false, false)]
+        [InlineData(DownloadArchiveType.Zip, true, false)]
+        [InlineData(DownloadArchiveType.Zip, false, true)]
+        public void InvalidExtractedFileSettingsAreRejected(DownloadArchiveType archiveType, bool nameCollision, bool duplicatePath)
+        {
+            var world = RelativePath.Create(FrontEndContext.StringTable, "world");
+            var data = new DownloadFileSettings(GetSampleData(TestServer + "file.zip", archiveType))
+            {
+                DownloadedValueName = nameCollision ? "payloadFiles" : null,
+                ExtractedValueName = "payload",
+                RequiredFiles = duplicatePath ? new[] { world, world } : new[] { world },
+            };
+
+            var configuration = Build(new[] { data }).PersistSpecsAndGetConfiguration();
+            Assert.False(RunEngine(configuration).IsSuccess);
+            AssertErrorEventLogged(global::BuildXL.FrontEnd.Download.Tracing.LogEventId.InvalidRequiredFiles);
+        }
+
+        [Fact]
+        public void MissingDeclaredExtractedFileFailsExecution()
+        {
+            var data = new DownloadFileSettings(GetSampleData(TestServer + "file.zip", DownloadArchiveType.Zip))
+            {
+                RequiredFiles = new[] { RelativePath.Create(FrontEndContext.StringTable, "missing") },
+            };
+
+            var configuration = Build(new[] { data }).PersistSpecsAndGetConfiguration();
+
+            Assert.False(RunEngineWithServer(configuration).IsSuccess);
+            AssertVerboseEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessMissingExpectedOutputOnCleanExit);
+            AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs);
+            AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessError);
         }
 
         [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]

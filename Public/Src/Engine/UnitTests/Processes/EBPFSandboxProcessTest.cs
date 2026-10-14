@@ -15,6 +15,7 @@ using BuildXL.Utilities.Core.Tasks;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 using BuildXL.Native.IO;
 
 #nullable enable
@@ -27,6 +28,22 @@ namespace Test.BuildXL.Processes
         public EBPFSandboxProcessTest(ITestOutputHelper output) : base(output)
         {
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+        }
+
+        [Fact]
+        public void KernelHookSelectionHandlesBtfAvailability()
+        {
+            string executable = SandboxedProcessUnix.EnsureDeploymentFile("RingBufferTest/kernel_hook_selection_test");
+            using var process = Process.Start(new ProcessStartInfo(executable)
+            {
+                WorkingDirectory = TemporaryDirectory,
+                UseShellExecute = false,
+                RedirectStandardError = true,
+            });
+            XAssert.IsNotNull(process);
+            string standardError = process!.StandardError.ReadToEnd();
+            process.WaitForExit();
+            XAssert.AreEqual(0, process.ExitCode, standardError);
         }
 
         [Fact]
@@ -483,6 +500,173 @@ namespace Test.BuildXL.Processes
             // Retrieve the single synthetic probe we sent and check that the path has been canonicalized correctly
             var probe = messages.Where(s => s.Contains("kernel function: test_synthetic")).Single();
             XAssert.Contains(probe, $"path: '{canonicalizedPath}'");
+        }
+
+        [Theory]
+        [InlineData("RawReadlinkSymlink", "file-link", RequestedAccess.Read, ReportedFileOperation.Readlink, 0u)]
+        [InlineData("RawReadlinkatSymlink", "file-link", RequestedAccess.Read, ReportedFileOperation.Readlink, 0u)]
+        [InlineData("RawReadlinkRegularFile", "regular.txt", RequestedAccess.Read, ReportedFileOperation.Readlink, 0u)]
+        [InlineData("RawReadlinkatRegularFile", "regular.txt", RequestedAccess.Read, ReportedFileOperation.Readlink, 0u)]
+        [InlineData("RawReadlinkMissing", "missing.txt", RequestedAccess.Probe, ReportedFileOperation.Probe, (uint)global::BuildXL.Interop.Unix.IO.Errno.ENOENT)]
+        [InlineData("RawReadlinkatMissing", "missing.txt", RequestedAccess.Probe, ReportedFileOperation.Probe, (uint)global::BuildXL.Interop.Unix.IO.Errno.ENOENT)]
+        public void ReadlinkSyscallReportsAccess(
+            string testName,
+            string fileName,
+            RequestedAccess expectedRequestedAccess,
+            ReportedFileOperation expectedOperation,
+            uint expectedError)
+        {
+            var result = RunReadlinkSyscallTest(testName);
+            AssertReadlinkAccess(
+                result,
+                fileName,
+                expectedRequestedAccess,
+                expectedOperation,
+                expectedError,
+                directory: expectedOperation == ReportedFileOperation.Probe ? "dir-link" : "real-dir");
+            AssertReadlinkTargetNotAccessed(result);
+
+            if (expectedOperation == ReportedFileOperation.Readlink)
+            {
+                var expectedPath = AbsolutePath.Create(
+                    Context.PathTable,
+                    Path.Combine(TemporaryDirectory, "readlink-root", "real-dir", fileName));
+                XAssert.IsFalse(
+                    result.FileAccesses!.Any(access => access.ManifestPath == expectedPath && access.Operation == ReportedFileOperation.Probe),
+                    "The readlink pathname lookup must not emit an extra probe.");
+            }
+
+            if (fileName != "file-link")
+            {
+                AssertReadlinkAccess(result, "after-readlink.txt", RequestedAccess.Probe, ReportedFileOperation.Probe, 0);
+                AssertReadlinkReportCount("after-readlink.txt", ReportedFileOperation.Probe);
+            }
+        }
+
+        [Fact]
+        public void ReadlinkatEmptyPathReportsDescriptorSymlink()
+        {
+            var result = RunReadlinkSyscallTest("RawReadlinkatEmptyPath");
+            AssertReadlinkAccess(result, "file-link", RequestedAccess.Read, ReportedFileOperation.Readlink, 0);
+            AssertReadlinkAccess(result, "after-readlink.txt", RequestedAccess.Probe, ReportedFileOperation.Probe, 0);
+            AssertReadlinkTargetNotAccessed(result);
+            AssertReadlinkReportCount("after-readlink.txt", ReportedFileOperation.Probe);
+        }
+
+        [Theory]
+        [InlineData("RawReadlinkRepeated", true)]
+        [InlineData("RawReadlinkatRepeated", true)]
+        [InlineData("RawReadlinkInvalidBuffer", false)]
+        [InlineData("RawReadlinkatInvalidBuffer", false)]
+        public void ReadlinkSyscallRestoresLookupState(string testName, bool repeated)
+        {
+            var result = RunReadlinkSyscallTest(testName);
+            AssertReadlinkAccess(result, "file-link", RequestedAccess.Read, ReportedFileOperation.Readlink, 0);
+            AssertReadlinkAccess(result, "after-readlink.txt", RequestedAccess.Probe, ReportedFileOperation.Probe, 0);
+            AssertReadlinkTargetNotAccessed(result);
+
+            AssertReadlinkReportCount("after-readlink.txt", ReportedFileOperation.Probe);
+            if (repeated)
+            {
+                AssertReadlinkAccess(result, "second-link", RequestedAccess.Read, ReportedFileOperation.Readlink, 0);
+
+                // FileAccesses is a set, so inspect received reports to detect duplicate cache misses.
+                AssertReadlinkReportCount("file-link", ReportedFileOperation.Readlink);
+            }
+            else
+            {
+                AssertReadlinkAccess(result, "invalid-buffer-link", RequestedAccess.Read, ReportedFileOperation.Readlink, 0);
+            }
+        }
+
+        private SandboxedProcessResult RunReadlinkSyscallTest(string testName)
+        {
+            var root = Path.Combine(TemporaryDirectory, "readlink-root");
+            var directory = Path.Combine(root, "real-dir");
+            var target = Path.Combine(directory, "target.txt");
+            FileUtilities.CreateDirectory(directory);
+            File.WriteAllText(target, "target");
+            File.WriteAllText(Path.Combine(directory, "regular.txt"), "regular");
+            File.WriteAllText(Path.Combine(directory, "after-readlink.txt"), "cleanup");
+            XAssert.IsTrue(FileUtilities.TryCreateSymbolicLink(Path.Combine(root, "dir-link"), directory, isTargetFile: false).Succeeded);
+            foreach (string name in new[] { "file-link", "second-link", "invalid-buffer-link" })
+            {
+                XAssert.IsTrue(FileUtilities.TryCreateSymbolicLink(Path.Combine(directory, name), target, isTargetFile: true).Succeeded);
+            }
+
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+                EnableLinuxSandboxLogging = true,
+                SecurityInodeGetattrIsProbe = true,
+            };
+            fileAccessManifest.AddScope(
+                AbsolutePath.Create(Context.PathTable, root),
+                FileAccessPolicy.MaskNothing,
+                FileAccessPolicy.ReportAccess);
+
+            var info = new SandboxedProcessInfo(
+                Context.PathTable,
+                new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                Path.Combine(TestBinRoot, "LinuxTestProcesses", "LinuxTestProcess"),
+                fileAccessManifest,
+                disableConHostSharing: false,
+                loggingContext: LoggingContext,
+                useGentleKill: true)
+            {
+                Arguments = $"-t {testName}",
+                WorkingDirectory = TemporaryDirectory,
+                PipSemiStableHash = fileAccessManifest.PipId,
+                PipDescription = $"EBPF raw readlink syscall test ({testName})",
+                SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
+            };
+
+            using var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
+            var result = process.GetResultAsync().GetAwaiter().GetResult();
+            AssertExitCode(result, 0);
+            XAssert.IsNotNull(result.FileAccesses);
+            return result;
+        }
+
+        private void AssertReadlinkAccess(
+            SandboxedProcessResult result,
+            string fileName,
+            RequestedAccess requestedAccess,
+            ReportedFileOperation operation,
+            uint error,
+            string directory = "real-dir")
+        {
+            var expectedPath = AbsolutePath.Create(
+                Context.PathTable,
+                Path.Combine(TemporaryDirectory, "readlink-root", directory, fileName));
+            var matches = result.FileAccesses!
+                .Where(access => access.ManifestPath == expectedPath && access.RequestedAccess == requestedAccess && access.Operation == operation)
+                .ToList();
+            XAssert.AreEqual(
+                1,
+                matches.Count,
+                $"Expected {requestedAccess} / {operation} for {expectedPath.ToString(Context.PathTable)}.{Environment.NewLine}" +
+                string.Join(Environment.NewLine, result.FileAccesses!.Select(access => access.Describe())));
+            XAssert.AreEqual(error, matches[0].Error);
+        }
+
+        private void AssertReadlinkReportCount(string fileName, ReportedFileOperation operation)
+        {
+            var path = Path.Combine(TemporaryDirectory, "readlink-root", "real-dir", fileName);
+            AssertLogContains(new Regex($@".*Access report received: {operation}:.*{Regex.Escape(path)}.*"), count: 1);
+        }
+
+        private void AssertReadlinkTargetNotAccessed(SandboxedProcessResult result)
+        {
+            var target = AbsolutePath.Create(
+                Context.PathTable,
+                Path.Combine(TemporaryDirectory, "readlink-root", "real-dir", "target.txt"));
+            XAssert.IsFalse(
+                result.FileAccesses!.Any(access => access.ManifestPath == target),
+                "Reading a symlink must not resolve or access its final target.");
         }
 
         [Theory]

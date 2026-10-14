@@ -28,6 +28,19 @@ For building the eBPF sandbox from source (BuildXL developers), the correspondin
 
 Additionally, the runner requires Linux kernel 6.6+ and the following capabilities: `cap_sys_admin`, `cap_bpf`, `cap_sys_ptrace`. BuildXL will attempt to set these automatically (may require sudo).
 
+Kernel version alone does not determine which internal filesystem functions are
+available for tracing. Compiler optimization can partition `do_readlinkat` into
+`do_readlinkat.part.0` while BTF retains the original name, or inline `pick_link`
+without emitting a BTF function.
+
+Readlink monitoring attaches to the x86-64 syscall-table wrappers and, when
+present in kernel BTF, their IA32 counterparts. These hooks retain the pathname,
+dirfd, return-value and per-thread lookup-cache bookkeeping without relying on a
+compiler-generated clone's ABI. Symlink traversal selects `pick_link` when it has
+BTF information; otherwise it requires both `step_into` and
+`security_inode_follow_link`. If neither complete tracing strategy is available,
+sandbox initialization fails rather than silently omitting symlink observations.
+
 ## Coding style
 # BPF programs
 - BPF programs that trace a function should use the following convention on enter `<function name>_enter` and the following on exit `<function name>_exit`

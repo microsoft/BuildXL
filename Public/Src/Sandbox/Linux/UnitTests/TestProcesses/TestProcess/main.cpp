@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <iostream>
 #include <sys/mman.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 #include "syscalltests.hpp"
 
@@ -134,6 +135,126 @@ int ReadLinkOnDirectoryIsRead()
     // We should never reach this point because readlink should fail with EINVAL
     return EXIT_FAILURE;
 }
+
+enum class ReadlinkScenario
+{
+    Symlink,
+    RegularFile,
+    Missing,
+    EmptyPath,
+    Repeated,
+    InvalidBuffer,
+};
+
+int RawReadlinkSyscall(bool useReadlinkat, ReadlinkScenario scenario)
+{
+    GET_CWD;
+    std::string expectedTarget = std::string(cwd) + "/readlink-root/real-dir/target.txt";
+    char buf[PATH_MAX] = { 0 };
+    int dirfd = AT_FDCWD;
+    if (useReadlinkat)
+    {
+        dirfd = open("readlink-root", O_PATH | O_DIRECTORY);
+        if (dirfd == -1)
+        {
+            perror("open readlink directory");
+            return EXIT_FAILURE;
+        }
+    }
+
+    auto readLink = [&](const char *name, int bufferSize, int expectedError)
+    {
+        std::string path = useReadlinkat ? name : std::string("readlink-root/") + name;
+        errno = 0;
+        // Use the actual syscall ABI, not a libc wrapper that may substitute readlinkat.
+        long result = useReadlinkat
+            ? syscall(SYS_readlinkat, dirfd, path.c_str(), buf, bufferSize)
+            : syscall(SYS_readlink, path.c_str(), buf, bufferSize);
+        int error = result == -1 ? errno : 0;
+        if (error != expectedError || (expectedError != 0 && result != -1) ||
+            (expectedError == 0 && (result != static_cast<long>(expectedTarget.size()) ||
+                memcmp(buf, expectedTarget.c_str(), expectedTarget.size()) != 0)))
+        {
+            std::cerr << "readlink" << (useReadlinkat ? "at" : "") << " '" << path
+                << "' returned " << result << " with errno " << error
+                << ", expected errno " << expectedError << std::endl;
+            return false;
+        }
+
+        std::cout << "readlink" << (useReadlinkat ? "at" : "") << " '" << path
+            << "' errno=" << error << std::endl;
+        return true;
+    };
+
+    auto checkCleanup = [&]()
+    {
+        struct stat st;
+        for (int i = 0; i < 2; i++)
+        {
+            if (syscall(SYS_newfstatat, AT_FDCWD, "readlink-root/dir-link/after-readlink.txt", &st, 0) == -1)
+            {
+                perror("stat after readlink");
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    bool succeeded = false;
+    switch (scenario)
+    {
+        case ReadlinkScenario::Symlink:
+            succeeded = readLink("dir-link/file-link", PATH_MAX, 0);
+            break;
+        case ReadlinkScenario::RegularFile:
+            succeeded = readLink("dir-link/regular.txt", PATH_MAX, EINVAL) && checkCleanup();
+            break;
+        case ReadlinkScenario::Missing:
+            succeeded = readLink("dir-link/missing.txt", PATH_MAX, ENOENT) && checkCleanup();
+            break;
+        case ReadlinkScenario::EmptyPath:
+            close(dirfd);
+            dirfd = open("readlink-root/real-dir/file-link", O_PATH | O_NOFOLLOW);
+            if (dirfd == -1)
+            {
+                perror("open readlink symlink");
+                return EXIT_FAILURE;
+            }
+
+            // readlinkat has no flags argument; an empty pathname selects the O_PATH descriptor.
+            succeeded = readLink("", PATH_MAX, 0) && checkCleanup();
+            break;
+        case ReadlinkScenario::Repeated:
+            succeeded = readLink("dir-link/file-link", PATH_MAX, 0) &&
+                readLink("dir-link/file-link", PATH_MAX, 0) &&
+                readLink("dir-link/second-link", PATH_MAX, 0) && checkCleanup();
+            break;
+        case ReadlinkScenario::InvalidBuffer:
+            succeeded = readLink("dir-link/invalid-buffer-link", 0, EINVAL) &&
+                readLink("dir-link/file-link", PATH_MAX, 0) && checkCleanup();
+            break;
+    }
+
+    if (useReadlinkat)
+    {
+        close(dirfd);
+    }
+
+    return succeeded ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
+int RawReadlinkSymlink() { return RawReadlinkSyscall(false, ReadlinkScenario::Symlink); }
+int RawReadlinkatSymlink() { return RawReadlinkSyscall(true, ReadlinkScenario::Symlink); }
+int RawReadlinkRegularFile() { return RawReadlinkSyscall(false, ReadlinkScenario::RegularFile); }
+int RawReadlinkatRegularFile() { return RawReadlinkSyscall(true, ReadlinkScenario::RegularFile); }
+int RawReadlinkMissing() { return RawReadlinkSyscall(false, ReadlinkScenario::Missing); }
+int RawReadlinkatMissing() { return RawReadlinkSyscall(true, ReadlinkScenario::Missing); }
+int RawReadlinkatEmptyPath() { return RawReadlinkSyscall(true, ReadlinkScenario::EmptyPath); }
+int RawReadlinkRepeated() { return RawReadlinkSyscall(false, ReadlinkScenario::Repeated); }
+int RawReadlinkatRepeated() { return RawReadlinkSyscall(true, ReadlinkScenario::Repeated); }
+int RawReadlinkInvalidBuffer() { return RawReadlinkSyscall(false, ReadlinkScenario::InvalidBuffer); }
+int RawReadlinkatInvalidBuffer() { return RawReadlinkSyscall(true, ReadlinkScenario::InvalidBuffer); }
 
 int main(int argc, char **argv)
 {
@@ -281,6 +402,17 @@ int main(int argc, char **argv)
     IF_COMMAND(OpenAtHandlesInvalidFd);
     IF_COMMAND(AccessLongPath);
     IF_COMMAND(ReadLinkOnDirectoryIsRead);
+    IF_COMMAND(RawReadlinkSymlink);
+    IF_COMMAND(RawReadlinkatSymlink);
+    IF_COMMAND(RawReadlinkRegularFile);
+    IF_COMMAND(RawReadlinkatRegularFile);
+    IF_COMMAND(RawReadlinkMissing);
+    IF_COMMAND(RawReadlinkatMissing);
+    IF_COMMAND(RawReadlinkatEmptyPath);
+    IF_COMMAND(RawReadlinkRepeated);
+    IF_COMMAND(RawReadlinkatRepeated);
+    IF_COMMAND(RawReadlinkInvalidBuffer);
+    IF_COMMAND(RawReadlinkatInvalidBuffer);
 
     // Invalid command
     exit(-1);

@@ -6,14 +6,12 @@
  */
 #include <chrono>
 #include <errno.h>
-#include <linux/version.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <string>
 #include <sys/mman.h>
 #include <sys/resource.h>
-#include <sys/utsname.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <thread>
@@ -36,6 +34,7 @@
 #include "SyscallHandler.h"
 #include "ebpfcommon.h"
 #include "ManifestIterator.h"
+#include "KernelHookSelection.hpp"
 #include <numeric>
 
 // Max size for the name of a bpf program
@@ -1570,36 +1569,46 @@ int Start(sandbox_bpf *skel, char **argv) {
 }
 
 int SetAutoLoad(struct sandbox_bpf *skel) {
-    // Get the Linux kernel major, minor, and patch version numbers.
-    struct utsname uts;
-    if (uname(&uts) < 0) {
-        LogError("Failed to get kernel version: %s\n", strerror(errno));
+    struct btf *kernel_btf = btf__load_vmlinux_btf();
+    if (!kernel_btf) {
+        LogError("Failed to read kernel BTF for readlink syscall hooks: %s\n", strerror(errno));
         return -1;
     }
 
-    char *ptr = uts.release;
-    int versions[3] = {0};
-    for (int i = 0; i < 3 && ptr != NULL;) {
-        if (isdigit(*ptr) != 0) {
-            versions[i] = strtol(ptr, &ptr, 10);
-            i++;
-        }
-        else {
-            ptr++;
-        }
+    bool compat_readlink = btf__find_by_name_kind(kernel_btf, "__ia32_sys_readlink", BTF_KIND_FUNC) >= 0;
+    bool compat_readlinkat = btf__find_by_name_kind(kernel_btf, "__ia32_sys_readlinkat", BTF_KIND_FUNC) >= 0;
+    auto symlink_hook = buildxl::linux::ebpf::SelectSymlinkHook(
+        btf__find_by_name_kind(kernel_btf, "pick_link", BTF_KIND_FUNC) >= 0,
+        btf__find_by_name_kind(kernel_btf, "step_into", BTF_KIND_FUNC) >= 0,
+        btf__find_by_name_kind(kernel_btf, "security_inode_follow_link", BTF_KIND_FUNC) >= 0);
+    btf__free(kernel_btf);
+    skel->rodata->use_legacy_symlink_hooks = symlink_hook == buildxl::linux::ebpf::SymlinkHook::kFollowLink;
+    if (bpf_program__set_autoload(skel->progs.readlink_entry_compat, compat_readlink) != 0 ||
+        bpf_program__set_autoload(skel->progs.readlink_exit_compat, compat_readlink) != 0 ||
+        bpf_program__set_autoload(skel->progs.readlinkat_entry_compat, compat_readlinkat) != 0 ||
+        bpf_program__set_autoload(skel->progs.readlinkat_exit_compat, compat_readlinkat) != 0) {
+        LogError("Failed to configure compatibility readlink syscall hooks\n");
+        return -1;
     }
 
-    int currentVersion = KERNEL_VERSION(versions[0], versions[1], versions[2]);
-    if (currentVersion < KERNEL_VERSION(6, 8, 0)) {
-        // Enable auto loading for programs that are used on older kernels
-        bpf_program__set_autoload(skel->progs.step_into_entry, true);
-        bpf_program__set_autoload(skel->progs.security_inode_follow_link_exit, true);
-    }
-    else {
-        // Enable auto loading for programs that are used on newer kernels
-        bpf_program__set_autoload(skel->progs.pick_link_exit, true);
-        // This map is not used in this case, disable its autoloading to avoid loading unnecessary maps
-        bpf_map__set_autocreate(skel->maps.follow_link_mount, false);
+    if (symlink_hook == buildxl::linux::ebpf::SymlinkHook::kPickLink) {
+        if (bpf_program__set_autoload(skel->progs.pick_link_exit, true) != 0) {
+            LogError("Failed to configure pick_link hook\n");
+            return -1;
+        }
+        if (bpf_map__set_autocreate(skel->maps.follow_link_mount, false) != 0) {
+            LogError("Failed to disable unused symlink mount tracking map\n");
+            return -1;
+        }
+    } else if (symlink_hook == buildxl::linux::ebpf::SymlinkHook::kFollowLink) {
+        if (bpf_program__set_autoload(skel->progs.step_into_entry, true) != 0 ||
+            bpf_program__set_autoload(skel->progs.security_inode_follow_link_exit, true) != 0) {
+            LogError("Failed to configure symlink traversal fallback hooks\n");
+            return -1;
+        }
+    } else {
+        LogError("Kernel BTF has neither pick_link nor the complete step_into/security_inode_follow_link hook pair\n");
+        return -1;
     }
 
     return 0;

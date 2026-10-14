@@ -16,6 +16,7 @@
 #include "kernelfunctions.h"
 
 char LICENSE[] SEC("license") = "Dual MIT/GPL";
+const volatile bool use_legacy_symlink_hooks = false;
 
 
 /**
@@ -607,7 +608,7 @@ int BPF_PROG(security_path_link_entry, struct dentry *old_dentry, const struct p
 
 /**
  * step_into_exit() - Tracks negative dentries (absent path components) during path walks and takes
- * care of symlink traversal (the latter only for older kernels).
+ * care of symlink traversal when the legacy hook pair is selected.
  *
  * step_into is the single funnel point for ALL component resolutions in the VFS path walk — both
  * dcache hits (lookup_fast → step_into) and dcache misses (lookup_slow → step_into). It receives
@@ -633,9 +634,8 @@ int BPF_PROG(step_into_exit, struct nameidata *nd, int flags, struct dentry *den
     u64 pid_tgid = bpf_get_current_pid_tgid();
 
     // This is the symlink traversal part. Just cleans up the map used to store mounts in step_into_entry.
-    // This is only used in older kernels where pick_link does not have BTF information.
-    // On >= 6.8 the follow_link_mount map is not even created (autocreate disabled in sandbox.cpp).
-    if (LINUX_KERNEL_VERSION < KERNEL_VERSION(6, 8, 0))
+    // The map is not created when pick_link is selected.
+    if (use_legacy_symlink_hooks)
     {
         bpf_map_delete_elem(&follow_link_mount, &pid_tgid);
     }
@@ -1244,19 +1244,18 @@ int BPF_PROG(security_inode_getattr_exit, const struct path *path, int ret)
  * want to use the path cache for readlink, since it is a common source of file accesses. do_readlinkat just gives us 
  * raw strings and using the string cache is slow (and only used when the ringbuffer is under memory pressure). So this is 
  * the way we do it:
- * 1) When we enter do_readlinkat, we add the pid_tgid to should_send_readlink map to signal that the current filename lookup is being done for a readlink operation. 
+ * 1) When we enter a readlink syscall wrapper, we add the pid_tgid to should_send_readlink map to signal that the current filename lookup is being done for a readlink operation.
  * 2) In filename_lookup_exit (called by readlink to resolve the path), we check whether the pid_tgid is in the map. If it is, this means this filename lookup is being 
  *    done for a readlink operation, so we check the path cache for the struct path corresponding to this filename and update the map entry to signal whether the path is 
  *    in the cache or not.
- * 3) In do_readlinkat_exit, we check should_send_readlink entry to see whether the path was in the cache or not. We later remove the entry from the map since we 
+ * 3) On syscall exit, we check should_send_readlink entry to see whether the path was in the cache or not. We later remove the entry from the map since we
  *    don't need it anymore.
  * Check https://github.com/torvalds/linux/blob/05f7e89ab9731565d8a62e3b5d1ec206485eeb0b/fs/stat.c#L563 for the readlink implementation and how it relies on filename_lookup 
  * to resolve the path.
  * This is a bit convoluted, but it allows us to leverage the path cache for readlinks. The same strategy could be applied to other syscalls that take raw strings and
  * are a common source of accesses, but for now we just apply it to readlink since it is the most common one.
  */
-SEC("fentry/do_readlinkat")
-int BPF_PROG(do_readlink_entry, int dfd, const char *pathname, char *buf, int bufsiz)
+static __always_inline int readlink_enter()
 {
     pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
@@ -1279,7 +1278,7 @@ int BPF_PROG(do_readlink_entry, int dfd, const char *pathname, char *buf, int bu
 
 /**
  * filename_lookup_exit() - This is called after the kernel looks up a filename and retrieves the corresponding struct path.
- * Check do_readlinkat_entry for the rationale behind this function and the overall strategy for handling readlink accesses.
+ * Check readlink_enter for the rationale behind this function and the overall strategy for handling readlink accesses.
  */
 SEC("fexit/filename_lookup")
 int BPF_PROG(filename_lookup_exit, int dfd, struct filename *name, unsigned flags,
@@ -1318,15 +1317,14 @@ int BPF_PROG(filename_lookup_exit, int dfd, struct filename *name, unsigned flag
 }
 
 /**
- * do_readlink_exit() - Call for reading a symlink.
+ * readlink_exit() - Call for reading a symlink.
  * Unfortunately we cannot use security_inode_readlink because it only takes a dentry
  * and the mount is missing. Without the mount we cannot successfully resolve a path. In addition to that,
  * readlink can be called for files that are not symlinks. In that case a read is actually performed, but security_inode_readlink is 
  * not called at all, so we would miss those accesses if we relied on that function.
  * Observe that both pathname and buf belong to user space in this case (__user on the kernel side)
  */
-SEC("fexit/do_readlinkat")
-int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int bufsiz, int ret)
+static __always_inline int readlink_exit(int dfd, const char *pathname, long ret)
 {
     pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
@@ -1418,10 +1416,60 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
     return 0;
 }
 
+// Syscall-table entry points retain callable symbols even when the compiler
+// partitions or inlines the internal do_readlinkat helper.
+SEC("fentry/__x64_sys_readlink")
+int BPF_PROG(readlink_entry, const struct pt_regs *regs)
+{
+    return readlink_enter();
+}
+
+SEC("fexit/__x64_sys_readlink")
+int BPF_PROG(readlink_exit_native, const struct pt_regs *regs, long ret)
+{
+    return readlink_exit(AT_FDCWD, (const char *)PT_REGS_PARM1_CORE_SYSCALL(regs), ret);
+}
+
+SEC("fentry/__x64_sys_readlinkat")
+int BPF_PROG(readlinkat_entry, const struct pt_regs *regs)
+{
+    return readlink_enter();
+}
+
+SEC("fexit/__x64_sys_readlinkat")
+int BPF_PROG(readlinkat_exit, const struct pt_regs *regs, long ret)
+{
+    return readlink_exit((int)PT_REGS_PARM1_CORE_SYSCALL(regs), (const char *)PT_REGS_PARM2_CORE_SYSCALL(regs), ret);
+}
+
+SEC("?fentry/__ia32_sys_readlink")
+int BPF_PROG(readlink_entry_compat, const struct pt_regs *regs)
+{
+    return readlink_enter();
+}
+
+SEC("?fexit/__ia32_sys_readlink")
+int BPF_PROG(readlink_exit_compat, const struct pt_regs *regs, long ret)
+{
+    return readlink_exit(AT_FDCWD, (const char *)(unsigned long)(u32)BPF_CORE_READ(regs, bx), ret);
+}
+
+SEC("?fentry/__ia32_sys_readlinkat")
+int BPF_PROG(readlinkat_entry_compat, const struct pt_regs *regs)
+{
+    return readlink_enter();
+}
+
+SEC("?fexit/__ia32_sys_readlinkat")
+int BPF_PROG(readlinkat_exit_compat, const struct pt_regs *regs, long ret)
+{
+    return readlink_exit((int)(u32)BPF_CORE_READ(regs, bx), (const char *)(unsigned long)(u32)BPF_CORE_READ(regs, cx), ret);
+}
+
 // security_inode_follow_link_exit() - symlink traversal
 // The issue with this function is that it does not take the mount as argument, only the dentry.
 // Therefore we need to store the mount in a map when step_into is called, and retrieve it here.
-// This is only used in older kernels where pick_link does not have BTF information. 
+// This is used when pick_link does not have BTF information.
 // We still prefer pick_link_exit when possible as it is a more direct mechanism that does not involve storing state
 // across bpf programs.
 // Autoattach is disabled, user side must attach it manually.
@@ -1486,7 +1534,7 @@ int BPF_PROG(security_inode_follow_link_exit, struct dentry *dentry, struct inod
 // step_into_entry() - symlink traversal
 // We cannot use security_inode_follow_link because it only takes a dentry and we are missing the mount.
 // Therefore we store the mount here for retrieval in security_inode_follow_link_exit.
-// This is only used in older kernels where pick_link does not have BTF information.
+// This is used when pick_link does not have BTF information.
 // Autoattach is disabled, user side must attach it manually. 
 SEC("?fentry/step_into")
 int BPF_PROG(step_into_entry, struct nameidata *nd, int flags,
@@ -1513,7 +1561,7 @@ int BPF_PROG(step_into_entry, struct nameidata *nd, int flags,
  * pick_link_exit() - symlink traversal
  * we cannot use security_inode_follow_link because it only takes a dentry and we are missing the mount.
  * 
- * NOTE: Used for kernels 6.8 and newer, where pick_link() has BTF type information.
+ * Selected when pick_link() has BTF type information.
  *  Autoattach is disabled, user side must attach it manually.
  */
 SEC("?fexit/pick_link")

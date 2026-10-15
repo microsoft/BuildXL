@@ -413,6 +413,7 @@ export function runQTest(args: QTestArguments): Result {
     // Keep this for dev build. Office has a requirement to run code coverage for dev build and open the result with VS.
     qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType") ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType") : qCodeCoverageEnumType;
 
+    const qTestFailOnResultsUploadError = args.qTestFailOnResultsUploadError;
     let commandLineArgs: Argument[] = [
         Cmd.option("--testBinary ", args.testAssembly),
         Cmd.option(
@@ -497,6 +498,7 @@ export function runQTest(args: QTestArguments): Result {
         // The default is to upload test results to VSTS if the context info file is provided, so make sure we opt out 
         // if specified.
         Cmd.option("--qTestUploadResultsToVsts ", args.qTestUploadResultsToVsts !== undefined ? (args.qTestUploadResultsToVsts ? "true" : "false") : undefined),
+        Cmd.option("--qTestFailOnResultsUploadError ", qTestFailOnResultsUploadError !== undefined ? (qTestFailOnResultsUploadError ? "true" : "false") : undefined),
         Cmd.flag("--emitGenevaTelemetry", args.emitGenevaTelemetry),
     ];
 
@@ -583,6 +585,8 @@ export function runQTest(args: QTestArguments): Result {
         requireGlobalDependencies: true,
         passThroughEnvironmentVariables: [
           "BUILD_SESSION_ID",
+          // QTest resolves the upload-error default at runtime without splitting pip fingerprints by build type.
+          "ONEESPT_BUILDTYPE",
           ...(isJSProject ? jsProject.passThroughEnvironmentVariables : []),
           ...(qTestContextInfoFileContents.AuthTokenEnvVarName ? [qTestContextInfoFileContents.AuthTokenEnvVarName] : []),
           ...(args.qTestPassThroughEnvironmentVariables || []),
@@ -894,6 +898,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     logging?: boolean;
     /** When true, test results will be uploaded to VSTS/ADO. When false, uploading is explicitly disabled. */
     qTestUploadResultsToVsts?: boolean;
+    /** Overrides QTest's runtime upload-error policy. When omitted, QTest uses ONEESPT_BUILDTYPE (passed through without fingerprinting its value). */
+    qTestFailOnResultsUploadError?: boolean;
     /** When true, telemetry will be emitted to Geneva. */
     emitGenevaTelemetry?: boolean;
 }

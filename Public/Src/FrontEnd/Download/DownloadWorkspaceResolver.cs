@@ -173,7 +173,7 @@ namespace BuildXL.FrontEnd.Download
 
                 if (downloadData.DownloadedValueName == downloadData.ExtractedValueName + "Files")
                 {
-                    Logger.Log.InvalidRequiredFiles(m_context.LoggingContext, downloadSettings.ModuleName, "The extracted file array name conflicts with the downloaded value name.");
+                    Logger.Log.InvalidRequiredFiles(m_context.LoggingContext, downloadSettings.ModuleName, "The extracted file map name conflicts with the downloaded value name.");
                     return false;
                 }
 
@@ -317,9 +317,9 @@ namespace BuildXL.FrontEnd.Download
                 if (downloadData.Settings.RequiredFiles != null && downloadData.Settings.RequiredFiles.Count != 0)
                 {
                     var files = downloadData.Settings.RequiredFiles.Select(
-                        file => $"extractResult.getOutputFile(p`{downloadData.ContentsFolder.Path.Combine(m_context.PathTable, file).ToString(m_context.PathTable)}`)");
+                        file => $"[r`{file.ToString(m_context.StringTable, PathFormat.Script)}`, extractResult.getOutputFile(p`{downloadData.ContentsFolder.Path.Combine(m_context.PathTable, file).ToString(m_context.PathTable)}`)]");
                     spec += $@"
-                        @@public export const {downloadData.ExtractedValueName}Files : File[] = [{string.Join(", ", files)}];
+                        @@public export const {downloadData.ExtractedValueName}Files : Map<RelativePath, File> = Map.empty<RelativePath, File>().addRange({string.Join(", ", files)});
                         ";
                 }
             }

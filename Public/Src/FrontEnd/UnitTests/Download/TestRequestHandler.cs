@@ -45,6 +45,10 @@ namespace Test.BuildXL.FrontEnd.Download
                                 AddFile(zipStream, "world", worldBuffer);
                                 AddFile(zipStream, "galaxy", galaxyBuffer);
                                 AddFile(zipStream, "multi/universe", universeBuffer);
+                                if (fileName == "map-test.zip")
+                                {
+                                    AddFile(zipStream, "other/deep/world", worldBuffer);
+                                }
 
                                 zipStream.IsStreamOwner = false;
                                 zipStream.Close();

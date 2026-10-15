@@ -28,13 +28,13 @@ namespace BuildXL.Utilities.Configuration
         /// The name of the value that points to the extracted content of the downloaded file for other resolvers to consume
         /// </summary>
         /// <remarks>
-        /// Defaults to 'extracted' if not specified. This value will be exposed with type 'StaticDirectory'. 
+        /// Defaults to 'extracted' if not specified. This value will be exposed with type 'OpaqueDirectory'.
         /// </remarks>
         string ExtractedValueName { get; }
 
         /// <summary>
         /// Files relative to the extraction directory to declare as required file outputs alongside the opaque directory.
-        /// They are exposed in the same order as a File array named ExtractedValueName followed by "Files".
+        /// They are exposed in a Map&lt;RelativePath, File&gt; keyed by these paths, named ExtractedValueName followed by "Files".
         /// </summary>
         IReadOnlyList<RelativePath> RequiredFiles { get; }
 

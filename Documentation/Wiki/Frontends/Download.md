@@ -38,16 +38,18 @@ There are several optional fields:
 The download resolver exposes a module with these fields:
 * `download`, of type `File`. Its name can be changed with `downloadedValueName`.
 * `extracted`, of type `OpaqueDirectory`, when archive extraction is enabled. Its name can be changed with `extractedValueName`.
-* `extractedFiles`, of type `File[]`, when `requiredFiles` is nonempty. Its name is `extractedValueName` followed by `Files`, so setting `extractedValueName: "tools"` exposes `toolsFiles`.
+* `extractedFiles`, of type `Map<RelativePath, File>`, when `requiredFiles` is nonempty. Its keys are the configured archive-relative paths. Its name is `extractedValueName` followed by `Files`, so setting `extractedValueName: "tools"` exposes `toolsFiles`.
 
 An example consumption of the one above would be:
 ```
-const pwshExecutable = importFrom("PowerShell.Core.win-x64").extractedFiles[0];
+const files = importFrom("PowerShell.Core.win-x64").extractedFiles;
+const pwshExecutable = files.get(r`pwsh.exe`);
+const allRequiredFiles = files.values();
 ```
 
-The file array follows the order of `requiredFiles`. These files are declared individually when constructing the graph, so consumers can depend on them without enumerating the extracted directory.
+Use ``.get(r`path`)`` to retrieve a file by its archive-relative path, including nested paths such as ``files.get(r`bin/tool.exe`)``. An unconfigured key returns `undefined`. Use `.values()` to obtain all required files as a `File[]`. These files are declared individually when constructing the graph, so consumers can depend on them without enumerating the extracted directory.
 The entire archive is still extracted and exposed through the opaque directory; `requiredFiles` does not restrict its contents.
-If `requiredFiles` is omitted or empty, no file array is exported and existing directory-based consumption is unchanged.
+If `requiredFiles` is omitted or empty, no file map is exported and existing directory-based consumption is unchanged.
 
 Alternatively, without configuring `requiredFiles`, a consumer can assert that a file exists in the opaque directory:
 ```

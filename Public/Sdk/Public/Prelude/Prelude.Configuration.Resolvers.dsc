@@ -146,14 +146,15 @@ interface DownloadSettings {
     /**
      * The name of the value that points to the extracted content of the downloaded content for other resolvers to consume.
      * Defaults to 'extracted' if not specified.
-     * This value will be exposed with type 'StaticDirectory'
+     * This value will be exposed with type 'OpaqueDirectory'
      */
     extractedValueName?: string,
 
     /**
      * Files relative to the extraction directory to declare as required file outputs.
-     * Requires archiveType other than "file". When nonempty, exposes a File[] in the
-     * same order, named extractedValueName followed by "Files" (by default "extractedFiles").
+     * Requires archiveType other than "file". When nonempty, exposes a Map<RelativePath, File>
+     * keyed by these paths, named extractedValueName followed by "Files" (by default "extractedFiles").
+     * Use .get(r`path`) to retrieve a file or .values() to retrieve all required files.
      * The remaining archive contents are still exposed through the opaque directory.
      */
     requiredFiles?: RelativePath[],

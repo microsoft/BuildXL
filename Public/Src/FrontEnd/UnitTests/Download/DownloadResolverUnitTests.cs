@@ -4,10 +4,12 @@
 using System.IO;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Pips.Operations;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Core;
+using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -195,25 +197,34 @@ namespace Test.BuildXL.FrontEnd.Download
             Assert.Contains("data on the server has been altered", error);
         }
 
-        [Fact]
-        public void DeclaredRequiredFilesAreRequiredOutputsAndCanBeConsumed()
+        [Theory]
+        [InlineData(null)]
+        [InlineData("payload")]
+        public void DeclaredRequiredFilesAreRequiredOutputsAndCanBeConsumed(string extractedValueName)
         {
-            var data = new DownloadFileSettings(GetSampleData(TestServer + "file.zip", DownloadArchiveType.Zip))
+            var data = new DownloadFileSettings(GetSampleData(TestServer + "map-test.zip", DownloadArchiveType.Zip))
             {
-                ExtractedValueName = "payload",
+                ExtractedValueName = extractedValueName,
                 RequiredFiles = new[]
                 {
-                    RelativePath.Create(FrontEndContext.StringTable, "world"),
+                    RelativePath.Create(FrontEndContext.StringTable, "other/deep/world"),
                     RelativePath.Create(FrontEndContext.StringTable, "multi/universe"),
+                    RelativePath.Create(FrontEndContext.StringTable, "world"),
                 },
             };
 
-            string spec = @"
-import {Transformer} from 'Sdk.Transformers';
-const files = importFrom('TestDownload').payloadFiles;
+            string spec = $@"
+import {{Transformer}} from 'Sdk.Transformers';
+const files: Map<RelativePath, File> = importFrom('TestDownload').{extractedValueName ?? "extracted"}Files;
 const objectRoot = Context.getMount('ObjectRoot').path;
-const first = Transformer.copyFile(files[0], p`${objectRoot}/world-copy`);
-const second = Transformer.copyFile(files[1], p`${objectRoot}/universe-copy`);
+const checkCount = Contract.assert(files.count() === 3);
+const checkMissing = Contract.assert(files.get(r`missing`) === undefined);
+const first = Transformer.copyFile(files.get(r`world`), p`${{objectRoot}}/world-copy`);
+const second = Transformer.copyFile(files.get(r`multi/universe`), p`${{objectRoot}}/universe-copy`);
+const third = Transformer.copyFile(files.get(r`other/deep/world`), p`${{objectRoot}}/nested-world-copy`);
+const all: File[] = files.values();
+const checkValues = Contract.assert(all.length === 3);
+const copies = all.map((file, index) => Transformer.copyFile(file, p`${{objectRoot}}/all/${{index.toString()}}`));
 ";
             var configuration = Build(new[] { data })
                 .AddSpec("test.dsc", spec)
@@ -224,8 +235,14 @@ const second = Transformer.copyFile(files[1], p`${objectRoot}/universe-copy`);
 
             var extractPip = result.EngineState.RetrieveProcesses()
                 .Single(process => process.Tags.Contains(StringId.Create(FrontEndContext.StringTable, "extract")));
-            Assert.Equal(2, extractPip.FileOutputs.Length);
+            Assert.Equal(3, extractPip.FileOutputs.Length);
             Assert.All(extractPip.FileOutputs, file => Assert.True(file.IsRequiredOutputFile));
+            Assert.All(extractPip.FileOutputs, file => Assert.Equal(1, file.ToFileArtifact().RewriteCount));
+            Assert.Contains(result.EngineState.PipGraph.GetSealDirectoriesByKind(kind => kind == SealDirectoryKind.Opaque),
+                directory => directory.Directory == extractPip.DirectoryOutputs.Single());
+            var copyPips = result.EngineState.PipGraph.RetrievePipsOfType(PipType.CopyFile).Cast<CopyFile>().ToArray();
+            Assert.Equal(6, copyPips.Length);
+            Assert.All(copyPips, copy => Assert.Contains(extractPip.FileOutputs, file => file.ToFileArtifact() == copy.Source));
             Assert.Empty(result.EngineState.PipGraph.GetExistenceAssertionsUnderOpaqueDirectory(extractPip.DirectoryOutputs.Single()));
             string extractRoot = extractPip.DirectoryOutputs.Single().Path.ToString(FrontEndContext.PathTable);
             Assert.True(File.Exists(Path.Combine(extractRoot, "galaxy")));
@@ -233,6 +250,9 @@ const second = Transformer.copyFile(files[1], p`${objectRoot}/universe-copy`);
             string objectRoot = configuration.Layout.ObjectDirectory.ToString(FrontEndContext.PathTable);
             Assert.Equal("Hello World", File.ReadAllText(Path.Combine(objectRoot, "world-copy")));
             Assert.Equal("Hello Universe", File.ReadAllText(Path.Combine(objectRoot, "universe-copy")));
+            Assert.Equal("Hello World", File.ReadAllText(Path.Combine(objectRoot, "nested-world-copy")));
+            Assert.Equal(new[] { "Hello Universe", "Hello World", "Hello World" },
+                Directory.GetFiles(Path.Combine(objectRoot, "all")).Select(File.ReadAllText).OrderBy(content => content).ToArray());
         }
 
         [Theory]
@@ -268,6 +288,65 @@ const second = Transformer.copyFile(files[1], p`${objectRoot}/universe-copy`);
             AssertVerboseEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessMissingExpectedOutputOnCleanExit);
             AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs);
             AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessError);
+        }
+
+        [Fact]
+        public void RequiredFileMapConsumersSurviveGraphReload()
+        {
+            var data = new DownloadFileSettings(GetSampleData(TestServer + "file.zip", DownloadArchiveType.Zip))
+            {
+                RequiredFiles = new[] { RelativePath.Create(FrontEndContext.StringTable, "multi/universe") },
+            };
+            var configuration = (CommandLineConfiguration)Build(new[] { data })
+                .AddSpec("test.dsc", @"
+import {Transformer} from 'Sdk.Transformers';
+const file = importFrom('TestDownload').extractedFiles.get(r`multi/universe`);
+const copy = Transformer.copyFile(file, p`${Context.getMount('ObjectRoot').path}/universe-copy`);
+")
+                .PersistSpecsAndGetConfiguration();
+            configuration.Cache.CacheGraph = true;
+            configuration.Cache.AllowFetchingCachedGraphFromContentCache = true;
+            configuration.Cache.Incremental = true;
+            var testCache = new TestCache();
+            string objectRoot = configuration.Layout.ObjectDirectory.ToString(FrontEndContext.PathTable);
+
+            var result = StartServerAndRunTest(() => RunEngine(configuration, testCache));
+            Assert.True(result.IsSuccess);
+            AssertInformationalEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues);
+            AssertInformationalEventLogged(global::BuildXL.Engine.Tracing.LogEventId.EndSerializingPipGraph);
+
+            result = StartServerAndRunTest(() => RunEngine(configuration, testCache));
+            Assert.True(result.IsSuccess);
+            AssertInformationalEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues, count: 0);
+            AssertInformationalEventLogged(global::BuildXL.Engine.Tracing.LogEventId.EndDeserializingEngineState);
+            var extractPip = result.EngineState.RetrieveProcesses()
+                .Single(process => process.Tags.Any(tag => tag.ToString(result.EngineState.StringTable) == "extract"));
+            var output = Assert.Single(extractPip.FileOutputs);
+            Assert.True(output.IsRequiredOutputFile);
+            Assert.Equal(1, output.RewriteCount);
+            var copyPip = Assert.Single(result.EngineState.PipGraph.RetrievePipsOfType(PipType.CopyFile).Cast<CopyFile>());
+            Assert.Equal(output.ToFileArtifact(), copyPip.Source);
+            Assert.Empty(result.EngineState.PipGraph.GetExistenceAssertionsUnderOpaqueDirectory(extractPip.DirectoryOutputs.Single()));
+            Assert.Equal("Hello Universe", File.ReadAllText(Path.Combine(objectRoot, "universe-copy")));
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void EmptyRequiredFilesPreserveDirectoryOnlyExtraction(bool emptyList)
+        {
+            var data = new DownloadFileSettings(GetSampleData(TestServer + "file.zip", DownloadArchiveType.Zip))
+            {
+                RequiredFiles = emptyList ? new RelativePath[0] : null,
+            };
+            var configuration = Build(new[] { data }).PersistSpecsAndGetConfiguration();
+            var result = RunEngineWithServer(configuration);
+
+            Assert.True(result.IsSuccess);
+            var extractPip = result.EngineState.RetrieveProcesses()
+                .Single(process => process.Tags.Contains(StringId.Create(FrontEndContext.StringTable, "extract")));
+            Assert.Empty(extractPip.FileOutputs);
+            Assert.Single(extractPip.DirectoryOutputs);
         }
 
         [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]

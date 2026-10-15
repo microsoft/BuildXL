@@ -1,0 +1,18 @@
+# metadata
+name: Agency triggers configuration
+description: Automatically review new pull requests
+
+# filters
+resource: repository
+
+# primitive configuration
+configuration:
+    agencyTriggers:
+    - eventTypes:
+        - "PullRequestPublished"
+        - "PullRequestCommitPublished"
+      job:
+          prompt: "/agency Complete a comprehensive review of the current pull request"
+          agent:
+              name: "agency"
+              type: Repo

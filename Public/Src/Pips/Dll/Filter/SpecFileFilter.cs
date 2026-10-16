@@ -34,7 +34,12 @@ namespace BuildXL.Pips.Filter
 
         internal bool IncludesReferencedSpecs => m_specDependencies;
 
-        internal bool Matches(Pip pip, PathTable pathTable)
+        /// <inheritdoc/>
+        internal override string PipEvaluationFallbackReason =>
+            m_valueTransitive || m_specDependencies ? nameof(SpecFileFilter) : null;
+
+        /// <inheritdoc/>
+        internal override bool PipMatches(Pip pip, PathTable pathTable)
         {
             return pip.Provenance != null && PathMatches(pip.Provenance.Token.Path, pathTable);
         }

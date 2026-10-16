@@ -558,7 +558,7 @@ namespace Test.BuildXL.Scheduler
             return CreateProvenanceWithSpec(StringId.Invalid, specPath: specPath);
         }
 
-        protected PipProvenance CreateProvenance(string moduleName)
+        protected PipProvenance CreateProvenance(string moduleName, string moduleId = null)
         {
             return CreateProvenance(
                 Context,
@@ -566,7 +566,8 @@ namespace Test.BuildXL.Scheduler
                 StringId.Invalid,
                 CreateUniquePath("spec", SourceRoot),
                 PipValuePrefix + (m_pipFreshId++).ToString(CultureInfo.InvariantCulture),
-                moduleName: moduleName);
+                moduleName: moduleName,
+                moduleId: moduleId);
         }
 
         protected override PipProvenance CreateProvenance(StringId usage = default)
@@ -600,13 +601,15 @@ namespace Test.BuildXL.Scheduler
             StringId usage,
             AbsolutePath specFile,
             string valueName,
-            string moduleName = "module")
+            string moduleName = "module",
+            string moduleId = null)
         {
             var moduleNameId = StringId.Create(context.StringTable, moduleName);
+            var moduleIdValue = StringId.Create(context.StringTable, moduleId ?? moduleName);
 
             var provenance = new PipProvenance(
                 Interlocked.Increment(ref s_semistableHashCounter),
-                ModuleId.Create(moduleNameId),
+                ModuleId.Create(moduleIdValue),
                 moduleNameId,
                 FullSymbol.Create(context.SymbolTable, valueName),
                 new LocationData(specFile, 1, 1),

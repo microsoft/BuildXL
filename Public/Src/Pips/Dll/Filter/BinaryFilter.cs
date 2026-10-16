@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Pips.Operations;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
@@ -415,6 +416,18 @@ namespace BuildXL.Pips.Filter
                     currentFilter = orFilter;
                 }
             }
+        }
+
+        /// <inheritdoc/>
+        internal override string PipEvaluationFallbackReason =>
+            Left.PipEvaluationFallbackReason ?? Right.PipEvaluationFallbackReason;
+
+        /// <inheritdoc/>
+        internal override bool PipMatches(Pip pip, PathTable pathTable)
+        {
+            return FilterOperator == FilterOperator.And
+                ? Left.PipMatches(pip, pathTable) && Right.PipMatches(pip, pathTable)
+                : Left.PipMatches(pip, pathTable) || Right.PipMatches(pip, pathTable);
         }
 
         /// <inheritdoc/>

@@ -46,19 +46,26 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         public void TestModuleFilter()
         {
-
             FileArtifact output1 = CreateOutputFileArtifact();
             FileArtifact output2 = CreateOutputFileArtifact();
 
             Process p1 = CreateAndScheduleProcess(
                 dependencies: new[] { CreateSourceFile() },
                 outputs: new[] { output1 },
-                provenance: CreateProvenance("Module1"));
+                provenance: CreateProvenance("Module1", moduleId: "Module1InternalId"));
 
             Process p2 = CreateAndScheduleProcess(
-               dependencies: new[] { CreateSourceFile() },
-               outputs: new[] { output2 },
-               provenance: CreateProvenance("Module2"));
+                dependencies: new[] { CreateSourceFile() },
+                outputs: new[] { output2 },
+                provenance: CreateProvenance("Module2", moduleId: "Module2InternalId"));
+
+            FileArtifact sealMember = CreateSourceFile();
+            DirectoryArtifact sealDirectory = PipGraphBuilder.AddSealDirectory(
+                CreateSealDirectory(
+                    sealMember.Path.GetParent(Context.PathTable),
+                    SealDirectoryKind.Partial,
+                    "seal",
+                    sealMember));
 
             var graph = PipGraphBuilder.Build();
             Assert.NotNull(graph);
@@ -67,10 +74,270 @@ namespace Test.BuildXL.Scheduler
             AssertSetEquals(new HashSet<FileOrDirectoryArtifact> { FileOrDirectoryArtifact.Create(output1) }, outputs1);
 
             var outputs2 = graph.FilterOutputs(new RootFilter(CreateModuleFilter("Module2").Negate()));
-            AssertSetEquals(new HashSet<FileOrDirectoryArtifact> { FileOrDirectoryArtifact.Create(output1) }, outputs2);
+            AssertSetEquals(
+                new HashSet<FileOrDirectoryArtifact>
+                {
+                    FileOrDirectoryArtifact.Create(output1),
+                    FileOrDirectoryArtifact.Create(sealDirectory),
+                },
+                outputs2);
 
             var outputs3 = graph.FilterOutputs(new RootFilter(CreateModuleFilter("Module3")));
             Assert.Empty(outputs3);
+
+            AssertPipAndArtifactEvaluationEquivalent(graph, CreateModuleFilter("Module1"));
+            AssertPipAndArtifactEvaluationEquivalent(graph, CreateModuleFilter("Module2").Negate());
+        }
+
+        [Fact]
+        public void TestPipEvaluationEligibility()
+        {
+            var tagFilter = CreateTagFilter("tag");
+            var moduleFilter = CreateModuleFilter("module");
+            var multiTagsFilter = CreateMultiTagsFilter("tag1", "tag2");
+            var pipIdFilter = new PipIdFilter(1);
+            var provenance = CreateProvenance();
+            var specFilter = new SpecFileFilter(
+                provenance.Token.Path,
+                pathWildcard: null,
+                MatchMode.FilePath,
+                pathFromMount: false,
+                valueTransitive: false,
+                specDependencies: false);
+            var valueFilter = new ValueFilter(provenance.OutputValueSymbol);
+            var binaryFilter = new BinaryFilter(tagFilter, FilterOperator.And, moduleFilter);
+
+            Assert.True(new RootFilter(tagFilter).CanEvaluatePips);
+            Assert.True(new RootFilter(moduleFilter).CanEvaluatePips);
+            Assert.True(new RootFilter(multiTagsFilter).CanEvaluatePips);
+            Assert.True(new RootFilter(pipIdFilter).CanEvaluatePips);
+            Assert.True(new RootFilter(specFilter).CanEvaluatePips);
+            Assert.True(new RootFilter(valueFilter).CanEvaluatePips);
+            Assert.True(new RootFilter(binaryFilter).CanEvaluatePips);
+            Assert.True(new RootFilter(binaryFilter.Negate()).CanEvaluatePips);
+
+            var transitiveSpecFilter = new SpecFileFilter(
+                provenance.Token.Path,
+                pathWildcard: null,
+                MatchMode.FilePath,
+                pathFromMount: false,
+                valueTransitive: true,
+                specDependencies: false);
+            Assert.False(new RootFilter(transitiveSpecFilter).CanEvaluatePips);
+            Assert.Equal(nameof(SpecFileFilter), new RootFilter(transitiveSpecFilter).PipEvaluationFallbackReason);
+
+            var specDependenciesFilter = new SpecFileFilter(
+                provenance.Token.Path,
+                pathWildcard: null,
+                MatchMode.FilePath,
+                pathFromMount: false,
+                valueTransitive: false,
+                specDependencies: true);
+            Assert.False(new RootFilter(specDependenciesFilter).CanEvaluatePips);
+            Assert.Equal(nameof(SpecFileFilter), new RootFilter(specDependenciesFilter).PipEvaluationFallbackReason);
+
+            var transitiveValueFilter = new ValueFilter(provenance.OutputValueSymbol, valueTransitive: true);
+            Assert.False(new RootFilter(transitiveValueFilter).CanEvaluatePips);
+            Assert.Equal(nameof(ValueFilter), new RootFilter(transitiveValueFilter).PipEvaluationFallbackReason);
+
+            var outputFilter = CreateOutputPathFilter(CreateUniqueObjPath("output"));
+            var rootFilter = new RootFilter(new BinaryFilter(tagFilter, FilterOperator.Or, outputFilter));
+            Assert.False(rootFilter.CanEvaluatePips);
+            Assert.Equal(nameof(OutputFileFilter), rootFilter.PipEvaluationFallbackReason);
+
+            var inputFilter = new InputFileFilter(
+                CreateUniqueObjPath("input"),
+                pathWildcard: null,
+                MatchMode.FilePath,
+                pathFromMount: false);
+            rootFilter = new RootFilter(
+                new BinaryFilter(
+                    tagFilter,
+                    FilterOperator.Or,
+                    new BinaryFilter(outputFilter, FilterOperator.Or, inputFilter)));
+            Assert.False(rootFilter.CanEvaluatePips);
+            Assert.Equal(nameof(OutputFileFilter), rootFilter.PipEvaluationFallbackReason);
+            Assert.False(new RootFilter(inputFilter).CanEvaluatePips);
+            Assert.Equal(nameof(InputFileFilter), new RootFilter(inputFilter).PipEvaluationFallbackReason);
+            Assert.False(new RootFilter(inputFilter.Negate()).CanEvaluatePips);
+            Assert.Equal(nameof(InputFileFilter), new RootFilter(inputFilter.Negate()).PipEvaluationFallbackReason);
+            Assert.False(new RootFilter(new NegatingFilter(new NegatingFilter(inputFilter))).CanEvaluatePips);
+            Assert.False(
+                new RootFilter(
+                    new BinaryFilter(tagFilter, FilterOperator.And, inputFilter).Negate()).CanEvaluatePips);
+            Assert.False(new RootFilter(outputFilter.Negate()).CanEvaluatePips);
+            Assert.Equal(nameof(OutputFileFilter), new RootFilter(outputFilter.Negate()).PipEvaluationFallbackReason);
+            Assert.False(new RootFilter(new BinaryFilter(inputFilter, FilterOperator.And, tagFilter)).CanEvaluatePips);
+        }
+
+        [Fact]
+        public void TestPipIdFilterUsesProcessIdentityForDynamicSeals()
+        {
+            var target = CreateAndScheduleProcess(
+                dependencies: [CreateSourceFile()],
+                outputs: [CreateOutputFileArtifact()],
+                outputDirectoryPaths: [CreateUniqueObjPath("targetDirectory")],
+                tags: ["selected"]);
+            var other = CreateAndScheduleProcess(
+                dependencies: [CreateSourceFile()],
+                outputs: [CreateOutputFileArtifact()],
+                outputDirectoryPaths: [CreateUniqueObjPath("otherDirectory")],
+                tags: ["selected"]);
+
+            var graph = PipGraphBuilder.Build();
+            var idFilter = new PipIdFilter(target.SemiStableHash);
+
+            AssertPipAndArtifactEvaluationEquivalent(graph, idFilter);
+            AssertPipAndArtifactEvaluationEquivalent(graph, idFilter.Negate());
+            AssertPipAndArtifactEvaluationEquivalent(
+                graph,
+                new BinaryFilter(idFilter, FilterOperator.And, CreateTagFilter("selected")).Negate());
+
+            Assert.True(graph.FilterNodesToBuildByPip(new RootFilter(idFilter), out var matchingIdNodes));
+            Assert.True(matchingIdNodes.Contains(target.PipId.ToNodeId()));
+            Assert.False(matchingIdNodes.Contains(other.PipId.ToNodeId()));
+
+            Assert.True(graph.FilterNodesToBuildByPip(new RootFilter(idFilter.Negate()), out var negatedIdNodes));
+            Assert.False(negatedIdNodes.Contains(target.PipId.ToNodeId()));
+            Assert.True(negatedIdNodes.Contains(other.PipId.ToNodeId()));
+        }
+
+        [Fact]
+        public void TestPipEvaluationNormalizesDirectoryProducers()
+        {
+            var dynamicDirectory = CreateUniqueObjPath("dynamic");
+            var process = CreateAndScheduleProcess(
+                dependencies: [CreateSourceFile()],
+                outputs: [],
+                outputDirectoryPaths: [dynamicDirectory],
+                tags: ["selected"]);
+
+            var staticSealMember = CreateSourceFile();
+            var staticSeal = CreateSealDirectory(
+                staticSealMember.Path.GetParent(Context.PathTable),
+                SealDirectoryKind.Partial,
+                "selected",
+                staticSealMember);
+            var staticDirectory = PipGraphBuilder.AddSealDirectory(staticSeal);
+
+            var graph = PipGraphBuilder.Build();
+            var outputs = CreateTagFilter("selected").FilterPips(graph.PipTable, Context.PathTable);
+            Assert.Equal(2, outputs.Count);
+            Assert.Contains(FileOrDirectoryArtifact.Create(process.DirectoryOutputs[0]), outputs);
+            Assert.Contains(FileOrDirectoryArtifact.Create(staticDirectory), outputs);
+
+            Assert.True(graph.FilterNodesToBuild(LoggingContext, new RootFilter(CreateTagFilter("selected")), out var matchingNodes));
+
+            var dynamicSealNode = graph.GetSealedDirectoryNode(process.DirectoryOutputs[0]);
+            Assert.True(matchingNodes.Contains(process.PipId.ToNodeId()));
+            Assert.True(matchingNodes.Contains(graph.GetSealedDirectoryNode(staticDirectory)));
+            Assert.False(matchingNodes.Contains(dynamicSealNode));
+            Assert.Equal(2, matchingNodes.Count());
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void TestPipEvaluationPreservesLatestMatchingRewrite(bool latestRewriteMatches)
+        {
+            var firstOutput = CreateOutputFileArtifact();
+            var firstProducer = CreateAndScheduleProcess(
+                dependencies: [CreateSourceFile()],
+                outputs: [firstOutput],
+                tags: ["selected"]);
+
+            var secondOutput = firstOutput.CreateNextWrittenVersion();
+            var secondProducer = CreateAndScheduleProcess(
+                dependencies: [firstOutput],
+                outputs: [secondOutput],
+                tags: latestRewriteMatches ? ["selected"] : ["notSelected"]);
+
+            var graph = PipGraphBuilder.Build();
+            Assert.True(graph.FilterNodesToBuild(LoggingContext, new RootFilter(CreateTagFilter("selected")), out var matchingNodes));
+
+            var expectedProducer = latestRewriteMatches ? secondProducer : firstProducer;
+            var excludedProducer = latestRewriteMatches ? firstProducer : secondProducer;
+            Assert.True(matchingNodes.Contains(expectedProducer.PipId.ToNodeId()));
+            Assert.False(matchingNodes.Contains(excludedProducer.PipId.ToNodeId()));
+            Assert.Single(matchingNodes);
+        }
+
+        [Fact]
+        public void TestPipAndArtifactEvaluationProduceIdenticalNodes()
+        {
+            var dynamicDirectory = CreateUniqueObjPath("dynamic");
+            CreateAndScheduleProcess(
+                dependencies: [CreateSourceFile()],
+                outputs: [CreateOutputFileArtifact()],
+                outputDirectoryPaths: [dynamicDirectory],
+                tags: ["selected"]);
+
+            var firstOutput = CreateOutputFileArtifact();
+            Process selectedProcess = CreateAndScheduleProcess(
+                dependencies: [CreateSourceFile()],
+                outputs: [firstOutput],
+                tags: ["selected"]);
+            CreateAndScheduleProcess(
+                dependencies: [firstOutput],
+                outputs: [firstOutput.CreateNextWrittenVersion()],
+                tags: ["selected"]);
+
+            var staticSealMember = CreateSourceFile();
+            PipGraphBuilder.AddSealDirectory(
+                CreateSealDirectory(
+                    staticSealMember.Path.GetParent(Context.PathTable),
+                    SealDirectoryKind.Partial,
+                    "selected",
+                    staticSealMember));
+
+            var graph = PipGraphBuilder.Build();
+            var selected = CreateTagFilter("selected");
+            var excluded = CreateTagFilter("excluded");
+            var specFilter = new SpecFileFilter(
+                selectedProcess.Provenance.Token.Path,
+                pathWildcard: null,
+                MatchMode.FilePath,
+                pathFromMount: false,
+                valueTransitive: false,
+                specDependencies: false);
+            var valueFilter = new ValueFilter(selectedProcess.Provenance.OutputValueSymbol);
+            var outputFilter = CreateOutputPathFilter(firstOutput.Path);
+            var outputDirectoryFilter = CreateOutputPathFilter(dynamicDirectory);
+            var inputFilter = new InputFileFilter(
+                firstOutput.Path,
+                pathWildcard: null,
+                MatchMode.FilePath,
+                pathFromMount: false);
+
+            AssertPipAndArtifactEvaluationEquivalent(graph, selected);
+            AssertPipAndArtifactEvaluationEquivalent(graph, CreateMultiTagsFilter("selected", "missing"));
+            AssertPipAndArtifactEvaluationEquivalent(graph, specFilter);
+            AssertPipAndArtifactEvaluationEquivalent(graph, specFilter.Negate());
+            AssertPipAndArtifactEvaluationEquivalent(graph, valueFilter);
+            AssertPipAndArtifactEvaluationEquivalent(graph, valueFilter.Negate());
+            AssertArtifactEvaluationFallback(graph, outputFilter);
+            AssertArtifactEvaluationFallback(graph, outputFilter.Negate());
+            AssertArtifactEvaluationFallback(graph, outputDirectoryFilter);
+            AssertArtifactEvaluationFallback(graph, outputDirectoryFilter.Negate());
+            AssertArtifactEvaluationFallback(graph, inputFilter);
+            AssertArtifactEvaluationFallback(graph, inputFilter.Negate());
+            AssertPipAndArtifactEvaluationEquivalent(
+                graph,
+                new BinaryFilter(specFilter, FilterOperator.And, valueFilter));
+            AssertPipAndArtifactEvaluationEquivalent(
+                graph,
+                new BinaryFilter(selected, FilterOperator.And, excluded.Negate()));
+            AssertArtifactEvaluationFallback(
+                graph,
+                new BinaryFilter(outputFilter, FilterOperator.Or, selected).Negate());
+            AssertArtifactEvaluationFallback(
+                graph,
+                new BinaryFilter(outputFilter, FilterOperator.And, selected).Negate());
+            AssertPipAndArtifactEvaluationEquivalent(
+                graph,
+                new BinaryFilter(selected, FilterOperator.And, excluded).Negate());
+            AssertPipAndArtifactEvaluationEquivalent(graph, new NegatingFilter(new NegatingFilter(selected)));
+            AssertPipAndArtifactEvaluationEquivalent(graph, CreateTagFilter("missing").Negate());
         }
 
         [Fact]
@@ -183,6 +450,9 @@ namespace Test.BuildXL.Scheduler
             var childInputFilter = new InputFileFilter(parentOutput.Path, null, MatchMode.FilePath, pathFromMount: false);
 
             AssertDynamicFilterEquivalent(graph, selectedTag);
+            AssertDynamicFilterEquivalent(graph, CreateTagFilter("missing"));
+            AssertDynamicFilterEquivalent(graph, CreateMultiTagsFilter("selected", "missing"));
+            AssertDynamicFilterEquivalent(graph, CreateMultiTagsFilter("missing1", "missing2"));
             AssertDynamicFilterEquivalent(graph, childOutputFilter);
             AssertDynamicFilterEquivalent(graph, childInputFilter);
             AssertDynamicFilterEquivalent(graph, new PipIdFilter(child.Provenance.SemiStableHash));
@@ -209,6 +479,61 @@ namespace Test.BuildXL.Scheduler
             AssertDynamicFilterEquivalent(
                 graph,
                 new BinaryFilter(CreateTagFilter("parent"), FilterOperator.Or, selectedTag));
+        }
+
+        [Fact]
+        public void DynamicFilterEvaluationPreservesPartialOutputMatches()
+        {
+            var firstOutput = CreateOutputFileArtifact();
+            var secondOutput = CreateOutputFileArtifact();
+            var process = CreateAndScheduleProcess(
+                dependencies: [CreateSourceFile()],
+                outputs: [firstOutput, secondOutput],
+                tags: ["selected"]);
+            var graph = PipGraphBuilder.Build();
+            var firstFilter = CreateOutputPathFilter(firstOutput.Path);
+            var secondFilter = CreateOutputPathFilter(secondOutput.Path);
+
+            var intersection = new DynamicFilterEvaluator(
+                new RootFilter(new BinaryFilter(firstFilter, FilterOperator.And, secondFilter)),
+                graph,
+                Context.PathTable);
+            Assert.Empty(intersection.Admit(process));
+
+            var selectedOutput = new DynamicFilterEvaluator(
+                new RootFilter(new BinaryFilter(CreateTagFilter("selected"), FilterOperator.And, firstFilter)),
+                graph,
+                Context.PathTable);
+            AssertSetEquals(
+                new HashSet<FileOrDirectoryArtifact> { FileOrDirectoryArtifact.Create(firstOutput) },
+                selectedOutput.Admit(process));
+
+            AssertDynamicFilterEquivalent(graph, new BinaryFilter(firstFilter, FilterOperator.Or, secondFilter));
+        }
+
+        [Fact]
+        public void DynamicFilterEvaluationPreservesEmptyLeaf()
+        {
+            var process = CreateAndScheduleProcess(
+                dependencies: [CreateSourceFile()],
+                outputs: [CreateOutputFileArtifact()],
+                tags: ["selected"]);
+            var graph = PipGraphBuilder.Build();
+            var tagFilter = CreateTagFilter("selected");
+
+            var intersection = new DynamicFilterEvaluator(
+                new RootFilter(new BinaryFilter(EmptyFilter.Instance, FilterOperator.And, tagFilter)),
+                graph,
+                Context.PathTable);
+            Assert.Empty(intersection.Admit(process));
+
+            var union = new DynamicFilterEvaluator(
+                new RootFilter(new BinaryFilter(EmptyFilter.Instance, FilterOperator.Or, tagFilter)),
+                graph,
+                Context.PathTable);
+            AssertSetEquals(
+                new DynamicFilterEvaluator(new RootFilter(tagFilter), graph, Context.PathTable).Admit(process),
+                union.Admit(process));
         }
 
         //001
@@ -477,6 +802,7 @@ namespace Test.BuildXL.Scheduler
             // The left side should match both the compositeOpaque and the SealDirectory corresponding to opaque0.
             // Then the right side should filter to just the compositeOpaque from that set of constrained pips
             AssertFilteredDirectoryOutputs(graph, $"(~(tag='nonexistentPip') and (tag='compositeOpaque'))", expectedMatching: [compositeOpaque.Directory], expectedNotMatching: [opaque0]);
+            AssertPipAndArtifactEvaluationEquivalent(graph, CreateTagFilter("compositeOpaque"));
         }
 
         private void AssertFilteredOutputs(PipGraph graph, string filter, AbsolutePath[] expectedMatching, AbsolutePath[] expectedNotMatching)
@@ -1480,6 +1806,34 @@ namespace Test.BuildXL.Scheduler
             {
                 Assert.True(actual.Contains(expectedItem));
             }
+        }
+
+        private void AssertPipAndArtifactEvaluationEquivalent(PipGraph graph, PipFilter pipFilter)
+        {
+            var rootFilter = new RootFilter(pipFilter);
+            Assert.True(rootFilter.CanEvaluatePips);
+            var pipOutputs = pipFilter.FilterPips(graph.PipTable, Context.PathTable);
+            var artifactOutputs = graph.FilterOutputs(rootFilter);
+
+            Assert.True(new HashSet<FileOrDirectoryArtifact>(pipOutputs).SetEquals(artifactOutputs));
+            Assert.Equal(
+                graph.FilterNodesToBuildByArtifact(rootFilter, out var artifactNodes),
+                graph.FilterNodesToBuildByPip(rootFilter, out var pipNodes));
+            Assert.Equal(
+                artifactNodes.Select(node => node.Value).OrderBy(value => value),
+                pipNodes.Select(node => node.Value).OrderBy(value => value));
+        }
+
+        private void AssertArtifactEvaluationFallback(PipGraph graph, PipFilter pipFilter)
+        {
+            var rootFilter = new RootFilter(pipFilter);
+            Assert.False(rootFilter.CanEvaluatePips);
+            Assert.Equal(
+                graph.FilterNodesToBuildByArtifact(rootFilter, out var artifactNodes),
+                graph.FilterNodesToBuild(LoggingContext, rootFilter, out var actualNodes));
+            Assert.Equal(
+                artifactNodes.Select(node => node.Value).OrderBy(value => value),
+                actualNodes.Select(node => node.Value).OrderBy(value => value));
         }
 
         /// <summary>

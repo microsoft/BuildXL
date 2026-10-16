@@ -29,7 +29,11 @@ namespace BuildXL.Pips.Filter
 
         internal bool IsTransitive => m_valueTransitive;
 
-        internal bool Matches(Pip pip)
+        /// <inheritdoc/>
+        internal override string PipEvaluationFallbackReason => m_valueTransitive ? nameof(ValueFilter) : null;
+
+        /// <inheritdoc/>
+        internal override bool PipMatches(Pip pip, PathTable pathTable)
         {
             return pip.Provenance != null && pip.Provenance.OutputValueSymbol == m_value;
         }

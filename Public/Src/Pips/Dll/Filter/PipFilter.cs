@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.Operations;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Core;
@@ -15,6 +16,15 @@ namespace BuildXL.Pips.Filter
     /// <summary>
     /// Filters pips
     /// </summary>
+    /// <remarks>
+    /// Filters can be evaluated in two modes, selected based on the filter expression:
+    /// * Pip-centric evaluation: matches the filter expression against each pip, then collects all outputs of matching pips.
+    /// * Artifact-centric evaluation: evaluates individual filters over artifact sets and combines those sets.
+    ///
+    /// Both modes must produce the same results for any filter expression supported by both.
+    /// Not all filters support pip-centric evaluation; expressions containing an incompatible filter use
+    /// artifact-centric evaluation instead.
+    /// </remarks>
     public abstract class PipFilter
     {
         /// <summary>
@@ -43,6 +53,71 @@ namespace BuildXL.Pips.Filter
         public virtual PipFilter Negate()
         {
             return new NegatingFilter(this);
+        }
+
+        /// <summary>
+        /// The first filter kind that prevents pip-centric evaluation,
+        /// or null if this filter supports it.
+        /// </summary>
+        internal virtual string PipEvaluationFallbackReason => GetType().Name;
+
+        /// <summary>
+        /// Matches a pip for filters whose result selects all or none of that pip's outputs.
+        /// </summary>
+        /// <remarks>
+        /// Shared by finalized pip-centric evaluation and dynamic filtering of simple leaves.
+        /// Callers validate support for their evaluation mode before invoking this method.
+        /// </remarks>
+        internal virtual bool PipMatches(Pip pip, PathTable pathTable)
+        {
+            throw Contract.AssertFailure(
+                PipEvaluationFallbackReason == null
+                    ? $"Filter '{GetType().Name}' advertises pip-based evaluation but does not implement PipMatches."
+                    : $"Filter '{GetType().Name}' does not support pip-based evaluation: {PipEvaluationFallbackReason}.");
+        }
+
+        /// <summary>
+        /// Collects the outputs of matching pips in a finalized pip table.
+        /// </summary>
+        internal IReadOnlyCollection<FileOrDirectoryArtifact> FilterPips(IPipTable pipTable, PathTable pathTable)
+        {
+            Contract.Requires(pipTable != null);
+            Contract.Requires(pathTable != null);
+            Contract.Assert(PipEvaluationFallbackReason == null);
+
+            var outputs = new ConcurrentBigSet<FileOrDirectoryArtifact>();
+            var pipIds = pipTable.StableKeys;
+            Parallel.For(
+                0,
+                pipIds.Count,
+                index =>
+                {
+                    PipId pipId = pipIds[index];
+                    var pipType = pipTable.GetPipType(pipId);
+                    if (!PipArtifacts.CanProduceOutputs(pipType))
+                    {
+                        return;
+                    }
+
+                    // Non-composite Opaque and SharedOpaque seals are generated for Process output directories.
+                    // Evaluate pip-level criteria against the producing Process, which also contributes the directory
+                    // output, rather than its generated seal with inherited tags/provenance. Output-path filters use
+                    // artifact evaluation instead. Static/source seals and composite seals remain eligible here.
+                    if (pipType == PipType.SealDirectory &&
+                        pipTable.GetSealDirectoryKind(pipId).IsDynamicKind() &&
+                        !pipTable.IsSealDirectoryComposite(pipId))
+                    {
+                        return;
+                    }
+
+                    Pip pip = pipTable.HydratePip(pipId, PipQueryContext.PipGraphFilterNodes);
+                    if (PipMatches(pip, pathTable))
+                    {
+                        ForEachOutput(outputs, pip, static (set, output) => set.Add(output));
+                    }
+                });
+
+            return outputs.UnsafeGetList();
         }
 
         /// <summary>
@@ -348,17 +423,7 @@ namespace BuildXL.Pips.Filter
         /// </summary>
         protected static bool MayHaveOutputs(IPipFilterContext context, PipId pipId)
         {
-            switch (context.GetPipType(pipId))
-            {
-                case PipType.Process:
-                case PipType.CopyFile:
-                case PipType.SealDirectory:
-                case PipType.WriteFile:
-                case PipType.Ipc:
-                    return true;
-            }
-
-            return false;
+            return PipArtifacts.CanProduceOutputs(context.GetPipType(pipId));
         }
 
         /// <summary>

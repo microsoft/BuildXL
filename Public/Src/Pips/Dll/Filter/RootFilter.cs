@@ -38,6 +38,16 @@ namespace BuildXL.Pips.Filter
         /// </summary>
         public bool IsEmpty => PipFilter is EmptyFilter;
 
+        /// <summary>
+        /// Whether this filter can use pip-based evaluation without changing its semantics.
+        /// </summary>
+        internal bool CanEvaluatePips => PipEvaluationFallbackReason == null;
+
+        /// <summary>
+        /// The first filter kind that prevents pip-based evaluation.
+        /// </summary>
+        internal string PipEvaluationFallbackReason { get; }
+
         private readonly Lazy<IReadOnlyList<FullSymbol>> m_valuesToResolve;
         private readonly Lazy<IReadOnlyList<AbsolutePath>> m_pathsRootsToResolve;
         private readonly Lazy<IReadOnlyList<StringId>> m_modulesToResolve;
@@ -50,6 +60,7 @@ namespace BuildXL.Pips.Filter
             Contract.Requires(filter != null);
 
             PipFilter = filter;
+            PipEvaluationFallbackReason = filter.PipEvaluationFallbackReason;
 
             if (filterExpression != null)
             {

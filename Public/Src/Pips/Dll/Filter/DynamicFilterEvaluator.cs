@@ -140,19 +140,25 @@ namespace BuildXL.Pips.Filter
 
             switch (filter)
             {
-                case TagFilter tagFilter when tagFilter.Matches(pip):
-                case MultiTagsOrFilter multiTagsFilter when multiTagsFilter.Matches(pip):
-                case PipIdFilter pipIdFilter when pipIdFilter.Matches(pip):
-                case ModuleFilter moduleFilter when moduleFilter.Matches(pip):
-                case SpecFileFilter specFilter when specFilter.Matches(pip, m_pathTable):
-                case ValueFilter valueFilter when valueFilter.Matches(pip):
-                    AddOutputs(pip, candidates);
+                case EmptyFilter:
                     break;
-                case InputFileFilter inputFilter when MatchesInput(inputFilter, pip):
-                    AddOutputs(pip, candidates);
+                case InputFileFilter inputFilter:
+                    if (MatchesInput(inputFilter, pip))
+                    {
+                        AddOutputs(pip, candidates);
+                    }
+
                     break;
                 case OutputFileFilter outputFilter:
                     AddMatchingOutputs(outputFilter, pip, candidates);
+                    break;
+                default:
+                    Contract.Assert(filter.PipEvaluationFallbackReason == null);
+                    if (filter.PipMatches(pip, m_pathTable))
+                    {
+                        AddOutputs(pip, candidates);
+                    }
+
                     break;
             }
 

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.Operations;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Core;
@@ -10,7 +11,7 @@ using BuildXL.Utilities.Collections;
 namespace BuildXL.Pips.Filter
 {
     /// <summary>
-    /// Filters pips by pip id.
+    /// Filters Process pips by pip id; other pip types do not match.
     /// </summary>
     public class PipIdFilter : PipFilter
     {
@@ -24,12 +25,13 @@ namespace BuildXL.Pips.Filter
             m_semiStableHash = value;
         }
 
-        internal bool Matches(Pip pip)
+        /// <inheritdoc/>
+        internal override string PipEvaluationFallbackReason => null;
+
+        /// <inheritdoc/>
+        internal override bool PipMatches(Pip pip, PathTable pathTable)
         {
-            return (pip.PipType == Operations.PipType.Process ||
-                    pip.PipType == Operations.PipType.WriteFile ||
-                    pip.PipType == Operations.PipType.CopyFile) &&
-                pip.Provenance?.SemiStableHash == m_semiStableHash;
+            return pip.PipType == PipType.Process && pip.SemiStableHash == m_semiStableHash;
         }
 
         /// <inheritdoc/>
@@ -61,23 +63,23 @@ namespace BuildXL.Pips.Filter
                 context,
                 (pipId, localOutputs) =>
                 {
-                    // Only allow this filter to match on a few specific pip types. This prevents some unintended
-                    // consequences like negated pip id filters matching all sealed directory pips.
-                    //
-                    // Note: this does not completely eliminate sealed directory pips from slipping into filtering since
-                    // other filter groups may end up including them. This special case primarily guards against unintended
-                    // pip inclusion via sealed directory pips in simple filters like ~(id='pip12345'), which could end
-                    // up including pip12345 anyway since that filter would still match on an opaque directory produced
-                    // by that pip.
                     var pipType = context.GetPipType(pipId);
-                    if (pipType == Operations.PipType.Process || 
-                        pipType == Operations.PipType.WriteFile || 
-                        pipType == Operations.PipType.CopyFile)
+                    if (pipType == PipType.SealDirectory)
                     {
-                        if ((context.GetSemiStableHash(pipId) == m_semiStableHash) ^ negate)
+                        // Evaluate IDs against the producing Process, not its generated Opaque/SharedOpaque seal.
+                        // Otherwise negation can match the seal's different ID and select the excluded Process's
+                        // directory output. Static/source seals and composite seals are not skipped here.
+                        if (context.GetSealDirectoryKind(pipId).IsDynamicKind() &&
+                            !context.IsSealDirectoryComposite(pipId))
                         {
-                            AddOutputs(context, pipId, localOutputs);
+                            return;
                         }
+                    }
+
+                    bool matches = pipType == PipType.Process && context.GetSemiStableHash(pipId) == m_semiStableHash;
+                    if (matches ^ negate)
+                    {
+                        AddOutputs(context, pipId, localOutputs);
                     }
                 },
                 constrainingPips);

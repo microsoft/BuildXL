@@ -26,7 +26,11 @@ namespace BuildXL.Pips.Filter
             m_modules = new HashSet<StringId>(modules);
         }
 
-        internal bool Matches(Pip pip)
+        /// <inheritdoc/>
+        internal override string PipEvaluationFallbackReason => null;
+
+        /// <inheritdoc/>
+        internal override bool PipMatches(Pip pip, PathTable pathTable)
         {
             return pip.Provenance != null && m_modules.Contains(pip.Provenance.ModuleName);
         }

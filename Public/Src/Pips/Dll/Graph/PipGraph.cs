@@ -8,9 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Operations;
@@ -482,12 +480,6 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         public bool FilterNodesToBuild(LoggingContext loggingContext, RootFilter filter, out RangedNodeSet filteredIn)
         {
-            var matchingNodes = new RangedNodeSet();
-
-            // We would use NodeRange here but that (due to other usages) acquires the global exclusive lock, which is not recursive.
-            // The caller to this method should already be holding it.
-            matchingNodes.ClearAndSetRange(DataflowGraph.NodeRange);
-
             using (PerformanceMeasurement.Start(
                 loggingContext,
                 Statistics.ApplyingFilterToPips,
@@ -499,111 +491,133 @@ namespace BuildXL.Pips.Graph
                     "Builds with an empty filter should not actually perform filtering. Instead their pips should be added to the schedule with an initial state of Waiting. "
                     + "Or in the case of a cached graph, all pips should be scheduled without going through the overhead of filtering.");
 
-                var outputs = FilterOutputs(filter);
-
-                int addAttempts = 0;
-
-                // The outputs set contains all file artifacts that passed the filter. This means that we may
-                // have multiple file artifacts per path (due to rewrites), which is not desirable - we want to approximate the
-                // 'set of artifacts which must be materialized' and for each path we would only like to materialize
-                // the latest filter-passing version. So, we determine the max write count for any filter-passing path.
-                // TODO: This could be cheaper by having filter implementations operate on a (path -> max write count) mapping,
-                //       which would correspond nicely to the structure by which filters are applied and aggregated.
-                var maxWriteCounts = new Dictionary<AbsolutePath, int>();
-
-                // There might be multiple file artifacts per path but if we get the one that has the highest max write count, we can include the others as well due to its dependencies.
-                var fileArtifacts = new Dictionary<AbsolutePath, FileArtifact>();
-
-                // There might be many seal directories per path so we should include all.
-                var directoryArtifacts = new MultiValueDictionary<AbsolutePath, DirectoryArtifact>();
-                foreach (FileOrDirectoryArtifact outputFileOrDirectory in outputs)
+                bool foundMatchingNodes;
+                if (filter.CanEvaluatePips)
                 {
-                    if (outputFileOrDirectory.IsFile)
-                    {
-                        var output = outputFileOrDirectory.FileArtifact;
-                        int writeCount = output.RewriteCount;
-                        int existingMaxWriteCount;
-                        if (maxWriteCounts.TryGetValue(output.Path, out existingMaxWriteCount))
-                        {
-                            if (writeCount <= existingMaxWriteCount)
-                            {
-                                continue;
-                            }
-                        }
-
-                        maxWriteCounts[output.Path] = writeCount;
-                        fileArtifacts[output.Path] = outputFileOrDirectory.FileArtifact;
-                    }
-                    else
-                    {
-                        Contract.Assert(outputFileOrDirectory.IsDirectory);
-                        directoryArtifacts.Add(outputFileOrDirectory.DirectoryArtifact.Path, outputFileOrDirectory.DirectoryArtifact);
-                    }
+                    Tracing.Logger.Log.PipFilterEvaluationMode(
+                        loggingContext,
+                        evaluationMode: "Pip",
+                        fallbackReason: string.Empty);
+                    foundMatchingNodes = FilterNodesToBuildByPip(filter, out filteredIn);
+                }
+                else
+                {
+                    Tracing.Logger.Log.PipFilterEvaluationMode(
+                        loggingContext,
+                        evaluationMode: "Artifact",
+                        fallbackReason: filter.PipEvaluationFallbackReason);
+                    foundMatchingNodes = FilterNodesToBuildByArtifact(filter, out filteredIn);
                 }
 
-                // Map the output files to which pips actually need to run. This is a temporary step until the
-                // scheduler operates on outputs directly.
-                // TODO: This means we can't represent the fact that some but not all outputs of a node are filter-passing.
-                //       In the case of a process with some rewritten outputs and some final filter-passing outputs, we are
-                //       not be able to guarantee a path is materialized only once (when replaying fully from cache), which is
-                //       problematic for reaching an incremental scheduling fixpoint. This can be fixed by materializing on a per-file
-                //       rather than per-pip basis.
-                var outputPaths = outputs.Select(a => a.Path).Distinct().ToArray();
-                Parallel.ForEach(
-                    outputPaths,
-                    path =>
-                    {
-                        NodeId node;
-                        FileArtifact fileArtifact;
-                        if (fileArtifacts.TryGetValue(path, out fileArtifact))
-                        {
-                            if (PipProducers.TryGetValue(fileArtifact, out node))
-                            {
-                                matchingNodes.AddAtomic(node);
-                                Interlocked.Increment(ref addAttempts);
-                            }
-                            else
-                            {
-                                Contract.Assert(false, "Filtering matched file output that is not registered as being produced by any pip.");
-                            }
-
-                            return;
-                        }
-
-                        IReadOnlyList<DirectoryArtifact> directoryList;
-                        if (directoryArtifacts.TryGetValue(path, out directoryList))
-                        {
-                            foreach (var directoryArtifact in directoryList)
-                            {
-                                if (OutputDirectoryProducers.TryGetValue(directoryArtifact, out node) ||
-                                    m_sealedDirectoryNodes.TryGetValue(directoryArtifact, out node))
-                                {
-                                    matchingNodes.AddAtomic(node);
-                                    Interlocked.Increment(ref addAttempts);
-                                }
-                                else
-                                {
-                                    Contract.Assert(false, "Filtering matched directory output that is not registered as being produced by any pip.");
-                                }
-                            }
-                        }
-                        else
-                        {
-                            Contract.Assert(false, "The path must exist in either fileArtifacts or directoryArtifacts");
-                        }
-                    });
-
-                filteredIn = matchingNodes;
-
-                if (addAttempts == 0)
+                if (!foundMatchingNodes)
                 {
-                    Contract.Assume(outputs.Count == 0);
                     Tracing.Logger.Log.NoPipsMatchedFilter(loggingContext, filter.FilterExpression);
-                    return false;
+                }
+
+                return foundMatchingNodes;
+            }
+        }
+
+        private bool NormalizeFilteredOutputs(
+            IReadOnlyCollection<FileOrDirectoryArtifact> outputs,
+            out RangedNodeSet filteredIn)
+        {
+            var matchingNodes = new RangedNodeSet();
+
+            // We would use NodeRange here but that (due to other usages) acquires the global exclusive lock, which is not recursive.
+            // The caller to this method should already be holding it.
+            matchingNodes.ClearAndSetRange(DataflowGraph.NodeRange);
+
+            // The outputs set contains all file artifacts that passed the filter. This means that we may
+            // have multiple file artifacts per path (due to rewrites), which is not desirable - we want to approximate the
+            // 'set of artifacts which must be materialized' and for each path we would only like to materialize
+            // the latest filter-passing version. So, we determine the max write count for any filter-passing path.
+            // TODO: This could be cheaper by having filter implementations operate on a (path -> max write count) mapping,
+            //       which would correspond nicely to the structure by which filters are applied and aggregated.
+            var maxWriteCounts = new Dictionary<AbsolutePath, int>();
+
+            // There might be multiple file artifacts per path but if we get the one that has the highest max write count, we can include the others as well due to its dependencies.
+            var fileArtifacts = new Dictionary<AbsolutePath, FileArtifact>();
+
+            // There might be many seal directories per path so we should include all.
+            var directoryArtifacts = new MultiValueDictionary<AbsolutePath, DirectoryArtifact>();
+            foreach (FileOrDirectoryArtifact outputFileOrDirectory in outputs)
+            {
+                if (outputFileOrDirectory.IsFile)
+                {
+                    var output = outputFileOrDirectory.FileArtifact;
+                    int writeCount = output.RewriteCount;
+                    int existingMaxWriteCount;
+                    if (maxWriteCounts.TryGetValue(output.Path, out existingMaxWriteCount))
+                    {
+                        if (writeCount <= existingMaxWriteCount)
+                        {
+                            continue;
+                        }
+                    }
+
+                    maxWriteCounts[output.Path] = writeCount;
+                    fileArtifacts[output.Path] = outputFileOrDirectory.FileArtifact;
+                }
+                else
+                {
+                    Contract.Assert(outputFileOrDirectory.IsDirectory);
+                    directoryArtifacts.Add(outputFileOrDirectory.DirectoryArtifact.Path, outputFileOrDirectory.DirectoryArtifact);
                 }
             }
 
-            return true;
+            // Map the output files to which pips actually need to run. This is a temporary step until the
+            // scheduler operates on outputs directly.
+            // TODO: This means we can't represent the fact that some but not all outputs of a node are filter-passing.
+            //       In the case of a process with some rewritten outputs and some final filter-passing outputs, we are
+            //       not be able to guarantee a path is materialized only once (when replaying fully from cache), which is
+            //       problematic for reaching an incremental scheduling fixpoint. This can be fixed by materializing on a per-file
+            //       rather than per-pip basis.
+            var outputPaths = outputs.Select(a => a.Path).Distinct().ToArray();
+            Parallel.ForEach(
+                outputPaths,
+                path =>
+                {
+                    NodeId node;
+                    FileArtifact fileArtifact;
+                    if (fileArtifacts.TryGetValue(path, out fileArtifact))
+                    {
+                        if (PipProducers.TryGetValue(fileArtifact, out node))
+                        {
+                            matchingNodes.AddAtomic(node);
+                        }
+                        else
+                        {
+                            Contract.Assert(false, "Filtering matched file output that is not registered as being produced by any pip.");
+                        }
+
+                        return;
+                    }
+
+                    IReadOnlyList<DirectoryArtifact> directoryList;
+                    if (directoryArtifacts.TryGetValue(path, out directoryList))
+                    {
+                        foreach (var directoryArtifact in directoryList)
+                        {
+                            if (OutputDirectoryProducers.TryGetValue(directoryArtifact, out node) ||
+                                m_sealedDirectoryNodes.TryGetValue(directoryArtifact, out node))
+                            {
+                                matchingNodes.AddAtomic(node);
+                            }
+                            else
+                            {
+                                Contract.Assert(false, "Filtering matched directory output that is not registered as being produced by any pip.");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Contract.Assert(false, "The path must exist in either fileArtifacts or directoryArtifacts");
+                    }
+                });
+
+            filteredIn = matchingNodes;
+            return matchingNodes.Any();
         }
 
         private sealed class PipFilterContext : IPipFilterContext, IDisposable
@@ -664,6 +678,18 @@ namespace BuildXL.Pips.Graph
             {
                 Contract.Requires(pipId.IsValid);
                 return m_graph.PipTable.GetPipType(pipId);
+            }
+
+            public SealDirectoryKind GetSealDirectoryKind(PipId pipId)
+            {
+                Contract.Requires(pipId.IsValid);
+                return m_graph.PipTable.GetSealDirectoryKind(pipId);
+            }
+
+            public bool IsSealDirectoryComposite(PipId pipId)
+            {
+                Contract.Requires(pipId.IsValid);
+                return m_graph.PipTable.IsSealDirectoryComposite(pipId);
             }
 
             public long GetSemiStableHash(PipId pipId)
@@ -758,6 +784,19 @@ namespace BuildXL.Pips.Graph
             }
 
             return outputsForDeletion;
+        }
+
+        internal bool FilterNodesToBuildByPip(RootFilter filter, out RangedNodeSet filteredIn)
+        {
+            Contract.Assert(filter.CanEvaluatePips);
+            var outputs = filter.PipFilter.FilterPips(PipTable, Context.PathTable);
+            return NormalizeFilteredOutputs(outputs, out filteredIn);
+        }
+
+        internal bool FilterNodesToBuildByArtifact(RootFilter filter, out RangedNodeSet filteredIn)
+        {
+            var outputs = FilterOutputs(filter);
+            return NormalizeFilteredOutputs(outputs, out filteredIn);
         }
 
         internal IReadOnlySet<FileOrDirectoryArtifact> FilterOutputs(RootFilter filter, bool canonicalizeFilter = true)

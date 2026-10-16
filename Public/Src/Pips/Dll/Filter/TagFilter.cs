@@ -81,7 +81,11 @@ namespace BuildXL.Pips.Filter
             return MultiTagsOrFilter.UnionTagFilters(filters);
         }
 
-        internal bool Matches(Pip pip)
+        /// <inheritdoc/>
+        internal override string PipEvaluationFallbackReason => null;
+
+        /// <inheritdoc/>
+        internal override bool PipMatches(Pip pip, PathTable pathTable)
         {
             if (pip.Tags.IsValid)
             {
@@ -110,7 +114,7 @@ namespace BuildXL.Pips.Filter
                     if (MayHaveOutputs(context, pipId))
                     {
                         Pip pip = context.HydratePip(pipId);
-                        if (Matches(pip) ^ negate)
+                        if (PipMatches(pip, context.PathTable) ^ negate)
                         {
                             AddOutputs(pip, localOutputs);
                         }

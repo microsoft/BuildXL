@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using BuildXL.Pips.Operations;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
@@ -81,6 +82,12 @@ namespace BuildXL.Pips.Filter
             var canonInner = Inner.Canonicalize(canonicalizer);
             return canonicalizer.GetOrAdd(new NegatingFilter(canonInner));
         }
+
+        /// <inheritdoc/>
+        internal override string PipEvaluationFallbackReason => Inner.PipEvaluationFallbackReason;
+
+        /// <inheritdoc/>
+        internal override bool PipMatches(Pip pip, PathTable pathTable) => !Inner.PipMatches(pip, pathTable);
 
         /// <inheritdoc/>
         public override IReadOnlySet<FileOrDirectoryArtifact> FilterOutputsCore(IPipFilterContext context, bool negate = false, IList<PipId> constrainingPips = null)

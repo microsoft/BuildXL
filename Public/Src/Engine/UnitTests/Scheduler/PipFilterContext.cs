@@ -49,6 +49,18 @@ namespace Test.BuildXL.Scheduler
             return HydratePip(pipId).PipType;
         }
 
+        public SealDirectoryKind GetSealDirectoryKind(PipId pipId)
+        {
+            Contract.Requires(pipId.IsValid);
+            return ((SealDirectory)HydratePip(pipId)).Kind;
+        }
+
+        public bool IsSealDirectoryComposite(PipId pipId)
+        {
+            Contract.Requires(pipId.IsValid);
+            return ((SealDirectory)HydratePip(pipId)).IsComposite;
+        }
+
         public long GetSemiStableHash(PipId pipId)
         {
             Contract.Requires(pipId.IsValid);

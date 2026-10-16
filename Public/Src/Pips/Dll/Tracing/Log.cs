@@ -1143,6 +1143,18 @@ namespace BuildXL.Pips.Tracing
         public abstract void EndFilterApplyTraversal(LoggingContext context);
 
         [GeneratedEvent(
+            (int)LogEventId.PipFilterEvaluationMode,
+            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Scheduler,
+            Message = "Pip filter used {evaluationMode} evaluation. Artifact-evaluation fallback reason: '{fallbackReason}'.")]
+        public abstract void PipFilterEvaluationMode(
+            LoggingContext context,
+            string evaluationMode,
+            string fallbackReason);
+
+        [GeneratedEvent(
             (int)LogEventId.NoPipsMatchedFilter,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

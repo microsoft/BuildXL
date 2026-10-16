@@ -43,6 +43,18 @@ namespace BuildXL.Pips.Filter
         PipType GetPipType(PipId pipId);
 
         /// <summary>
+        /// Gets the seal directory kind without hydrating the pip.
+        /// </summary>
+        [System.Diagnostics.Contracts.Pure]
+        SealDirectoryKind GetSealDirectoryKind(PipId pipId);
+
+        /// <summary>
+        /// Gets whether the seal directory is composite without hydrating the pip.
+        /// </summary>
+        [System.Diagnostics.Contracts.Pure]
+        bool IsSealDirectoryComposite(PipId pipId);
+
+        /// <summary>
         /// Get the semi stable hash of a pip
         /// </summary>
         [System.Diagnostics.Contracts.Pure]

@@ -43,6 +43,12 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         IAsyncEnumerable<PipId> ReadPipAdmissionsAsync(CancellationToken cancellationToken);
 
+        /// <summary>
+        /// Validates a selected pip with respect to unsupported dynamic features and prevents 
+        /// later output-directory existence assertions on its outputs.
+        /// </summary>
+        bool TrySealPipForDynamicScheduling(PipId pipId, out string unsupportedFeature);
+
         /// <summary>Queries pip data associated with a file artifact.</summary>
         PipData QueryFileArtifactPipData(FileArtifact artifact);
 

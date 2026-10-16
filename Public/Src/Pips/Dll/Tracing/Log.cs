@@ -1209,7 +1209,7 @@ namespace BuildXL.Pips.Tracing
             EventTask = (int)Tasks.Scheduler,
             Message =
                 EventConstants.ProvenancePrefix +
-                "The pip '{pipDescription}' cannot be added because dynamic graph mode does not support {unsupportedFeature}.")]
+                "The pip '{pipDescription}' cannot use {unsupportedFeature} when selected for execution in dynamic graph mode.")]
         public abstract void ScheduleFailAddPipDynamicGraphUnsupportedFeature(
             LoggingContext context,
             string file,

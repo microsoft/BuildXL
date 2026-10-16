@@ -6348,18 +6348,18 @@ namespace BuildXL.Scheduler
         {
             await foreach (var pipId in PipGraph.ReadPipAdmissionsAsync(m_schedulerCancellationTokenSource.Token))
             {
-                // DYNAMIC-GRAPH: Service, client, shutdown, and finalization pips are unsupported as a group.
-                var servicePipKind = m_pipTable.GetServiceInfo(pipId).Kind;
-                Contract.Assert(
-                    servicePipKind == ServicePipKind.None,
-                    $"Service-related pip '{pipId}' with kind '{servicePipKind}' is unsupported in dynamic graph mode.");
+                if (IsTerminating)
+                {
+                    break;
+                }
 
                 AddPipArtifactsToFileSystemView(PipGraph.GetPipFromPipId(pipId));
                 if (m_dynamicFilterEvaluator == null)
                 {
-                    if (m_dynamicPipsTracker.MarkVisited(pipId.ToNodeId()))
+                    if (m_dynamicPipsTracker.MarkVisited(pipId.ToNodeId()) &&
+                        !await TryPrioritizeAndScheduleAsync(loggingContext, pipId.ToNodeId()))
                     {
-                        await PrioritizeAndScheduleAsync(loggingContext, pipId.ToNodeId());
+                        break;
                     }
 
                     continue;
@@ -6380,7 +6380,10 @@ namespace BuildXL.Scheduler
                         m_explicitlyScheduledProcessNodes.Add(producerNode);
                     }
 
-                    await SchedulePipAndDependenciesAsync(loggingContext, producerNode);
+                    if (!await TrySchedulePipAndDependenciesAsync(loggingContext, producerNode))
+                    {
+                        break;
+                    }
                 }
             }
 
@@ -6388,7 +6391,7 @@ namespace BuildXL.Scheduler
             PipQueue.SetAsFinalized();
         }
 
-        private async Task SchedulePipAndDependenciesAsync(LoggingContext loggingContext, NodeId root)
+        private async Task<bool> TrySchedulePipAndDependenciesAsync(LoggingContext loggingContext, NodeId root)
         {
             // The tracker moves every pip it visits out of the Ignored state, so only pips that were not
             // selected before are visited. Their relative order does not matter: whether a dependency or its
@@ -6405,8 +6408,35 @@ namespace BuildXL.Scheduler
 
             foreach (var node in selectedNodes)
             {
-                await PrioritizeAndScheduleAsync(loggingContext, node);
+                if (!await TryPrioritizeAndScheduleAsync(loggingContext, node))
+                {
+                    return false;
+                }
             }
+
+            return true;
+        }
+
+        private bool TryValidatePipForDynamicScheduling(LoggingContext loggingContext, PipId pipId)
+        {
+            if (PipGraph.TrySealPipForDynamicScheduling(pipId, out string unsupportedFeature))
+            {
+                return true;
+            }
+
+            var pip = PipGraph.GetPipFromPipId(pipId);
+            var provenance = pip.Provenance;
+            BuildXL.Pips.Tracing.Logger.Log.ScheduleFailAddPipDynamicGraphUnsupportedFeature(
+                loggingContext,
+                provenance == null ? string.Empty : provenance.Token.Path.ToString(Context.PathTable),
+                provenance?.Token.Line ?? 0,
+                provenance?.Token.Position ?? 0,
+                pip.SemiStableHash,
+                pip.GetDescription(Context),
+                provenance == null ? string.Empty : provenance.OutputValueSymbol.ToString(Context.SymbolTable),
+                unsupportedFeature);
+            RequestTermination();
+            return false;
         }
 
         private void AddPipArtifactsToFileSystemView(Pip pip)
@@ -6835,8 +6865,15 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Assigns priority and schedules one admitted pip when its dependencies are complete.
         /// </summary>
-        private async Task PrioritizeAndScheduleAsync(LoggingContext loggingContext, NodeId node)
+        /// <returns>Whether the pip was accepted for scheduling.</returns>
+        private async Task<bool> TryPrioritizeAndScheduleAsync(LoggingContext loggingContext, NodeId node)
         {
+            // The pips is selected by the current filter, so check that it is valid for dynamic scheduling before proceeding.
+            if (!TryValidatePipForDynamicScheduling(loggingContext, node.ToPipId()))
+            {
+                return false;
+            }
+
             // DYNAMIC-GRAPH: The existing implementation walks the complete graph backwards from sinks to
             // calculate downstream critical-path priorities and initializes every pip in one batch. Neither the sink
             // set nor the complete dependent closure exists while publication is open. Keep the implementation below
@@ -7085,7 +7122,7 @@ namespace BuildXL.Scheduler
             if (pipRuntimeInfo.HasNoPendingDependencies)
             {
                 await SchedulePip(node, pipId);
-                return;
+                return true;
             }
 
             TryReserveSequenceNo(ref pipRuntimeInfo.StartInitializationSequenceNo);
@@ -7119,6 +7156,7 @@ namespace BuildXL.Scheduler
             // IDynamicGraph completion callback must own this transition instead of initial scheduler setup.
             // PipQueue.SetAsFinalized();
 #endif
+            return true;
         }
 
         private bool PropagateCompletion(PipRuntimeInfo child, PipRuntimeInfo parent, bool isChild, NodeId parentId, NodeId childId)

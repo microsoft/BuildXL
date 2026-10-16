@@ -141,6 +141,94 @@ const child1Probe = f`obj/child1.txt`;
             Assert.Equal("parent", File.ReadAllText(Path.Combine(objectDirectory, "child2.txt")).Trim());
         }
 
+        [Theory]
+        [InlineData("undeclared reads", false)]
+        [InlineData("undeclared reads", true)]
+        [InlineData("shared opaque", false)]
+        [InlineData("shared opaque", true)]
+        [InlineData("existence assertion", false)]
+        [InlineData("existence assertion", true)]
+        public void UnsupportedPipsAreRejectedOnlyWhenSelectedAsDependencies(string feature, bool selectDependency)
+        {
+            ConfigureDynamicGraph();
+            Configuration.Filter = "tag='selected'";
+            ConfigureInMemoryCache(new TestCache());
+
+            string directoryKind = feature == "shared opaque" ? "shared" : "exclusive";
+            string undeclaredReads = feature == "undeclared reads" ? "allowUndeclaredSourceReads: true," : string.Empty;
+            string assertedDependency = feature == "existence assertion"
+                ? "unsupportedResult.getOutputDirectory(d`obj/unsupported`).assertExistence(r`output.txt`)"
+                : "unsupportedResult.getOutputDirectory(d`obj/unsupported`)";
+
+            string spec = CreateSpec($@"
+    const unsupportedResult = Transformer.execute({{
+        tool: tool,
+        workingDirectory: d`.`,
+        arguments: [
+            Cmd.argument('/d'),
+            Cmd.argument('/c'),
+            Cmd.rawArgument('""'),
+            Cmd.args(['echo', 'unsupported', '>', Artifact.none(p`obj/unsupported/output.txt`)]),
+            Cmd.rawArgument('""'),
+        ],
+        outputs: [{{ kind: '{directoryKind}', directory: d`obj/unsupported` }}],
+        {undeclaredReads}
+    }});
+    const unsupported = {assertedDependency};
+    const selectedPath = p`obj/selected.txt`;
+{CreateProcess("selected", "selectedPath", "'echo', 'selected', '>', Artifact.output(selectedPath)", dependencies: selectDependency ? "unsupported" : null, tags: "'selected'")}
+    return [unsupported, selected];
+");
+
+            AddModule("DynamicGraphFilteredUnsupportedFeatures", ("spec.dsc", spec), placeInRoot: true);
+            RunEngine(expectSuccess: !selectDependency);
+
+            if (selectDependency)
+            {
+                AssertErrorEventLogged(PipEventId.ScheduleFailAddPipDynamicGraphUnsupportedFeature);
+            }
+            else
+            {
+                AssertInformationalEventLogged(SchedulerEventId.ProcessPipCacheMiss, count: 1);
+            }
+
+            string objectDirectory = Configuration.Layout.ObjectDirectory.ToString(Context.PathTable);
+            Assert.Equal(!selectDependency, File.Exists(Path.Combine(objectDirectory, "selected.txt")));
+            Assert.False(File.Exists(Path.Combine(objectDirectory, "unsupported", "output.txt")));
+        }
+
+        [Fact]
+        public void ExistenceAssertionAfterProducerSelectionIsRejected()
+        {
+            ConfigureDynamicGraph();
+            Configuration.Filter = "tag='selected'";
+            ConfigureInMemoryCache(new TestCache());
+
+            string spec = CreateSpec($@"
+    const producer = Transformer.execute({{
+        tool: tool,
+        workingDirectory: d`.`,
+        tags: ['selected'],
+        arguments: [
+            Cmd.argument('/d'),
+            Cmd.argument('/c'),
+            Cmd.rawArgument('""'),
+            Cmd.args(['echo', 'output', '>', Artifact.none(p`obj/opaque/output.txt`)]),
+            Cmd.rawArgument('""'),
+        ],
+        outputs: [d`obj/opaque`],
+    }});
+    const outputProbe = f`obj/opaque/output.txt`;
+{WaitForFile("outputProbe")}
+    return [producer.getOutputDirectory(d`obj/opaque`).assertExistence(r`output.txt`)];
+");
+
+            AddModule("DynamicGraphLateAssertion", ("spec.dsc", spec), placeInRoot: true);
+            RunEngine(expectSuccess: false);
+            AssertErrorEventLogged(PipEventId.ScheduleFailAddPipDynamicGraphUnsupportedFeature);
+            AssertErrorEventLogged(global::BuildXL.FrontEnd.Script.Tracing.LogEventId.FileNotFoundInStaticDirectory);
+        }
+
         [Fact]
         public void LateChildrenOfFailedParentAreSkippedTransitively()
         {

@@ -1975,6 +1975,80 @@ namespace Test.BuildXL.Scheduler
             AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputDueToSimpleDoubleWrite, 2);
         }
 
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void DynamicOutputSealingReservesAllDirectories(bool assertBeforeSealing)
+        {
+            Setup();
+            m_configuration.Engine.UnsafeEnableDynamicGraph = true;
+            var outputDirectories = new[] { CreateOutputFileArtifact().Path, CreateOutputFileArtifact().Path };
+            var process = CreateProcess(
+                dependencies: Array.Empty<FileArtifact>(),
+                outputs: Array.Empty<FileArtifact>(),
+                outputDirectoryPaths: outputDirectories);
+            XAssert.IsTrue(PipGraphBuilder.AddProcess(process));
+
+            var directories = process.DirectoryOutputs.ToArray();
+            var lastOutput = directories[1].Path.Combine(Context.PathTable, "output.txt");
+            if (assertBeforeSealing)
+            {
+                XAssert.IsTrue(PipGraphBuilder.TryAssertOutputExistenceInOpaqueDirectory(directories[1], lastOutput, out _));
+            }
+
+            XAssert.AreEqual(!assertBeforeSealing, PipGraphBuilder.TrySealPipForDynamicScheduling(process.PipId, out string unsupportedFeature));
+            XAssert.AreEqual(assertBeforeSealing ? "output-directory existence assertions" : null, unsupportedFeature);
+
+            // A failed seal releases earlier reservations; a successful seal rejects assertions after marker removal.
+            foreach (var directory in directories)
+            {
+                XAssert.IsFalse(PipGraphBuilder.RetrieveOutputsUnderOpaqueExistenceAssertions()
+                    .Any(entry => entry.Key == directory && entry.Value.Count == 0));
+                XAssert.AreEqual(
+                    assertBeforeSealing,
+                    PipGraphBuilder.TryAssertOutputExistenceInOpaqueDirectory(
+                        directory, directory.Path.Combine(Context.PathTable, "output.txt"), out _));
+            }
+
+            if (!assertBeforeSealing)
+            {
+                AssertSchedulerErrorEventLogged(PipLogEventId.ScheduleFailAddPipDynamicGraphUnsupportedFeature, directories.Length);
+                XAssert.AreEqual(0, PipGraphBuilder.RetrieveOutputsUnderOpaqueExistenceAssertions().Count);
+            }
+        }
+
+        [Fact]
+        public void DynamicOutputSealingAndAssertionRegistrationAreMutuallyExclusive()
+        {
+            Setup();
+            m_configuration.Engine.UnsafeEnableDynamicGraph = true;
+            int rejectedAssertions = 0;
+            for (int i = 0; i < 32; i++)
+            {
+                var process = CreateProcess(
+                    dependencies: Array.Empty<FileArtifact>(),
+                    outputs: Array.Empty<FileArtifact>(),
+                    outputDirectoryPaths: new[] { CreateOutputFileArtifact().Path, CreateOutputFileArtifact().Path });
+                XAssert.IsTrue(PipGraphBuilder.AddProcess(process));
+                var directory = process.DirectoryOutputs.Last();
+                bool sealedOutputs = false;
+                bool assertedOutput = false;
+
+                Parallel.Invoke(
+                    () => sealedOutputs = PipGraphBuilder.TrySealPipForDynamicScheduling(process.PipId, out _),
+                    () => assertedOutput = PipGraphBuilder.TryAssertOutputExistenceInOpaqueDirectory(
+                        directory, directory.Path.Combine(Context.PathTable, "output.txt"), out _));
+
+                XAssert.IsTrue(sealedOutputs != assertedOutput);
+                if (!assertedOutput)
+                {
+                    rejectedAssertions++;
+                }
+            }
+
+            AssertSchedulerErrorEventLogged(PipLogEventId.ScheduleFailAddPipDynamicGraphUnsupportedFeature, rejectedAssertions);
+        }
+
         [Fact]
         [Feature(Features.RewrittenFile)]
         public void CompositeOpaquesDontSupportAssertions()

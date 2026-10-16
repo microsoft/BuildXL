@@ -2100,7 +2100,8 @@ namespace BuildXL.Pips.Graph
                 var producerPipId = producerPipResult.ToPipId();
                 var producerPip = PipTable.HydratePip(producerPipId, PipQueryContext.PipGraphIsValidOutputFileArtifactRewrite1);
 
-                if (m_configuration.Engine.UnsafeEnableDynamicGraph)
+                // Early out if the producer pip has already been sealed. This is a dynamic graph unsupported feature.
+                if (m_configuration.Engine.UnsafeEnableDynamicGraph && m_dynamicPipsWithSealedOutputs.Contains(producerPipId))
                 {
                     LogDynamicGraphUnsupportedFeature(producerPip, "output-directory existence assertions");
                     return false;
@@ -2117,17 +2118,41 @@ namespace BuildXL.Pips.Graph
 
                 using (LockManager.PathAccessGroupLock pathAccessLock = LockManager.AcquirePathAccessLock(fileArtifact))
                 {
-                    // Check if the assertion was already made. In that case, just return successfully.
-                    if (OutputsUnderOpaqueExistenceAssertions.TryGet(outputDirectoryArtifact) is var result && result.IsFound && result.Item.Value.Contains(fileArtifact))
-                    {
-                        return true;
-                    }
+                    bool rejected = false;
+                    bool alreadyAsserted = false;
 
                     OutputsUnderOpaqueExistenceAssertions.AddOrUpdate(
                         outputDirectoryArtifact,
                         fileArtifact,
-                        (key, fileArtifact) => new HashSet<FileArtifact> { fileArtifact },
-                        (key, fileArtifact, assertions) => { assertions.Add(fileArtifact); return assertions; });
+                        (key, file) => addAssertion(key, file, null),
+                        addAssertion);
+
+                    HashSet<FileArtifact> addAssertion(DirectoryArtifact directory, FileArtifact file, HashSet<FileArtifact> assertions)
+                    {
+                        if (m_configuration.Engine.UnsafeEnableDynamicGraph &&
+                            (ReferenceEquals(assertions, s_dynamicOutputAssertionMarker) || m_dynamicPipsWithSealedOutputs.Contains(producerPipId)))
+                        {
+                            rejected = true;
+                            // The add factory must return a value even when the producer is already sealed.
+                            // Observe nobody is going to clean it up, but this is not an issue since the build is bound to fail
+                            return assertions ?? s_dynamicOutputAssertionMarker;
+                        }
+
+                        assertions = assertions ?? new HashSet<FileArtifact>();
+                        alreadyAsserted = !assertions.Add(file);
+                        return assertions;
+                    }
+
+                    if (rejected)
+                    {
+                        LogDynamicGraphUnsupportedFeature(producerPip, "output-directory existence assertions");
+                        return false;
+                    }
+
+                    if (alreadyAsserted)
+                    {
+                        return true;
+                    }
 
                     // Validate the output as if it was a regular file output. Same constraints apply.
                     if (!IsValidOutputFileArtifact(pathAccessLock, fileArtifact, FileArtifact.Invalid, producerPip, SemanticPathExpander))
@@ -2149,21 +2174,6 @@ namespace BuildXL.Pips.Graph
             {
                 Contract.Requires(process != null, "Argument process cannot be null");
                 Contract.Assert(!IsImmutable);
-
-                if (m_configuration.Engine.UnsafeEnableDynamicGraph)
-                {
-                    if (process.AllowUndeclaredSourceReads)
-                    {
-                        LogDynamicGraphUnsupportedFeature(process, "undeclared source reads");
-                        return false;
-                    }
-
-                    if (process.HasSharedOpaqueDirectoryOutputs)
-                    {
-                        LogDynamicGraphUnsupportedFeature(process, "shared opaque directories");
-                        return false;
-                    }
-                }
 
                 using (LockManager.PathAccessGroupLock pathAccessLock = LockManager.AcquirePathAccessLock(process))
                 {
@@ -2676,13 +2686,6 @@ namespace BuildXL.Pips.Graph
             {
                 Contract.Requires(sealDirectory != null);
                 Contract.Assert(!IsImmutable);
-
-                if (m_configuration.Engine.UnsafeEnableDynamicGraph &&
-                    sealDirectory.Kind == SealDirectoryKind.SharedOpaque)
-                {
-                    LogDynamicGraphUnsupportedFeature(sealDirectory, "shared opaque directories");
-                    return DirectoryArtifact.Invalid;
-                }
 
                 var semanticPathExpander = SemanticPathExpander.GetModuleExpander(sealDirectory.Provenance.ModuleId);
 

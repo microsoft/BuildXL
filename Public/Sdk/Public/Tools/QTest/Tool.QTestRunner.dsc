@@ -38,6 +38,8 @@ export const qTestTool: Transformer.ToolDefinition = {
         ]
       : [
           d`/tmp/.dotnet/shm/`,
+          // Newer .NET runtimes store user-scoped named mutexes here instead of under /tmp.
+          d`${Context.getUserHomeDirectory().path}/.dotnet/corefx/Runtime/SharedMemory`,
           d`${Context.getUserHomeDirectory().path}/.config/Microsoft/VisualStudio Services/`,
           d`/usr/share/Microsoft VisualStudio Services/11.0/Cache/`,
           d`/var/log/keysinuse/`,
@@ -575,7 +577,8 @@ export function runQTest(args: QTestArguments): Result {
             // QTest (via CredScan) writes a regex cache to the SRM directory at runtime.
             d`${Context.getMount("BuildEnginePath").path}/Sdk/Sdk.QTest/bin/SRM`,
             ...addIfLazy(Context.getCurrentHost().os === "unix", () => [
-                d`${Context.getUserHomeDirectory().path}/.dotnet/corefx/cryptography`]),
+                d`${Context.getUserHomeDirectory().path}/.dotnet/corefx/cryptography`,
+                d`${Context.getUserHomeDirectory().path}/.dotnet/corefx/Runtime/SharedMemory`]),
             ...addIfLazy(Context.getCurrentHost().os === "win", () => [
                 d`${Context.getUserHomeDirectory().path}/AppData/LocalLow/Microsoft/CryptnetUrlCache`]),
             // QTest hardcodes D:/Data/Q as a location to write D:\Data\Q\TelemetryConfig when doing telemetry initialization.

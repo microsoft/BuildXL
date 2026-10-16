@@ -47,7 +47,7 @@ namespace BuildXL.Pips.Graph
             explicitlyReportDirectoryProbes: false,
             ignoreDeviceIoControlGetReparsePoint: true,
             honorDirectoryCasingOnDisk: false,
-            linuxOSName: OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty,
+            linuxOSName: OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().ToString() : string.Empty,
             usingEBPFSandbox: false,
             linuxFingerprintingVersion: LinuxFingerprintingVersion.Version,
             // This matches the unsafe default
@@ -101,7 +101,7 @@ namespace BuildXL.Pips.Graph
                 config.Sandbox.ExplicitlyReportDirectoryProbes,
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreDeviceIoControlGetReparsePoint,
                 config.Cache.HonorDirectoryCasingOnDisk,
-                OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty,
+                OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().ToString() : string.Empty,
                 OperatingSystemHelper.IsLinuxOS && config.Sandbox.EnableEBPFLinuxSandbox,
                 LinuxFingerprintingVersion.Version,
                 config.Sandbox.UnsafeSandboxConfiguration.TreatStatAsProbe,
@@ -150,7 +150,7 @@ namespace BuildXL.Pips.Graph
         /// <param name="explicitlyReportDirectoryProbes">Whether /unsafe_explicitlyReportDirectoryProbes was passed to BuildXL.</param>
         /// <param name="ignoreDeviceIoControlGetReparsePoint">Whether /ignoreDeviceIoControlGetReparsePoint was passed to BuildXL.</param>
         /// <param name="honorDirectoryCasingOnDisk">Whether /honorDirectoryCasingOnDisk was passed to BuildXL.</param>
-        /// <param name="linuxOSName">The linux os name (Ubuntu or Mariner), string.Empty if current environment is windows</param>
+        /// <param name="linuxOSName">The Linux distribution ID and release version, or string.Empty on non-Linux platforms.</param>
         /// <param name="usingEBPFSandbox">Whether the EBPF sandbox is being used (on Linux)</param>
         /// <param name="linuxFingerprintingVersion">Version for Linux-specific breaking changes in pip fingerprinting</param>
         /// <param name="treatStatAsProbe">Whether /unsafe_treatStatAsProbe was passed to BuildXL.</param>
@@ -355,7 +355,7 @@ namespace BuildXL.Pips.Graph
         public bool HonorDirectoryCasingOnDisk { get; set; }
 
         /// <summary>
-        /// Linux OS name (Ubuntu or Mariner)
+        /// Linux distribution ID and release version, or string.Empty on non-Linux platforms.
         /// </summary>
         public string LinuxOSName { get; }
 

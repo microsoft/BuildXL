@@ -315,11 +315,13 @@ namespace Test.BuildXL.Processes
         }
 
         [Theory]
-        [InlineData(2, false)]
-        [InlineData(10, false)]
-        [InlineData(2, true)]
-        [InlineData(10, true)]
-        public void RepeatedAbsentProbeDoesNotSuppressFollowingDistinctProbe(int repetitions, bool lookupParent)
+        [InlineData(2, false, false)]
+        [InlineData(10, false, false)]
+        [InlineData(2, true, false)]
+        [InlineData(10, true, false)]
+        [InlineData(2, true, true)]
+        [InlineData(10, true, true)]
+        public void RepeatedAbsentProbeDoesNotSuppressFollowingDistinctProbe(int repetitions, bool lookupParent, bool relativePath)
         {
             var firstAbsentPath = Path.Combine(TemporaryDirectory, "repeated_absent_probe");
             var secondAbsentPath = Path.Combine(TemporaryDirectory, "following_absent_probe");
@@ -330,6 +332,8 @@ namespace Test.BuildXL.Processes
             }
 
             var kernelFunction = lookupParent ? "path_parentat" : "path_lookupat";
+            var firstArgument = relativePath ? FileUtilities.GetRelativePath(TemporaryDirectory, firstAbsentPath) : firstAbsentPath;
+            var secondArgument = relativePath ? FileUtilities.GetRelativePath(TemporaryDirectory, secondAbsentPath) : secondAbsentPath;
 
             var fileAccessManifest = new FileAccessManifest(Context.PathTable)
             {
@@ -350,7 +354,7 @@ namespace Test.BuildXL.Processes
                     loggingContext: LoggingContext,
                     useGentleKill: true)
                 {
-                    Arguments = $"{string.Join(" ", Enumerable.Repeat(firstAbsentPath, repetitions))} {secondAbsentPath}",
+                    Arguments = $"{string.Join(" ", Enumerable.Repeat(firstArgument, repetitions))} {secondArgument}",
                     WorkingDirectory = TemporaryDirectory,
                     PipSemiStableHash = fileAccessManifest.PipId,
                     PipDescription = "EBPF repeated absent probe deduplication test",
@@ -397,8 +401,10 @@ namespace Test.BuildXL.Processes
                 "Expected the following distinct probe to retain its own candidate and report.");
         }
 
-        [Fact]
-        public void NonDirectoryLookupWithoutCandidateIsReported()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void NonDirectoryLookupWithoutCandidateIsReported(bool lookupParent)
         {
             var filePath = Path.Combine(TemporaryDirectory, "not_a_directory");
             var failedPath = Path.Combine(filePath, "child");
@@ -417,7 +423,7 @@ namespace Test.BuildXL.Processes
                 new SandboxedProcessInfo(
                     Context.PathTable,
                     new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
-                    "/usr/bin/stat",
+                    lookupParent ? "/usr/bin/rmdir" : "/usr/bin/stat",
                     fileAccessManifest,
                     disableConHostSharing: false,
                     loggingContext: LoggingContext,
@@ -442,9 +448,48 @@ namespace Test.BuildXL.Processes
             // The existing regular file stops traversal with ENOTDIR before a negative dentry is observed.
             var messages = m_eventListener.GetLogMessagesForEventId((int)LogEventId.LogDetoursDebugMessage).ToList();
             XAssert.IsTrue(
-                messages.Any(message => message.Contains("kernel function: path_lookupat") && message.Contains($"path: '{failedPath}'")),
+                messages.Any(message => message.Contains($"kernel function: {(lookupParent ? "path_parentat" : "path_lookupat")}") && message.Contains($"path: '{failedPath}'")),
                 $"Expected the failed lookup to be reported through the no-candidate fallback.{Environment.NewLine}" +
                 $"Sandbox messages:{Environment.NewLine}{string.Join(Environment.NewLine, messages)}");
+        }
+
+        [Fact]
+        public void EmptyParentPathDoesNotReportAnAccess()
+        {
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+                EnableLinuxSandboxLogging = true,
+            };
+
+            var info =
+                new SandboxedProcessInfo(
+                    Context.PathTable,
+                    new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                    "/usr/bin/rmdir",
+                    fileAccessManifest,
+                    disableConHostSharing: false,
+                    loggingContext: LoggingContext,
+                    useGentleKill: true)
+                {
+                    Arguments = "\"\"",
+                    WorkingDirectory = TemporaryDirectory,
+                    PipSemiStableHash = fileAccessManifest.PipId,
+                    PipDescription = "EBPF empty parent path test",
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
+                };
+
+            using var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
+            var result = process.GetResultAsync().GetAwaiter().GetResult();
+            AssertExitCode(result, 1);
+
+            var messages = m_eventListener.GetLogMessagesForEventId((int)LogEventId.LogDetoursDebugMessage);
+            XAssert.IsFalse(
+                messages.Any(message => message.Contains("kernel function: path_parentat")),
+                "An empty filename fails before the parent walk and must not generate a parent access report.");
         }
 
         [Fact]

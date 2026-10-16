@@ -69,8 +69,11 @@ namespace Test.BuildXL.Processes
         }
 
         /// <summary>
-        /// Gets list of directories used by cmd.exe
+        /// Gets OS-owned runtime scopes used by the shell and its system utilities.
         /// </summary>
+        /// <remarks>
+        /// Like the current-host OS defaults, these scopes exclude OS resources from test pip inputs.
+        /// </remarks>
         public static IEnumerable<AbsolutePath> GetCmdDependencyScopes(PathTable pathTable)
         {
             Contract.Requires(pathTable != null);
@@ -82,12 +85,14 @@ namespace Test.BuildXL.Processes
                     UnixPaths.Dev,
                     UnixPaths.UsrBin,
                     UnixPaths.UsrLib,
+                    UnixPaths.UsrShare,
                     UnixPaths.Lib,
                     UnixPaths.Lib64,
                     UnixPaths.UsrLib64,
                     UnixPaths.Private,
                     UnixPaths.Etc,
                     UnixPaths.Proc,
+                    UnixPaths.Sys,
                     UnixPaths.Var,
                     MacPaths.AppleInternal,
                     MacPaths.LibraryPreferencesLogging

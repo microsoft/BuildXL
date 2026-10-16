@@ -142,6 +142,9 @@ __attribute__((always_inline)) static inline long PTR_ERR(const void *ptr)
 // Copied from namei.h: https://github.com/torvalds/linux/blob/master/include/linux/namei.h#L21
 #define LOOKUP_FOLLOW		BIT(0)	/* follow links at the end */
 
+// Copied from Linux 7 include/linux/namei.h; used only by the Linux 7+ retry hook.
+#define LOOKUP_RCU           BIT(8)
+
 // Copied from dcache.h: https://github.com/torvalds/linux/blob/02adc1490e6d8681cc81057ed86d123d0240909b/include/linux/dcache.h#L177
 enum dentry_flags {
     DCACHE_OP_HASH          = BIT(0),

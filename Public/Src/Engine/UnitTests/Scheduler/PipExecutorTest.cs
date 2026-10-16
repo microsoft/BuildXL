@@ -1335,12 +1335,21 @@ namespace Test.BuildXL.Scheduler
                 allowlistCreator: (context) =>
                 {
                     var allowlist = new FileAccessAllowlist(context);
+                    var executablePath = CmdHelper.OsShellExe;
+                    if (OperatingSystemHelper.IsUnixOS)
+                    {
+                        // The sandbox reports the resolved executable (e.g., /usr/bin/gnucp on Ubuntu 26),
+                        // so the allowlist must match that target rather than the /usr/bin/cp symlink.
+                        XAssert.IsTrue(
+                            FileUtilities.TryGetFinalPathNameByPath("/usr/bin/cp", out executablePath, out var nativeErrorCode),
+                            $"Failed to resolve /usr/bin/cp: native error {nativeErrorCode}");
+                    }
 
                     allowlist.Add(
                         new ExecutablePathAllowlistEntry(
                             // On Windows, shell is the one who performs the file accesses.
                             // On a Unix based OS, we ask shell to execute a copy command, that command is a separate process that performs the file accesses.
-                            AbsolutePath.Create(context.PathTable, OperatingSystemHelper.IsUnixOS ? "/usr/bin/cp" : CmdHelper.OsShellExe),
+                            AbsolutePath.Create(context.PathTable, executablePath),
                             FileAccessAllowlist.RegexWithProperties(Regex.Escape(Path.GetFileName("source"))),
                             allowsCaching: true,
                             name: "allowlist1"));

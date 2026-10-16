@@ -1595,12 +1595,15 @@ int SetAutoLoad(struct sandbox_bpf *skel) {
         bpf_program__set_autoload(skel->progs.step_into_exit, true);
         bpf_program__set_autoload(skel->progs.do_mkdirat_exit, true);
         bpf_program__set_autoload(skel->progs.do_rmdir_exit, true);
+        bpf_program__set_autoload(skel->progs.path_parentat, true);
     }
     else {
         bpf_program__set_autoload(skel->progs.lookup_fast_exit, true);
+        bpf_program__set_autoload(skel->progs.path_init_entry, true);
         bpf_program__set_autoload(skel->progs.step_into_slowpath_entry, true);
         bpf_program__set_autoload(skel->progs.filename_mkdirat_exit, true);
         bpf_program__set_autoload(skel->progs.filename_rmdir_exit, true);
+        bpf_program__set_autoload(skel->progs.filename_parentat_exit, true);
     }
 
     if (currentVersion < KERNEL_VERSION(6, 8, 0)) {

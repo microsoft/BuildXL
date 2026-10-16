@@ -705,6 +705,25 @@ int BPF_PROG(lookup_fast_exit, struct nameidata *nd, struct dentry *ret)
     return track_negative_dentry(ret);
 }
 
+// The outer parent exit spans retries. Clear the previous attempt's candidate before
+// a non-RCU walk starts; ordinary RCU attempts do not touch the maps.
+// path_init has a kernel symbol but lacks BTF function information on supported builds.
+SEC("?kprobe/path_init")
+int BPF_KPROBE(path_init_entry, struct nameidata *nd, unsigned flags)
+{
+    if (flags & LOOKUP_RCU) {
+        return 0;
+    }
+
+    // Skip PID validation (namespace-PID resolution and the pid_map lookup) for performance.
+    // The key identifies only the current thread, so this cannot delete another thread's
+    // candidate, and unmonitored threads have no candidate.
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    bpf_map_delete_elem(&should_send_absent_probe, &pid_tgid);
+
+    return 0;
+}
+
 // Attach on entry because step_into_slowpath may drop the dentry reference before returning.
 SEC("?fentry/step_into_slowpath")
 int BPF_PROG(
@@ -808,14 +827,11 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
     return 0;
 }
 
-/**
- * path_parentat_exit() - Handles path resolutions.
- *
- * Returns the parent directory and final component to the caller.
- * Used for tracing absent probes when called by system calls like rmdir/mkdir
-  */
-SEC("fexit/path_parentat")
-int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *parent, int ret)
+__attribute__((always_inline)) static inline int parentat_exit_common(
+    const struct nameidata *nd,
+    int dfd,
+    const struct filename *name,
+    int ret)
 {
     pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
@@ -864,7 +880,9 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
     {
         return 0;
     }
-    int path_length = nameidata_to_string(temp_path, nd) & (PATH_MAX - 1);
+    int path_length = (nd != NULL
+        ? nameidata_to_string(temp_path, nd)
+        : fd_filename_to_string(temp_path, dfd, name)) & (PATH_MAX - 1);
 
     // The path comes from user side and it may not be canonicalized
     path_length = canonicalize_path(temp_path, path_length) & (PATH_MAX - 1);
@@ -897,6 +915,37 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
     }
 
     return 0;
+}
+
+// Legacy inner exit; SetAutoLoad selects the outer hook on Linux 7+.
+SEC("?fexit/path_parentat")
+int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *parent, int ret)
+{
+    return parentat_exit_common(nd, 0, NULL, ret);
+}
+
+// __filename_parentat retries path_parentat internally: -ECHILD without RCU, then
+// -ESTALE with LOOKUP_REVAL. This fexit hook runs once per invocation, after those
+// internal attempts, and sees only the final result. path_init_entry handles
+// candidate cleanup between attempts.
+SEC("?fexit/__filename_parentat")
+int BPF_PROG(
+    filename_parentat_exit,
+    int dfd,
+    struct filename *name,
+    unsigned flags,
+    struct path *parent,
+    struct qstr *last,
+    int *type,
+    const struct path *root,
+    int ret)
+{
+    // getname failures return before any parent walk and have no filename to report.
+    if (IS_ERR(name)) {
+        return 0;
+    }
+
+    return parentat_exit_common(NULL, dfd, name, ret);
 }
 
 /**

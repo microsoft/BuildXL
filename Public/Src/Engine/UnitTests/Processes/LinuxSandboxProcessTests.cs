@@ -189,7 +189,16 @@ namespace Test.BuildXL.Processes
             var result = RunNativeTest(testName, workingDirectory: tempFiles, reportProcessArgs: true);
             var accesses = string.Join("\n", result.result.Processes.Select(p => $"{p.ProcessId}, {p.Path}, {string.Join(" ", p.ProcessArgs)}"));
 
-            var expectedExe = succeeds ? "/usr/bin/echo" : TestProcessExe;
+            var expectedExe = TestProcessExe;
+            if (succeeds)
+            {
+                // Process reports use the resolved executable path. Ubuntu 26's /bin/echo targets
+                // Rust coreutils rather than /usr/bin/echo, so derive the expectation from the host.
+                XAssert.IsTrue(
+                    FileUtilities.TryGetFinalPathNameByPath("/bin/echo", out expectedExe, out var nativeErrorCode),
+                    $"Failed to resolve /bin/echo: native error {nativeErrorCode}");
+            }
+
             var exepectedArgs = succeeds ? "/bin/echo hello world" : $"{TestProcessExe} -t ExecReportsCorrectExecutableAndArgumentsFailed";
 
             var process = result.result.Processes.FirstOrDefault(p => p.Path == expectedExe);

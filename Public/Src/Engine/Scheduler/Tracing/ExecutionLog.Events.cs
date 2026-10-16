@@ -500,7 +500,7 @@ namespace BuildXL.Scheduler.Tracing
         public bool HonorDirectoryCasingOnDisk;
 
         /// <summary>
-        /// Linux OS name (Ubuntu or Mariner)
+        /// Linux distribution ID and release version, or string.Empty on non-Linux platforms.
         /// </summary>
         public string LinuxOSName;
 

@@ -39,7 +39,7 @@ namespace eBPFSandbox {
     };
 
     // CODESYNC: config.dsc
-    const libbpfVersion = "libbpf-1.4.7";
+    const libbpfVersion = "libbpf-1.6.3";
 
     // Headers are always deployed under this well known mount so that VSCode intellisense can pick them up
     const headerDeploymentDirectory : Directory = d`${Context.getMount("ebpfheaders").path}/${qualifier.configuration}`;

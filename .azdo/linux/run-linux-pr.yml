@@ -45,7 +45,7 @@ extends:
           image: ubuntu-22.04-PME-GPT
           os: linux
         # Keep using interpose for Ubuntu 22.04 as test coverage until we can retire the interpose sandbox.
-        BxlExtraArgs: /p:BUILDXL_FINGERPRINT_SALT=Ubuntu2204 /enableLinuxEBPFSandbox-
+        BxlExtraArgs: /enableLinuxEBPFSandbox-
 
     - template: /.azdo/linux/linux-stages-template.yml
       parameters:
@@ -57,7 +57,18 @@ extends:
           name: BuildXL-DevOpsAgents-Selfhost-BuildCache
           image: ubuntu-24.04-PME-GPT
           os: linux
-        BxlExtraArgs: /p:BUILDXL_FINGERPRINT_SALT=Ubuntu2404
+
+    - template: /.azdo/linux/linux-stages-template.yml
+      parameters:
+        bootstrap: false
+        suffix: _Ubuntu2604
+        displayPrefix: '[Ub26.04] '
+        runDistributedTest: false
+        runExternalValidation: false
+        pool:
+          name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+          image: ubuntu-26.04-PME-GPT
+          os: linux
 
     - template: /.azdo/linux/linux-stages-template.yml
       parameters:
@@ -68,4 +79,3 @@ extends:
           name: BuildXL-DevOpsAgents-Selfhost-BuildCache
           image: 1es-pt-azurelinux3-v2
           os: linux
-        BxlExtraArgs: /p:BUILDXL_FINGERPRINT_SALT=AzureLinux3

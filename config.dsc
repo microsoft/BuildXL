@@ -564,8 +564,8 @@ config({
                 // CODESYNC: Public/Src/Sandbox/Linux/ebpf/BuildXL.Sandbox.Linux.eBPF.dsc
                 {
                     moduleName: "libbpf",
-                    url: "https://github.com/libbpf/libbpf/archive/refs/tags/v1.4.7.tar.gz",
-                    hash: "VSO0:5F1C0937CD30C223AA6C0527992637610804D924024AA66E7E4004E0574ED47900",
+                    url: "https://github.com/libbpf/libbpf/archive/refs/tags/v1.6.3.tar.gz",
+                    hash: "VSO0:E368A33CD6669E034C3CDB82EDAA233C547682BFACB32E278B13D705C1A29C3600",
                     archiveType: "tgz"
                 },
                 {

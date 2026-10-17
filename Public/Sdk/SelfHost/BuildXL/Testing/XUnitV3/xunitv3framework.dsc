@@ -102,8 +102,8 @@ function processArguments(args: Managed.TestArguments): Managed.TestArguments {
                         name: "System.Collections.Immutable",
                         publicKeyToken: "b03f5f7f11d50a3a",
                         culture: "neutral",
-                        oldVersion: "0.0.0.0-10.0.0.12",
-                        newVersion: "10.0.0.12",
+                        oldVersion: "0.0.0.0-10.0.0.13",
+                        newVersion: "10.0.0.13",
                     },
                     {
                         name: "System.Threading.Tasks.Extensions",
@@ -116,8 +116,8 @@ function processArguments(args: Managed.TestArguments): Managed.TestArguments {
                         name: "Microsoft.Bcl.AsyncInterfaces",
                         publicKeyToken: "cc7b13ffcd2ddd51",
                         culture: "neutral",
-                        oldVersion: "0.0.0.0-10.0.0.12",
-                        newVersion: "10.0.0.12",
+                        oldVersion: "0.0.0.0-10.0.0.13",
+                        newVersion: "10.0.0.13",
                     },
                     {
                         name: "System.Memory",
@@ -276,7 +276,11 @@ function runStandaloneV3(args : Managed.TestRunArguments) : File[] {
                     f`${Environment.getDirectoryValue("HOME")}/.CFUserTextEncoding`,
                     f`${Environment.getDirectoryValue("HOME")}/.sudo_as_admin_successful`
                 ),
-                untrackedScopes: addIfLazy(!Context.isWindowsOS(), () => [ d`/mnt`, d`/init`, d`/usr`, d`/tmp/.dotnet/shm/global` ]),
+                untrackedScopes: addIfLazy(!Context.isWindowsOS(), () => [
+                    d`/mnt`, d`/init`, d`/usr`, d`/tmp/.dotnet/shm/global`,
+                    // Include both .dotnet mutex storage and its .dotnet.* initialization staging siblings.
+                    d`${Context.getUserHomeDirectory().path}/.dotnet/corefx/Runtime/SharedMemory`,
+                ]),
                 passThroughEnvironmentVariables: [
                     "HOME",
                     "TMPDIR",

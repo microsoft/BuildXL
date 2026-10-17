@@ -852,13 +852,15 @@ namespace BuildXL.FrontEnd.MsBuild
                 processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)));
             }
 
-            // On Linux the .NET runtime uses a global shared-memory directory under /tmp for cross-process
-            // synchronization primitives (named mutexes/semaphores). Any dotnet process spawned by the build
-            // writes there (e.g. the managed shared compilation server), so untrack it to avoid spurious
-            // disallowed file accesses. This mirrors what the Download resolver does.
+            // .NET uses named mutexes for cross-process synchronization, including shared compilation.
             if (!OperatingSystemHelper.IsWindowsOS)
             {
+                // Legacy .NET named mutex storage.
                 processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(PathTable, "/tmp/.dotnet/shm")));
+                // Include both .dotnet mutex storage and its .dotnet.* initialization staging siblings.
+                processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(
+                    PathTable,
+                    $"{SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)}/.dotnet/corefx/Runtime/SharedMemory"));
             }
 
             if (Engine.TryGetBuildParameter("PUBLIC", m_frontEndName, out string publicDir))

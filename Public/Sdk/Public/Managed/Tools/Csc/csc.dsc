@@ -219,6 +219,8 @@ export function compile(inputArgs: Arguments) : Result {
                     d`/proc`,
                     d`/run`,
                     d`/sys`,
+                    // Shared compilation needs both .dotnet mutex storage and its .dotnet.* initialization staging siblings.
+                    ...addIf(args.shared === true, d`${Context.getUserHomeDirectory().path}/.dotnet/corefx/Runtime/SharedMemory`),
                     ...addIf(Environment.hasVariable("HOME"), d`${Environment.getDirectoryValue("HOME")}/.CFUserTextEncoding`)
                 ]
             }

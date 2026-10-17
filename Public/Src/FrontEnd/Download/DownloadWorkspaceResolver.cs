@@ -340,9 +340,10 @@ namespace BuildXL.FrontEnd.Download
                 $"  ...addIfLazy(Context.getCurrentHost().os === \"win\", () => [d`${{Context.getMount(\"ProgramFiles\").path}}/WindowsApps`])," +
                 $"  ...addIfLazy(Context.getCurrentHost().os === \"win\", () => [d`${{Context.getMount(\"ProgramData\").path}}/Microsoft/NetFramework/BreadcrumbStore`])," +
                 $"  ...addIfLazy(Context.getCurrentHost().os !== \"win\", () => [d`/usr/local/lib`])," +
-                // For non-Windows OS the credential provider uses a named mutex for concurrency control. The mutex translates into a file created under /tmp.
                 // CODESYNC: Public\Src\Tools\NugetDownloader\LiteralFiles\Tool.NugetDownloader.dsc.literal
+                // Legacy .NET named mutex storage.
                 $"  ...addIfLazy(Context.getCurrentHost().os !== \"win\", () => [d`/tmp/.dotnet/shm`])," +
+                // The existing profile scope also covers current .NET named mutex storage under .dotnet/corefx/Runtime/SharedMemory/.dotnet.
                 $"  ...addIfLazy(Context.getCurrentHost().os !== \"win\" && Context.hasMount(\"UserProfile\"), () => [d`${{Context.getMount(\"UserProfile\").path}}/.dotnet`])" +
                 $"]}};";
         }

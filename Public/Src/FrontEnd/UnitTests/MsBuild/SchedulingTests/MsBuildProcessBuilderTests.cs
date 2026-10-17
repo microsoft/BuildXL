@@ -85,6 +85,23 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                 PathAtom.Create(PathTable.StringTable, "conhost.exe")));
         }
 
+        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        public void UnixDotNetMutexStorageAndStagingAreUntracked()
+        {
+            var project = CreateProjectWithPredictions("A.proj");
+            var process = Start()
+                .Add(project)
+                .ScheduleAll()
+                .AssertSuccess()
+                .RetrieveSuccessfulProcess(project);
+
+            string userProfile = SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            Assert.Contains(AbsolutePath.Create(PathTable, "/tmp/.dotnet/shm"), process.UntrackedScopes);
+            Assert.Contains(AbsolutePath.Create(PathTable, $"{userProfile}/.dotnet/corefx/Runtime/SharedMemory"), process.UntrackedScopes);
+            Assert.DoesNotContain(AbsolutePath.Create(PathTable, $"{userProfile}/.dotnet/corefx/Runtime"), process.UntrackedScopes);
+            Assert.DoesNotContain(AbsolutePath.Create(PathTable, userProfile), process.UntrackedScopes);
+        }
+
         [Fact]
         public void SameProjectWithDifferentGlobalPropertiesCanBeScheduled()
         {

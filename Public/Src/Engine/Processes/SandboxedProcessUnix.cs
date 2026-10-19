@@ -34,6 +34,8 @@ namespace BuildXL.Processes
     /// </summary>
     public sealed class SandboxedProcessUnix : UnsandboxedProcess
     {
+        private static readonly ObjectPool<HashSet<int>> s_observedProcessIdsPool = Pools.CreateSetPool<int>();
+
         private readonly SandboxedProcessReports m_reports;
 
         private readonly ActionBlockSlim<SandboxReportLinux> m_pendingReports;
@@ -43,6 +45,8 @@ namespace BuildXL.Processes
 
         private readonly ReadWriteLock m_snapshotRwl = ReadWriteLock.Create();
         private readonly Dictionary<string, Process.ProcessResourceUsage>? m_processResourceUsage;
+        private readonly Aggregation m_workingSet = new();
+        private ProcessMemoryCounters m_memoryCounters;
 
         private IEnumerable<ReportedProcess>? m_survivingChildProcesses;
 
@@ -233,22 +237,48 @@ namespace BuildXL.Processes
             var snapshots = Interop.Unix.Process.GetResourceUsageForProcessTree(ProcessId);
             using (m_snapshotRwl.AcquireWriteLock())
             {
-                foreach (var snapshot in snapshots)
-                {
-                    if (snapshot.HasValue)
-                    {
-                        // We use a combination of pid and process name as lookup key, this allows to have resource tracking
-                        // working when a process image gets substituted (exec) or when pids get reused (unlikely). If reuse
-                        // should happen, the only loophole would be if the process would have the same name as the intially
-                        // tracked one, in which case the code below would overwrite the resource usage data.
-                        var update = snapshot.Value;
-                        var key = $"{update.ProcessId}-{update.Name}";
+                m_memoryCounters = UpdateResourceUsage(snapshots, m_processResourceUsage!, m_workingSet);
+            }
+        }
 
-                        // Remove and replace the snapshot value to reflect changes of processes that are potentially being snapshotted several times
-                        m_processResourceUsage![key] = update;
+        /// <summary>
+        /// Updates retained process records for lifetime CPU/I/O accounting and records the current total RSS
+        /// of distinct live PIDs as one memory sample. Samples with no readable processes are ignored.
+        /// </summary>
+        /// <returns>The peak and average live-tree working set across recorded samples, in bytes.</returns>
+        internal static ProcessMemoryCounters UpdateResourceUsage(
+            IEnumerable<Process.ProcessResourceUsage?> snapshots,
+            Dictionary<string, Process.ProcessResourceUsage> processResourceUsage,
+            Aggregation workingSet)
+        {
+            ulong currentWorkingSet = 0;
+            using var observedProcessIdsWrapper = s_observedProcessIdsPool.GetInstance();
+            var observedProcessIds = observedProcessIdsWrapper.Instance;
+            foreach (var snapshot in snapshots)
+            {
+                if (snapshot.HasValue)
+                {
+                    // Retain exited processes for cumulative CPU and I/O accounting, not for memory samples.
+                    var update = snapshot.Value;
+                    var key = $"{update.ProcessId}-{update.Name}";
+                    processResourceUsage[key] = update;
+
+                    if (observedProcessIds.Add(update.ProcessId))
+                    {
+                        currentWorkingSet += update.WorkingSetSize;
                     }
                 }
             }
+
+            // An entirely missing sample is not evidence of zero memory usage.
+            if (observedProcessIds.Count > 0)
+            {
+                workingSet.RegisterSample(currentWorkingSet);
+            }
+
+            return ProcessMemoryCounters.CreateFromBytes(
+                peakWorkingSet: Convert.ToUInt64(workingSet.Maximum),
+                averageWorkingSet: Convert.ToUInt64(workingSet.Average));
         }
 
         /// <inheritdoc />
@@ -632,9 +662,7 @@ namespace BuildXL.Processes
                         WriteTransferCount = m_processResourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.Value.DiskBytesWritten),
                     });
 
-                    memoryCounters = ProcessMemoryCounters.CreateFromBytes(
-                        m_processResourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.Value.PeakWorkingSetSize),
-                        m_processResourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.Value.WorkingSetSize));
+                    memoryCounters = m_memoryCounters;
 
                     childProcesses = m_processResourceUsage.Keys.Count > 0 ? (uint)(m_processResourceUsage.Keys.Count - 1) : 0; // Exclude the root process from the child count
                 }

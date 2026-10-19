@@ -25,6 +25,7 @@ using Xunit;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using FileUtilities = BuildXL.Native.IO.FileUtilities;
 using ProcessDumperEvent = BuildXL.Processes.Tracing.LogEventId;
+using ProcessResourceUsage = BuildXL.Interop.Unix.Process.ProcessResourceUsage;
 #pragma warning disable AsyncFixer02
 
 namespace Test.BuildXL.Processes
@@ -1968,6 +1969,147 @@ namespace Test.BuildXL.Processes
             await CheckEchoProcessResult(result, echoMessage);
 
             // jobObject will throw if it is double-disposed.
+        }
+
+        [Theory]
+        [InlineData(1)]
+        [InlineData(5)]
+        [InlineData(20)]
+        public void MemoryCountersDoNotAccumulateSequentialChildren(int childCount)
+        {
+            // Assume
+            const ulong BytesPerMebibyte = 1024 * 1024;
+            // Every sample has the 2 MiB parent and one 4 MiB child, so both the peak and mean are 6 MiB.
+            const ulong ExpectedPeakWorkingSetBytes = 6 * BytesPerMebibyte;
+            const ulong ExpectedAverageWorkingSetBytes = 6 * BytesPerMebibyte;
+            // Lifetime accounting retains the parent and every child, even after each sequential child exits.
+            int expectedRetainedProcessCount = childCount + 1;
+            // Synthetic CPU time is 100 ms for the parent, counted once, plus 10 ms per child; no clock is measured.
+            ulong expectedTotalUserTimeMs = 100UL + (ulong)childCount * 10;
+            // Each synthetic child contributes three writes; the parent contributes none.
+            ulong expectedTotalWriteOperations = (ulong)childCount * 3;
+
+            var processResourceUsage = new Dictionary<string, ProcessResourceUsage>();
+            var workingSet = new Aggregation();
+            var parent = new ProcessResourceUsage
+            {
+                ProcessId = 1,
+                Name = "parent",
+                WorkingSetSize = 2 * BytesPerMebibyte,
+                PeakWorkingSetSize = 64 * BytesPerMebibyte,
+                UserTimeMs = 100,
+            };
+            var samples = Enumerable.Range(0, childCount).Select(i => new ProcessResourceUsage?[]
+            {
+                parent,
+                new ProcessResourceUsage
+                {
+                    ProcessId = i + 2,
+                    Name = "child",
+                    WorkingSetSize = 4 * BytesPerMebibyte,
+                    PeakWorkingSetSize = 64 * BytesPerMebibyte,
+                    UserTimeMs = 10,
+                    DiskWriteOps = 3,
+                },
+            });
+
+            // Act
+            ProcessMemoryCounters memoryCounters = default;
+            foreach (var sample in samples)
+            {
+                memoryCounters = SandboxedProcessUnix.UpdateResourceUsage(sample, processResourceUsage, workingSet);
+            }
+
+            // Assert
+            XAssert.AreEqual(ExpectedPeakWorkingSetBytes, memoryCounters.PeakWorkingSet);
+            XAssert.AreEqual(ExpectedAverageWorkingSetBytes, memoryCounters.AverageWorkingSet);
+            XAssert.AreEqual(expectedRetainedProcessCount, processResourceUsage.Count);
+            XAssert.AreEqual(expectedTotalUserTimeMs, processResourceUsage.Values.Aggregate(0UL, (total, usage) => total + usage.UserTimeMs));
+            XAssert.AreEqual(expectedTotalWriteOperations, processResourceUsage.Values.Aggregate(0UL, (total, usage) => total + usage.DiskWriteOps));
+        }
+
+        [Fact]
+        public void MemoryCountersMeasureConcurrentTreeSamples()
+        {
+            // Assume
+            const ulong BytesPerMebibyte = 1024 * 1024;
+            // The three live-tree totals are 6, 18, and 6 MiB: peak 18 MiB and mean (6 + 18 + 6) / 3 = 10 MiB.
+            const ulong ExpectedPeakWorkingSetBytes = 18 * BytesPerMebibyte;
+            const ulong ExpectedAverageWorkingSetBytes = 10 * BytesPerMebibyte;
+            const int ExpectedSampleCount = 3;
+
+            var processResourceUsage = new Dictionary<string, ProcessResourceUsage>();
+            var workingSet = new Aggregation();
+            var parent = new ProcessResourceUsage { ProcessId = 1, Name = "parent", WorkingSetSize = 2 * BytesPerMebibyte };
+            var samples = new[]
+            {
+                new ProcessResourceUsage?[]
+                {
+                    parent,
+                    new ProcessResourceUsage { ProcessId = 2, Name = "child", WorkingSetSize = 4 * BytesPerMebibyte, PeakWorkingSetSize = 64 * BytesPerMebibyte },
+                },
+                new ProcessResourceUsage?[]
+                {
+                    parent,
+                    new ProcessResourceUsage { ProcessId = 2, Name = "child", WorkingSetSize = 6 * BytesPerMebibyte, PeakWorkingSetSize = 64 * BytesPerMebibyte },
+                    new ProcessResourceUsage { ProcessId = 3, Name = "child", WorkingSetSize = 10 * BytesPerMebibyte, PeakWorkingSetSize = 64 * BytesPerMebibyte },
+                },
+                new ProcessResourceUsage?[]
+                {
+                    parent,
+                    null,
+                    new ProcessResourceUsage { ProcessId = 3, Name = "child", WorkingSetSize = 4 * BytesPerMebibyte, PeakWorkingSetSize = 64 * BytesPerMebibyte },
+                },
+            };
+
+            // Act
+            ProcessMemoryCounters memoryCounters = default;
+            foreach (var sample in samples)
+            {
+                memoryCounters = SandboxedProcessUnix.UpdateResourceUsage(sample, processResourceUsage, workingSet);
+            }
+
+            // Assert
+            XAssert.AreEqual(ExpectedPeakWorkingSetBytes, memoryCounters.PeakWorkingSet);
+            XAssert.AreEqual(ExpectedAverageWorkingSetBytes, memoryCounters.AverageWorkingSet);
+            XAssert.AreEqual(ExpectedSampleCount, workingSet.Count);
+        }
+
+        [Fact]
+        public void MemoryCountersIgnoreDuplicatePidsAndMissingSamples()
+        {
+            // Assume
+            const ulong BytesPerMebibyte = 1024 * 1024;
+            // Both names identify the same 4 MiB process, so the valid sample's peak and mean remain 4 MiB.
+            const ulong ExpectedPeakWorkingSetBytes = 4 * BytesPerMebibyte;
+            const ulong ExpectedAverageWorkingSetBytes = 4 * BytesPerMebibyte;
+            // Neither an empty enumeration nor an unreadable process adds a zero-valued memory sample.
+            const int ExpectedSampleCount = 1;
+            // Lifetime accounting retains both (1, beforeExec) and (1, afterExec) PID/name records.
+            const int ExpectedRetainedProcessCount = 2;
+
+            var processResourceUsage = new Dictionary<string, ProcessResourceUsage>();
+            var workingSet = new Aggregation();
+            var sample = new ProcessResourceUsage?[]
+            {
+                new ProcessResourceUsage { ProcessId = 1, Name = "beforeExec", WorkingSetSize = 4 * BytesPerMebibyte, PeakWorkingSetSize = 64 * BytesPerMebibyte },
+                new ProcessResourceUsage { ProcessId = 1, Name = "afterExec", WorkingSetSize = 4 * BytesPerMebibyte, PeakWorkingSetSize = 64 * BytesPerMebibyte },
+                null,
+            };
+            var emptySample = Array.Empty<ProcessResourceUsage?>();
+            // A process was enumerated, but its usage could not be read (for example, it exited during collection).
+            var unreadableProcessSample = new ProcessResourceUsage?[] { null };
+
+            // Act
+            SandboxedProcessUnix.UpdateResourceUsage(sample, processResourceUsage, workingSet);
+            SandboxedProcessUnix.UpdateResourceUsage(emptySample, processResourceUsage, workingSet);
+            var memoryCounters = SandboxedProcessUnix.UpdateResourceUsage(unreadableProcessSample, processResourceUsage, workingSet);
+
+            // Assert
+            XAssert.AreEqual(ExpectedPeakWorkingSetBytes, memoryCounters.PeakWorkingSet);
+            XAssert.AreEqual(ExpectedAverageWorkingSetBytes, memoryCounters.AverageWorkingSet);
+            XAssert.AreEqual(ExpectedSampleCount, workingSet.Count);
+            XAssert.AreEqual(ExpectedRetainedProcessCount, processResourceUsage.Count);
         }
 
         [FactIfSupported(requiresUnixBasedOperatingSystem: true)]

@@ -216,10 +216,6 @@ function getLkg() {
     fi
 
     local BUILDXL_LKG_VERSION=$(grep "BUILDXL_LKG_VERSION" "$MY_DIR/Shared/Scripts/$LKG_FILE" | cut -d= -f2 | tr -d '\r')
-    if [[ -n "$arg_Internal" && "$DeploymentFolder" == "osx-arm64" ]]; then
-        # Remove this override once the shared LKG version is published for every supported runtime.
-        BUILDXL_LKG_VERSION=$(grep "BUILDXL_MACOS_ARM64_LKG_VERSION" "$MY_DIR/Shared/Scripts/$LKG_FILE" | cut -d= -f2 | tr -d '\r')
-    fi
     local BUILDXL_LKG_NAME=$(grep "BUILDXL_LKG_NAME" "$MY_DIR/Shared/Scripts/$LKG_FILE" | cut -d= -f2 | perl -pe 's/(net472|win-x64)/'${LKG_DEPLOYMENT_FOLDER}'/g' | tr -d '\r')
     local BUILDXL_LKG_FEED_1=$(grep "BUILDXL_LKG_FEED_1" "$MY_DIR/Shared/Scripts/$LKG_FILE" | cut -d= -f2 | tr -d '\r')
 

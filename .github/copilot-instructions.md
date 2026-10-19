@@ -23,6 +23,25 @@ Primary references:
 - [DScript guide](../Documentation/Wiki/DScript/Introduction.md)
 - [Module system](../Documentation/Wiki/Modules.md)
 
+## Report build-engine issues; do not hide them
+
+This repository develops the BuildXL (`bxl`) build engine itself, not just a
+project that uses it. Failures and unexpected behavior encountered while
+building or testing are valuable evidence of engine defects, broken modes, or
+performance regressions.
+
+Report failures and anomalies to the user with the command, configuration,
+symptoms, and relevant logs or measurements. Distinguish expected behavior
+(such as the worktree build queue described below) from suspected defects, and
+state uncertainty rather than silently dismissing it as an environment issue.
+
+Do not silently work around an issue to get a successful build or test run.
+For example, do not switch build modes, disable caching or sandboxing, reduce
+parallelism, or skip failing tests to hide a failure or performance regression.
+Diagnose and fix the root cause when it is within the task's scope; otherwise
+report the blocker. Get the user's approval before applying a workaround, and
+keep the original issue visible even if an alternative path succeeds.
+
 ## Build definitions and DScript
 
 `.dsc` files define the build and are the source of truth. `.csproj` and `.sln`

@@ -14,6 +14,24 @@ Query NuGet for the latest stable (non-preview) versions of each major .NET rele
 - **9.0.x**: same URL — look for the highest `9.0.*` entry without `-preview`/`-rc`
 - **10.0.x**: same URL — look for the highest `10.0.*` entry without `-preview`/`-rc`
 
+### Review release notes and breaking changes
+
+Before editing, read Microsoft's official .NET and ASP.NET Core release notes,
+breaking-change documentation, and known issues for each version being updated.
+Cover the releases between the currently pinned and target versions, including
+intermediate releases when skipping patches. Check for changes relevant to
+BuildXL's runtime APIs, dependencies, hosting, platform behavior, and performance.
+
+Use these findings to guide the update and diagnose any build, test, or runtime
+issues it exposes. Resolve relevant compatibility issues at their root cause
+rather than bypassing failing checks or changing build modes to hide them.
+
+Alert the user to relevant or concerning breaking changes, known issues, and
+potential regressions, even if local validation passes. Include the affected
+versions, links to the official notes, the likely BuildXL impact, and any fix
+or unresolved risk. Distinguish confirmed impact from concerns that still need
+validation; if the notes cannot be accessed, report that gap explicitly.
+
 ## Step 2: Update NuGet package versions
 
 Update these files, replacing the old version strings with the new ones:

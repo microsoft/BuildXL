@@ -90,6 +90,7 @@ namespace Test.BuildXL.Scheduler
             {
                 Sandbox = sandboxConfiguration,
             };
+            configuration.Engine.UnsafeEnableDynamicGraph = true;
             var salts = new ExtraFingerprintSalts(configuration, null, null, null);
 
             TestExecutionLogHelper(verifier => verifier.Expect(new BuildSessionConfigurationEventData(salts)));

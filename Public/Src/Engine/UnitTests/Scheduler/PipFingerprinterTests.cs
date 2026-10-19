@@ -664,6 +664,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(fingerprintText.Contains("NormalizeReadTimestamps"));
             XAssert.IsFalse(fingerprintText.Contains("MaskUntrackedAccesses"));
             XAssert.IsFalse(fingerprintText.Contains("ExperimentalSharedOpaqueTracking"));
+            XAssert.IsFalse(fingerprintText.Contains("DynamicGraphMode"));
 
             // Calculate a fingerprint with non-default settings
             sandboxConfig.NormalizeReadTimestamps = !defaultSalts.NormalizeReadTimestamps;
@@ -693,6 +694,28 @@ namespace Test.BuildXL.Scheduler
             XAssert.AreNotEqual(defaultFingerprint, nonDefaultFingerprint);
             XAssert.AreNotEqual(defaultSalts, nonDefaultSalts);
             XAssert.AreNotEqual(defaultSalts.GetHashCode(), nonDefaultSalts.GetHashCode());
+        }
+
+        [Fact]
+        public void DynamicGraphModeUsesSeparateFingerprintUniverse()
+        {
+            var regularConfiguration = new ConfigurationImpl();
+            var dynamicConfiguration = new ConfigurationImpl();
+            dynamicConfiguration.Engine.UnsafeEnableDynamicGraph = true;
+
+            var regularSalts = new ExtraFingerprintSalts(regularConfiguration, null, null, null);
+            var dynamicSalts = new ExtraFingerprintSalts(dynamicConfiguration, null, null, null);
+
+            XAssert.IsFalse(regularSalts.CalculatedSaltsFingerprintText.Contains("DynamicGraphMode"));
+            XAssert.IsTrue(dynamicSalts.CalculatedSaltsFingerprintText.Contains("DynamicGraphMode"));
+            XAssert.AreNotEqual(regularSalts.CalculatedSaltsFingerprint, dynamicSalts.CalculatedSaltsFingerprint);
+
+            using var regularHasher = new CoreHashingHelper(recordFingerprintString: true);
+            using var dynamicHasher = new CoreHashingHelper(recordFingerprintString: true);
+            regularSalts.AddFingerprint(regularHasher, bypassFingerprintSalt: true);
+            dynamicSalts.AddFingerprint(dynamicHasher, bypassFingerprintSalt: true);
+
+            XAssert.AreNotEqual(regularHasher.GenerateHash(), dynamicHasher.GenerateHash());
         }
 
         [Fact]

@@ -524,6 +524,11 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public bool ExperimentalSharedOpaqueTracking;
 
+        /// <summary>
+        /// Whether dynamic graph mode is enabled.
+        /// </summary>
+        public bool DynamicGraphMode;
+
         /// <inheritdoc />
         public ExecutionLogEventMetadata<BuildSessionConfigurationEventData> Metadata => ExecutionLogMetadata.BuildSessionConfiguration;
 
@@ -563,6 +568,7 @@ namespace BuildXL.Scheduler.Tracing
             LinuxFingerprintingVersion = salts.LinuxFingerprintingVersion;
             TreatStatAsProbe = salts.TreatStatAsProbe;
             ExperimentalSharedOpaqueTracking = salts.ExperimentalSharedOpaqueTracking;
+            DynamicGraphMode = salts.DynamicGraphMode;
         }
 
         /// <summary>
@@ -603,7 +609,8 @@ namespace BuildXL.Scheduler.Tracing
                        usingEBPFSandbox: UsingEBPFSandbox,
                        linuxFingerprintingVersion: LinuxFingerprintingVersion,
                        treatStatAsProbe: TreatStatAsProbe,
-                       experimentalSharedOpaqueTracking: ExperimentalSharedOpaqueTracking
+                       experimentalSharedOpaqueTracking: ExperimentalSharedOpaqueTracking,
+                       dynamicGraphMode: DynamicGraphMode
                    )
                    {
                        // Constructor appends EngineEnvironmentSettings.FingerprintSalt
@@ -647,6 +654,7 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write((int)LinuxFingerprintingVersion);
             writer.Write(TreatStatAsProbe);
             writer.Write(ExperimentalSharedOpaqueTracking);
+            writer.Write(DynamicGraphMode);
         }
 
         /// <inheritdoc />
@@ -683,6 +691,7 @@ namespace BuildXL.Scheduler.Tracing
             LinuxFingerprintingVersion = (LinuxFingerprintingVersion) reader.ReadInt32();
             TreatStatAsProbe = reader.ReadBoolean();
             ExperimentalSharedOpaqueTracking = reader.ReadBoolean();
+            DynamicGraphMode = reader.ReadBoolean();
         }
     }
 

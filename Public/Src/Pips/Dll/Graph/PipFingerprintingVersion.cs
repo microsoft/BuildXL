@@ -82,9 +82,13 @@ namespace BuildXL.Pips.Graph
         /// 105: Add observation reclassification rules
         /// 106: Add IgnoreUntrackedPathsInFullReparsePointResolving
         /// 107: Detours transacted file operations
-        /// NOTE: When adding version 108, please also include UnsafeSandboxConfiguration.MonitorCreateProcessAsUser. Also change UnsafeSandboxConfigurationExtensions Serialize/Deserialize 
-        /// to use IUnsafeSandboxConfigurationWithSafeOrSafer. Remove <see cref="Utilities.Configuration.UnsafeSandboxConfigurationExtensions.RetiredIgnoreUndeclaredAccessesUnderSharedOpaques"/>,
-        /// its compatibility slot in UnsafeSandboxConfigurationExtensions.Serialize/Deserialize, and its retained entry in UnsafeOptions.ComputeFingerprint.
+        /// NOTE: When adding version 108, please:
+        /// * Include UnsafeSandboxConfiguration.MonitorCreateProcessAsUser. 
+        /// * Change UnsafeSandboxConfigurationExtensions Serialize/Deserialize  to use IUnsafeSandboxConfigurationWithSafeOrSafer. 
+        /// * Remove <see cref="Utilities.Configuration.UnsafeSandboxConfigurationExtensions.RetiredIgnoreUndeclaredAccessesUnderSharedOpaques"/>, its compatibility 
+        ///   slot in UnsafeSandboxConfigurationExtensions.Serialize/Deserialize, and its retained entry in UnsafeOptions.ComputeFingerprint.
+        /// * Remove the conditional 'if (DynamicGraphMode)' in Public\Src\Pips\Dll\Graph\ExtraFingerprintSalts.cs method GetHashCode() - just to simplify logic that is there to avoid 
+        ///   a global miss
         /// </remarks>
         TwoPhaseV2 = 107,
     }

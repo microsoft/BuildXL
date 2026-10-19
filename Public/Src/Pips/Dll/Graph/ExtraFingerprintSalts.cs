@@ -52,7 +52,8 @@ namespace BuildXL.Pips.Graph
             linuxFingerprintingVersion: LinuxFingerprintingVersion.Version,
             // This matches the unsafe default
             treatStatAsProbe: true,
-            experimentalSharedOpaqueTracking: false);
+            experimentalSharedOpaqueTracking: false,
+            dynamicGraphMode: false);
 
         /// <summary>
         /// Returns a default value for this struct.
@@ -105,7 +106,8 @@ namespace BuildXL.Pips.Graph
                 OperatingSystemHelper.IsLinuxOS && config.Sandbox.EnableEBPFLinuxSandbox,
                 LinuxFingerprintingVersion.Version,
                 config.Sandbox.UnsafeSandboxConfiguration.TreatStatAsProbe,
-                config.Sandbox.ExperimentalSharedOpaqueTracking
+                config.Sandbox.ExperimentalSharedOpaqueTracking,
+                config.Engine.UnsafeEnableDynamicGraph
             )
         {
         }
@@ -155,6 +157,7 @@ namespace BuildXL.Pips.Graph
         /// <param name="linuxFingerprintingVersion">Version for Linux-specific breaking changes in pip fingerprinting</param>
         /// <param name="treatStatAsProbe">Whether /unsafe_treatStatAsProbe was passed to BuildXL.</param>
         /// <param name="experimentalSharedOpaqueTracking">Whether /experimentalSharedOpaqueTracking was passed to BuildXL.</param>
+        /// <param name="dynamicGraphMode">Whether dynamic graph mode is enabled.</param>
         public ExtraFingerprintSalts(
             bool ignoreSetFileInformationByHandle,
             bool ignoreZwRenameFileInformation,
@@ -185,7 +188,8 @@ namespace BuildXL.Pips.Graph
             bool usingEBPFSandbox,
             LinuxFingerprintingVersion linuxFingerprintingVersion,
             bool treatStatAsProbe,
-            bool experimentalSharedOpaqueTracking)
+            bool experimentalSharedOpaqueTracking,
+            bool dynamicGraphMode)
         {
             IgnoreSetFileInformationByHandle = ignoreSetFileInformationByHandle;
             IgnoreZwRenameFileInformation = ignoreZwRenameFileInformation;
@@ -218,6 +222,7 @@ namespace BuildXL.Pips.Graph
             LinuxFingerprintingVersion = linuxFingerprintingVersion;
             TreatStatAsProbe = treatStatAsProbe;
             ExperimentalSharedOpaqueTracking = experimentalSharedOpaqueTracking;
+            DynamicGraphMode = dynamicGraphMode;
         }
 #pragma warning restore CS1572
 
@@ -379,6 +384,11 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         public bool ExperimentalSharedOpaqueTracking { get; }
 
+        /// <summary>
+        /// Whether dynamic graph mode is enabled.
+        /// </summary>
+        public bool DynamicGraphMode { get; }
+
         /// <nodoc />
         public static bool operator ==(ExtraFingerprintSalts left, ExtraFingerprintSalts right)
         {
@@ -429,7 +439,8 @@ namespace BuildXL.Pips.Graph
                 && UsingEBPFSandbox == other.UsingEBPFSandbox
                 && LinuxFingerprintingVersion == other.LinuxFingerprintingVersion
                 && TreatStatAsProbe == other.TreatStatAsProbe
-                && ExperimentalSharedOpaqueTracking == other.ExperimentalSharedOpaqueTracking;
+                && ExperimentalSharedOpaqueTracking == other.ExperimentalSharedOpaqueTracking
+                && DynamicGraphMode == other.DynamicGraphMode;
         }
 
         /// <inheritdoc />
@@ -475,6 +486,10 @@ namespace BuildXL.Pips.Graph
                 // which is the safe value, to avoid unnecessary cache misses.
                 hashCode = (hashCode * 397) ^ (TreatStatAsProbe ? 0 : 1).GetHashCode();
                 hashCode = (hashCode * 397) ^ ExperimentalSharedOpaqueTracking.GetHashCode();
+                if (DynamicGraphMode)
+                {
+                    hashCode = (hashCode * 397) ^ DynamicGraphMode.GetHashCode();
+                }
 
                 return hashCode;
             }
@@ -579,6 +594,13 @@ namespace BuildXL.Pips.Graph
             if (ExperimentalSharedOpaqueTracking)
             {
                 fingerprinter.Add(nameof(ExperimentalSharedOpaqueTracking), 1);
+            }
+
+            if (DynamicGraphMode)
+            {
+                // Dynamic and regular scheduling must never share cache entries, including for pips that bypass
+                // the user-configurable fingerprint salt.
+                fingerprinter.Add(nameof(DynamicGraphMode), 1);
             }
         }
 

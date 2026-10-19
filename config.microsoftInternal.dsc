@@ -75,12 +75,12 @@ export const pkgs = isMicrosoftInternal ? [
     // TODO: we should be able to remove the skipped packages whenever Microsoft.SbomCore
     // expose updated versions that point to the latest (net8 only) SBOM packages
     { id: "Microsoft.SbomCore", version: "6.2.4", dependentPackageIdsToSkip: ["Microsoft.Sbom.Parsers.Spdx22SbomParser"] },
-    { id: "Microsoft.Sbom.Common", version: "4.1.11" },
-    { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "4.1.11" },
-    { id: "Microsoft.Sbom.Adapters", version: "4.1.11" },
-    { id: "Microsoft.ComponentDetection.Contracts", version: "7.1.13", dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"] },
-    { id: "Microsoft.Sbom.Contracts", version: "4.1.11" },
-    { id: "Microsoft.Sbom.Extensions", version: "4.1.11" },
+    { id: "Microsoft.Sbom.Common", version: "4.1.13" },
+    { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "4.1.13" },
+    { id: "Microsoft.Sbom.Adapters", version: "4.1.13" },
+    { id: "Microsoft.ComponentDetection.Contracts", version: "8.0.4", dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"] },
+    { id: "Microsoft.Sbom.Contracts", version: "4.1.13" },
+    { id: "Microsoft.Sbom.Extensions", version: "4.1.13" },
 
     // Part of VSSDK used by IDE/VsIntegration
     { id: "Microsoft.Internal.VisualStudio.Interop", version: "17.2.32405.191" },
@@ -97,8 +97,8 @@ export const pkgs = isMicrosoftInternal ? [
 
     // Component Governance detection tool and Python runtime for pip detection.
     // These are bundled into the BuildXL drop deployed to CloudBuild so GenericBuildRunner can invoke component detection.
-    { id: "Microsoft.VisualStudio.Services.Governance.ComponentDetection", version: "2026.9.3.1926", dependentPackageIdsToSkip: ["*"], osSkip: [ "macOS", "unix" ] },
-    { id: "Python", version: "3.14.7", dependentPackageIdsToSkip: ["*"], osSkip: [ "macOS", "unix" ] },
+    { id: "Microsoft.VisualStudio.Services.Governance.ComponentDetection", version: "2026.10.14.2220", dependentPackageIdsToSkip: ["*"], osSkip: [ "macOS", "unix" ] },
+    { id: "Python", version: "3.15.0", dependentPackageIdsToSkip: ["*"], osSkip: [ "macOS", "unix" ] },
     
 ] : [
 

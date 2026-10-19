@@ -1041,7 +1041,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ComponentDetection.Contracts",
-          "Version": "7.1.13"
+          "Version": "8.0.4"
         }
       }
     },
@@ -1896,7 +1896,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Adapters",
-          "Version": "4.1.11"
+          "Version": "4.1.13"
         }
       }
     },
@@ -1905,7 +1905,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Common",
-          "Version": "4.1.11"
+          "Version": "4.1.13"
         }
       }
     },
@@ -1914,7 +1914,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Contracts",
-          "Version": "4.1.11"
+          "Version": "4.1.13"
         }
       }
     },
@@ -1923,7 +1923,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Extensions",
-          "Version": "4.1.11"
+          "Version": "4.1.13"
         }
       }
     },
@@ -1932,7 +1932,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Parsers.Spdx22SbomParser",
-          "Version": "4.1.11"
+          "Version": "4.1.13"
         }
       }
     },
@@ -2301,7 +2301,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.Governance.ComponentDetection",
-          "Version": "2026.9.3.1926"
+          "Version": "2026.10.14.2220"
         }
       }
     },
@@ -2850,7 +2850,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Python",
-          "Version": "3.14.7"
+          "Version": "3.15.0"
         }
       }
     },

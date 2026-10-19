@@ -24,7 +24,7 @@ namespace eBPFSandbox {
         && (majorKernelVersion > 6 || (majorKernelVersion === 6 && minorKernelVersion >= 6));
 
     const bpfTool : Transformer.ToolDefinition = {
-        exe: importFrom("bpftool").extracted.assertExistence(r`bpftool`),
+        exe: importFrom("bpftool").extractedFiles.get(r`bpftool`),
         dependsOnCurrentHostOSDirectories: true
     };
 
@@ -77,21 +77,7 @@ namespace eBPFSandbox {
 
     // Deploy libbpf headers
     // `make install` for libbpf will deploy these under /usr/include
-    const bpfheaders : File[] = [
-        importFrom("libbpf").extracted.assertExistence(r`${libbpfVersion}/src/bpf.h`),
-        importFrom("libbpf").extracted.assertExistence(r`${libbpfVersion}/src/libbpf.h`),
-        importFrom("libbpf").extracted.assertExistence(r`${libbpfVersion}/src/btf.h`),
-        importFrom("libbpf").extracted.assertExistence(r`${libbpfVersion}/src/libbpf_common.h`),
-        importFrom("libbpf").extracted.assertExistence(r`${libbpfVersion}/src/libbpf_legacy.h`),
-        importFrom("libbpf").extracted.assertExistence(r`${libbpfVersion}/src/bpf_helpers.h`),
-        importFrom("libbpf").extracted.assertExistence(r`${libbpfVersion}/src/bpf_helper_defs.h`),
-        importFrom("libbpf").extracted.assertExistence(r`${libbpfVersion}/src/bpf_tracing.h`),
-        importFrom("libbpf").extracted.assertExistence(r`${libbpfVersion}/src/bpf_endian.h`),
-        importFrom("libbpf").extracted.assertExistence(r`${libbpfVersion}/src/bpf_core_read.h`),
-        importFrom("libbpf").extracted.assertExistence(r`${libbpfVersion}/src/skel_internal.h`),
-        importFrom("libbpf").extracted.assertExistence(r`${libbpfVersion}/src/libbpf_version.h`),
-        importFrom("libbpf").extracted.assertExistence(r`${libbpfVersion}/src/usdt.bpf.h`),
-    ];
+    const bpfheaders : File[] = importFrom("libbpf").extractedFiles.values();
 
     @@public
     export const deployedHeaders = [

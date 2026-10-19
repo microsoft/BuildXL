@@ -53,16 +53,15 @@ namespace Helpers {
         
         Contract.assert(host.cpuArchitecture === "x64" || (host.os === "macOS" && host.cpuArchitecture === "arm64"), "Only x64 and macOS arm64 .NET tool runtimes are supported.");
 
-        const executable = host.os === 'win' ? r`dotnet.exe` : r`dotnet`;
-        const pkgContents  = getRuntimePackagesContent(version, host);
+        const pkgContents  = getRuntimePackageExports(version, host);
 
         return {
             tool: {
-                exe: pkgContents.assertExistence(executable), 
+                exe: pkgContents.executable,
                 dependsOnCurrentHostOSDirectories: true
             },
             dependencies: [
-                pkgContents
+                pkgContents.contents
             ],
             environmentVariables: [
                 // Make sure DotNet core runs isolated from the framework your build selected and doesn't go off reading registry and dependd on globally installed tools to make the build unreliable
@@ -76,18 +75,30 @@ namespace Helpers {
         };
     }
 
-    function getRuntimePackagesContent(version: DotNetCoreVersion, host: Context.CurrentHostInformation) : StaticDirectory {
+    function getRuntimePackageExports(version: DotNetCoreVersion, host: Context.CurrentHostInformation) : {executable: File, contents: StaticDirectory} {
         if (version === 'net8.0')
         {
             switch (host.os) {
                 case "win":
-                    return importFrom("DotNet-Runtime-8.win-x64").extracted;
+                    return {
+                        executable: importFrom("DotNet-Runtime-8.win-x64").extractedFiles.get(r`dotnet.exe`),
+                        contents: importFrom("DotNet-Runtime-8.win-x64").extracted,
+                    };
                 case "macOS":
                     return host.cpuArchitecture === "arm64"
-                        ? importFrom("DotNet-Runtime-8.osx-arm64").extracted
-                        : importFrom("DotNet-Runtime-8.osx-x64").extracted;
+                        ? {
+                            executable: importFrom("DotNet-Runtime-8.osx-arm64").extractedFiles.get(r`dotnet`),
+                            contents: importFrom("DotNet-Runtime-8.osx-arm64").extracted,
+                        }
+                        : {
+                            executable: importFrom("DotNet-Runtime-8.osx-x64").extractedFiles.get(r`dotnet`),
+                            contents: importFrom("DotNet-Runtime-8.osx-x64").extracted,
+                        };
                 case "unix":
-                    return importFrom("DotNet-Runtime-8.linux-x64").extracted;
+                    return {
+                        executable: importFrom("DotNet-Runtime-8.linux-x64").extractedFiles.get(r`dotnet`),
+                        contents: importFrom("DotNet-Runtime-8.linux-x64").extracted,
+                    };
                 default:
                     Contract.fail(`The current DotNetCore Runtime package doesn't support the current target runtime: ${host.os}. Ensure you run on a supported OS -or- update the DotNet-Runtime package to have the version embdded.`);
             }
@@ -96,13 +107,25 @@ namespace Helpers {
         {
             switch (host.os) {
                 case "win":
-                    return importFrom("DotNet-Runtime-9.win-x64").extracted;
+                    return {
+                        executable: importFrom("DotNet-Runtime-9.win-x64").extractedFiles.get(r`dotnet.exe`),
+                        contents: importFrom("DotNet-Runtime-9.win-x64").extracted,
+                    };
                 case "macOS":
                     return host.cpuArchitecture === "arm64"
-                        ? importFrom("DotNet-Runtime-9.osx-arm64").extracted
-                        : importFrom("DotNet-Runtime-9.osx-x64").extracted;
+                        ? {
+                            executable: importFrom("DotNet-Runtime-9.osx-arm64").extractedFiles.get(r`dotnet`),
+                            contents: importFrom("DotNet-Runtime-9.osx-arm64").extracted,
+                        }
+                        : {
+                            executable: importFrom("DotNet-Runtime-9.osx-x64").extractedFiles.get(r`dotnet`),
+                            contents: importFrom("DotNet-Runtime-9.osx-x64").extracted,
+                        };
                 case "unix":
-                    return importFrom("DotNet-Runtime-9.linux-x64").extracted;
+                    return {
+                        executable: importFrom("DotNet-Runtime-9.linux-x64").extractedFiles.get(r`dotnet`),
+                        contents: importFrom("DotNet-Runtime-9.linux-x64").extracted,
+                    };
                 default:
                     Contract.fail(`The current DotNetCore Runtime package doesn't support the current target runtime: ${host.os}. Ensure you run on a supported OS -or- update the DotNet-Runtime package to have the version embdded.`);
             }
@@ -111,13 +134,25 @@ namespace Helpers {
         {
             switch (host.os) {
                 case "win":
-                    return importFrom("DotNet-Runtime-10.win-x64").extracted;
+                    return {
+                        executable: importFrom("DotNet-Runtime-10.win-x64").extractedFiles.get(r`dotnet.exe`),
+                        contents: importFrom("DotNet-Runtime-10.win-x64").extracted,
+                    };
                 case "macOS":
                     return host.cpuArchitecture === "arm64"
-                        ? importFrom("DotNet-Runtime-10.osx-arm64").extracted
-                        : importFrom("DotNet-Runtime-10.osx-x64").extracted;
+                        ? {
+                            executable: importFrom("DotNet-Runtime-10.osx-arm64").extractedFiles.get(r`dotnet`),
+                            contents: importFrom("DotNet-Runtime-10.osx-arm64").extracted,
+                        }
+                        : {
+                            executable: importFrom("DotNet-Runtime-10.osx-x64").extractedFiles.get(r`dotnet`),
+                            contents: importFrom("DotNet-Runtime-10.osx-x64").extracted,
+                        };
                 case "unix":
-                    return importFrom("DotNet-Runtime-10.linux-x64").extracted;
+                    return {
+                        executable: importFrom("DotNet-Runtime-10.linux-x64").extractedFiles.get(r`dotnet`),
+                        contents: importFrom("DotNet-Runtime-10.linux-x64").extracted,
+                    };
                 default:
                     Contract.fail(`The current DotNetCore Runtime package doesn't support the current target runtime: ${host.os}. Ensure you run on a supported OS -or- update the DotNet-Runtime package to have the version embdded.`);
             }

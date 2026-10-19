@@ -8,3 +8,6 @@ const isWinOs = Context.getCurrentHost().os === "win";
 @@public
 export const extracted = createPublicDotNetRuntime(
     isWinOs ? <StaticDirectory>importFrom("DotNet-Runtime.win-x64.8.0").extracted : undefined, undefined);
+
+@@public
+export const extractedFiles : Map<RelativePath, File> = isWinOs ? importFrom("DotNet-Runtime.win-x64.8.0").extractedFiles : Map.empty<RelativePath, File>();

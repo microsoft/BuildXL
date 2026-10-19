@@ -5,3 +5,6 @@ import {createPublicDotNetRuntime} from "DotNet-Runtime.Common";
 
 @@public
 export const extracted = createPublicDotNetRuntime(importFrom("DotNet-Runtime.osx-x64.10.0").extracted, undefined);
+
+@@public
+export const extractedFiles : Map<RelativePath, File> = importFrom("DotNet-Runtime.osx-x64.10.0").extractedFiles;

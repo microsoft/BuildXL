@@ -18,7 +18,7 @@ if NOT DEFINED DBD_TESTGEN_COUNT (
 )
 
 if NOT DEFINED TEST_COMMITID (
-    set TEST_COMMITID=d6813851c24770bd0035489d6a0d7e4cca9e3093
+    set TEST_COMMITID=32cd9eedace55807ef7a2ef76464cc5fe45673c1
 )
 
 set TEST_SOLUTION_ROOT=%ENLISTMENTROOT%\Out\Tests\SMDB
@@ -47,22 +47,24 @@ if DEFINED MSENG_GIT_PAT (
     call "%ProgramFiles%\Git\cmd\git" clone https://mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest %TEST_SOLUTION_ROOT% 2>&1
 )
 
-if %ERRORLEVEL% NEQ 0 (
+if errorlevel 1 (
     endlocal && exit /b 1
 )
 
 pushd %TEST_SOLUTION_ROOT%
+if errorlevel 1 (
+    endlocal && exit /b 1
+)
 call "%ProgramFiles%\Git\cmd\git" reset %TEST_COMMITID% --hard
-if %ERRORLEVEL% NEQ 0 (
+if errorlevel 1 (
+    popd
     endlocal && exit /b 1
 )
 popd
 
 
+REM PrepSdk performs best-effort package copies and does not provide a reliable failure exit code.
 call %TEST_SOLUTION_ROOT%\TestSolution\PrepSdk.cmd %ENLISTMENTROOT%
-if %ERRORLEVEL% NEQ 0 (
-    endlocal && exit /b 1
-)
 
 )
 

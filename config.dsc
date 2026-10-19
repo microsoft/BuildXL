@@ -445,24 +445,28 @@ config({
                     url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.13/dotnet-runtime-10.0.13-win-x64.zip",
                     hash: "VSO0:B5E069C32E7102DBCAA04AEDAAD4D32FA59D207CF948CF1806B01B1EBBE7B7CF00",
                     archiveType: "zip",
+                    requiredFiles: [r`dotnet.exe`],
                 },
                 {
                     moduleName: "DotNet-Runtime.osx-x64.10.0",
                     url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.13/dotnet-runtime-10.0.13-osx-x64.tar.gz",
                     hash: "VSO0:2F872D679442C9DB0A1DFCEE0C63A8E396C07C30FB29AC4E6F376A29C008E09C00",
                     archiveType: "tgz",
+                    requiredFiles: [r`dotnet`],
                 },
                 {
                     moduleName: "DotNet-Runtime.osx-arm64.10.0",
                     url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.13/dotnet-runtime-10.0.13-osx-arm64.tar.gz",
                     hash: "VSO0:2F872EA9211E47BACE79F037D0E355EF7062810C6C6A6E42AB0E2E62428E890A00",
                     archiveType: "tgz",
+                    requiredFiles: [r`dotnet`],
                 },
                 {
                     moduleName: "DotNet-Runtime.linux-x64.10.0",
                     url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.13/dotnet-runtime-10.0.13-linux-x64.tar.gz",
                     hash: "VSO0:93A04CD3BA149E501456B148C0ED07D9AC1EC83E25CA1736775EBB12D228735300",
                     archiveType: "tgz",
+                    requiredFiles: [r`dotnet`],
                 },
 
                 // DotNet Core Runtime 9.0.21
@@ -471,24 +475,28 @@ config({
                     url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.21/dotnet-runtime-9.0.21-win-x64.zip",
                     hash: "VSO0:BCCBE8CF8A82AD0416EACAD0EAC04F295F5255E474635AF9F5A2FA14D1BBAA0E00",
                     archiveType: "zip",
+                    requiredFiles: [r`dotnet.exe`],
                 },
                 {
                     moduleName: "DotNet-Runtime.osx-x64.9.0",
                     url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.21/dotnet-runtime-9.0.21-osx-x64.tar.gz",
                     hash: "VSO0:A3F8055332F7E5642F8BE20643AB8F7BBD5EF3C714D053237E76F7C36302A18700",
                     archiveType: "tgz",
+                    requiredFiles: [r`dotnet`],
                 },
                 {
                     moduleName: "DotNet-Runtime.osx-arm64.9.0",
                     url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.21/dotnet-runtime-9.0.21-osx-arm64.tar.gz",
                     hash: "VSO0:F296C07ACDD6BDA226481B0839E238BE90A7A7181E30F042589258B45078266900",
                     archiveType: "tgz",
+                    requiredFiles: [r`dotnet`],
                 },
                 {
                     moduleName: "DotNet-Runtime.linux-x64.9.0",
                     url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.21/dotnet-runtime-9.0.21-linux-x64.tar.gz",
                     hash: "VSO0:FF3856361158C95A6C943AE56B70B554AA2888D2FB9A9D7466CE4176EE56ECC900",
                     archiveType: "tgz",
+                    requiredFiles: [r`dotnet`],
                 },
 
                 // DotNet Core Runtime 8.0.32
@@ -497,24 +505,28 @@ config({
                     url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.32/dotnet-runtime-8.0.32-win-x64.zip",
                     hash: "VSO0:E48E0E372EDC492CB17EF7F0B91FA1C45FC49C618B835A4F6F12F9E241035F7400",
                     archiveType: "zip",
+                    requiredFiles: [r`dotnet.exe`],
                 },
                 {
                     moduleName: "DotNet-Runtime.osx-x64.8.0",
                     url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.32/dotnet-runtime-8.0.32-osx-x64.tar.gz",
                     hash: "VSO0:F9949F701B2E1BCD303E1F451064CF3C3A88EA2A06F8A55440CCB3E6F005A3A900",
                     archiveType: "tgz",
+                    requiredFiles: [r`dotnet`],
                 },
                 {
                     moduleName: "DotNet-Runtime.osx-arm64.8.0",
                     url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.32/dotnet-runtime-8.0.32-osx-arm64.tar.gz",
                     hash: "VSO0:6CACB05686CF9279FEFA6B5D7FFF686289FF153F68B7D98ACDF52BC86E56B88700",
                     archiveType: "tgz",
+                    requiredFiles: [r`dotnet`],
                 },
                 {
                     moduleName: "DotNet-Runtime.linux-x64.8.0",
                     url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.32/dotnet-runtime-8.0.32-linux-x64.tar.gz",
                     hash: "VSO0:7150BC1558F9066A7E3361DEDDFDA26A9140EF0589FCBC3C4CC8A59782915D0100",
                     archiveType: "tgz",
+                    requiredFiles: [r`dotnet`],
                 },
 
                 // NodeJs
@@ -566,13 +578,29 @@ config({
                     moduleName: "libbpf",
                     url: "https://github.com/libbpf/libbpf/archive/refs/tags/v1.6.3.tar.gz",
                     hash: "VSO0:E368A33CD6669E034C3CDB82EDAA233C547682BFACB32E278B13D705C1A29C3600",
-                    archiveType: "tgz"
+                    archiveType: "tgz",
+                    requiredFiles: [
+                        r`libbpf-1.6.3/src/bpf.h`,
+                        r`libbpf-1.6.3/src/libbpf.h`,
+                        r`libbpf-1.6.3/src/btf.h`,
+                        r`libbpf-1.6.3/src/libbpf_common.h`,
+                        r`libbpf-1.6.3/src/libbpf_legacy.h`,
+                        r`libbpf-1.6.3/src/bpf_helpers.h`,
+                        r`libbpf-1.6.3/src/bpf_helper_defs.h`,
+                        r`libbpf-1.6.3/src/bpf_tracing.h`,
+                        r`libbpf-1.6.3/src/bpf_endian.h`,
+                        r`libbpf-1.6.3/src/bpf_core_read.h`,
+                        r`libbpf-1.6.3/src/skel_internal.h`,
+                        r`libbpf-1.6.3/src/libbpf_version.h`,
+                        r`libbpf-1.6.3/src/usdt.bpf.h`,
+                    ],
                 },
                 {
                     moduleName: "bpftool",
                     url: "https://github.com/libbpf/bpftool/releases/download/v7.5.0/bpftool-v7.5.0-amd64.tar.gz",
                     hash: "VSO0:DC8B3E7A8B7BC8DC8F7943656AD11FEDA58064FFAB0D8EF3DE8B75FFA0237E0800",
-                    archiveType: "tgz"
+                    archiveType: "tgz",
+                    requiredFiles: [r`bpftool`],
                 }
             ],
         },

@@ -35,7 +35,7 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly IEsrpSignConfiguration m_esrpSignConfiguration;
 
         /// <summary>Current spec generation format version</summary>
-        public const int SpecGenerationFormatVersion = 27;
+        public const int SpecGenerationFormatVersion = 28;
 
         private readonly NugetRelativePathComparer m_nugetRelativePathComparer;
 

@@ -113,6 +113,9 @@ namespace BuildXL.FrontEnd.Nuget
         public PathAtom Net100 { get; }
 
         /// <nodoc />
+        public PathAtom Net110 { get; }
+
+        /// <nodoc />
         public PathAtom BuildFolderName { get; }
 
         /// <nodoc />
@@ -195,8 +198,9 @@ namespace BuildXL.FrontEnd.Nuget
             Net80         = Register(stringTable, "net8.0",  ".NETCoreApp8.0", NetCoreVersionHistory);
             Net90         = Register(stringTable, "net9.0",  ".NETCoreApp9.0", NetCoreVersionHistory);
             Net100        = Register(stringTable, "net10.0", ".NETCoreApp10.0", NetCoreVersionHistory);
+            Net110        = Register(stringTable, "net11.0", ".NETCoreApp11.0", NetCoreVersionHistory);
 
-            NetCoreAppVersionHistory = new List<PathAtom>() { NetCoreApp20, NetCoreApp21, NetCoreApp22, NetCoreApp30, NetCoreApp31, NetApp50, Net60, Net70, Net80, Net90, Net100 };
+            NetCoreAppVersionHistory = new List<PathAtom>() { NetCoreApp20, NetCoreApp21, NetCoreApp22, NetCoreApp30, NetCoreApp31, NetApp50, Net60, Net70, Net80, Net90, Net100, Net110 };
 
             Net10  = Register(stringTable, "net10",  ".NETFramework1.0", FullFrameworkVersionHistory);
             Net11  = Register(stringTable, "net11",  ".NETFramework1.1", FullFrameworkVersionHistory);

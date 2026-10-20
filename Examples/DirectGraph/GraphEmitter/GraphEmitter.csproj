@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The versions BuildXL builds with: config.nuget.grpc.dsc, and Newtonsoft.Json in config.dsc. -->
+    <PackageReference Include="Google.Protobuf" Version="3.30.2" />
+    <PackageReference Include="Grpc.Core" Version="2.46.6" />
+    <PackageReference Include="Grpc.Core.Api" Version="2.71.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.71.0" PrivateAssets="All" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="..\..\..\Public\Src\Engine\DirectGraph\DirectGraph.proto" GrpcServices="Client" />
+    <Compile Include="..\..\..\Public\Src\Engine\DirectGraph\DirectGraphProtocol.cs" Link="DirectGraphProtocol.cs" />
+  </ItemGroup>
+
+</Project>

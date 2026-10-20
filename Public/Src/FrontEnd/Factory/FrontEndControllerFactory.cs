@@ -14,6 +14,7 @@ using BuildXL.FrontEnd.Yarn;
 using BuildXL.FrontEnd.Lage;
 using BuildXL.FrontEnd.Ninja;
 using BuildXL.FrontEnd.Nx;
+using BuildXL.FrontEnd.DirectGraph;
 using BuildXL.FrontEnd.MsBuild;
 using BuildXL.FrontEnd.Nuget;
 using BuildXL.FrontEnd.Script;
@@ -71,6 +72,8 @@ namespace BuildXL.FrontEnd.Factory
                 global::BuildXL.FrontEnd.Yarn.ETWLogger.Log,
                 global::BuildXL.FrontEnd.Ninja.ETWLogger.Log,
                 global::BuildXL.FrontEnd.Nx.ETWLogger.Log,
+                global::BuildXL.FrontEnd.DirectGraph.ETWLogger.Log,
+                global::BuildXL.Engine.DirectGraph.ETWLogger.Log,
                 global::BuildXL.FrontEnd.MsBuild.ETWLogger.Log,             
             };
 
@@ -281,6 +284,7 @@ namespace BuildXL.FrontEnd.Factory
             frontEndFactory.AddFrontEnd(new LageFrontEnd());
             frontEndFactory.AddFrontEnd(new NinjaFrontEnd());
             frontEndFactory.AddFrontEnd(new NxFrontEnd());
+            frontEndFactory.AddFrontEnd(new DirectGraphFrontEnd());
             frontEndFactory.AddFrontEnd(new MsBuildFrontEnd());
 
             if (!frontEndFactory.TrySeal(loggingContext))

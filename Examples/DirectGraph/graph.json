@@ -1,0 +1,119 @@
+{
+  "modules": [
+    {
+      "name": "test",
+      "operations": [
+        {
+          "name": "writeInput",
+          "kind": "writeFile",
+          "destination": "out\\input.txt",
+          "content": "Hello from DirectGraph",
+          "description": "Write the DirectGraph process input"
+        },
+        {
+          "name": "copyInput",
+          "kind": "process",
+          "executable": "%ComSpec%",
+          "workingDirectory": ".",
+          "options": [ "dependsOnCurrentOs" ],
+          "arguments": [
+            "/d",
+            "/c",
+            "copy /y out\\input.txt out\\output.txt"
+          ],
+          "inputFiles": [
+            {
+              "producedBy": "writeInput",
+              "path": "out\\input.txt"
+            }
+          ],
+          "outputFiles": [
+            "out\\output.txt"
+          ],
+          "description": "Copy the file produced by writeInput"
+        },
+        {
+          "name": "copyOutput",
+          "kind": "copyFile",
+          "source": {
+            "producedBy": "copyInput",
+            "path": "out\\output.txt"
+          },
+          "destination": "out\\copied.txt",
+          "description": "Copy-file pip over the process output"
+        },
+        {
+          "name": "sealOut",
+          "kind": "sealDirectory",
+          "directoryRoot": "out",
+          "sealKind": "partial",
+          "contents": [
+            { "producedBy": "writeInput", "path": "out\\input.txt" },
+            { "producedBy": "copyInput", "path": "out\\output.txt" },
+            { "producedBy": "copyOutput", "path": "out\\copied.txt" }
+          ],
+          "description": "Partial seal over everything produced so far"
+        },
+        {
+          "name": "consumeSealed",
+          "kind": "process",
+          "executable": "%ComSpec%",
+          "workingDirectory": ".",
+          "options": [ "dependsOnCurrentOs" ],
+          "arguments": [
+            "/d",
+            "/c",
+            "type out\\copied.txt > out\\fromSealed.txt"
+          ],
+          "inputDirectories": [ { "producedBy": "sealOut" } ],
+          "outputFiles": [
+            "out\\fromSealed.txt"
+          ],
+          "description": "Read through the sealed directory"
+        },
+        {
+          "name": "produceOpaqueA",
+          "kind": "process",
+          "executable": "%ComSpec%",
+          "workingDirectory": ".",
+          "options": [ "dependsOnCurrentOs" ],
+          "arguments": [ "/d", "/c", "echo a > out\\opaque\\a.txt & echo skip > out\\opaque\\a.tmp" ],
+          "producesDirectories": [ "out\\opaque" ],
+          "description": "Writes into a shared opaque directory"
+        },
+        {
+          "name": "produceOpaqueB",
+          "kind": "process",
+          "executable": "%ComSpec%",
+          "workingDirectory": ".",
+          "options": [ "dependsOnCurrentOs" ],
+          "arguments": [ "/d", "/c", "echo b > out\\opaque\\b.txt" ],
+          "producesDirectories": [ "out\\opaque" ],
+          "description": "Also writes into the same shared opaque directory"
+        },
+        {
+          "name": "barrier",
+          "kind": "composeSharedOpaque",
+          "directoryRoot": "out\\opaque",
+          "contents": [
+            { "producedBy": "produceOpaqueA", "path": "out\\opaque" },
+            { "producedBy": "produceOpaqueB", "path": "out\\opaque" }
+          ],
+          "excludeRegex": "\\.tmp$",
+          "description": "Composite shared opaque directory over both opaque producers, excluding .tmp files"
+        },
+        {
+          "name": "consumeBarrier",
+          "kind": "process",
+          "executable": "%ComSpec%",
+          "workingDirectory": ".",
+          "options": [ "dependsOnCurrentOs" ],
+          "arguments": [ "/d", "/c", "type out\\opaque\\a.txt out\\opaque\\b.txt > out\\fromBarrier.txt" ],
+          "inputDirectories": [ { "producedBy": "barrier" } ],
+          "outputFiles": [ "out\\fromBarrier.txt" ],
+          "description": "Reads through the composed shared opaque directory"
+        }
+      ]
+    }
+  ]
+}

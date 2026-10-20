@@ -38,6 +38,26 @@ namespace BuildXL.FrontEnd.Utilities
     public sealed class FrontEndUtilities
     {
         /// <summary>
+        /// Environment variables that out-of-process graph construction tools inherit in addition to user-specified
+        /// variables. Variables that do not exist on the current operating system are ignored.
+        /// </summary>
+        public static IReadOnlyList<string> GraphConstructionEnvironmentVariableAllowlist { get; } = new[]
+        {
+            "ComSpec",
+            "PATH",
+            "PATHEXT",
+            "NUMBER_OF_PROCESSORS",
+            "OS",
+            "PROCESSOR_ARCHITECTURE",
+            "PROCESSOR_IDENTIFIER",
+            "PROCESSOR_LEVEL",
+            "PROCESSOR_REVISION",
+            "SystemDrive",
+            "SystemRoot",
+            "SYSTEMTYPE",
+        };
+
+        /// <summary>
         /// Retrieves a list of search locations for an executable, inspecting a list of explicit candidates first or using PATH.
         /// The onEmptyResult action will be invoked if there are no search locations available
         /// The onPathParseFailure action will be invoked with the PATH as an argument if the PATH is malformed
@@ -105,7 +125,9 @@ namespace BuildXL.FrontEnd.Utilities
             Action onResult = null,      // Action to be taken after getting a successful result
             bool useEBPFLinuxSandbox = false,
             int? ebpfRingBufferSizeMultiplier = null,
-            bool enableLogging = false
+            bool enableLogging = false,
+            // Fully qualified: TypeScript.Net.Types has a CancellationToken too.
+            System.Threading.CancellationToken cancellationToken = default
             )
         {
             var toolBuildStorage = new ToolBuildStorage(buildStorageDirectory);
@@ -164,7 +186,9 @@ namespace BuildXL.FrontEnd.Utilities
 
                 var process = await SandboxedProcessFactory.StartAsync(info, forceSandboxing: true);
 
-                var registration = context.CancellationToken.Register(
+                // The tool is killed either when the build is cancelled or when the caller asks for it.
+                var cancellation = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken, cancellationToken);
+                var registration = cancellation.Token.Register(
                     () =>
                     {
                         try
@@ -185,6 +209,7 @@ namespace BuildXL.FrontEnd.Utilities
                     {
                         // Dispose the registration for the cancellation token once the process is done
                         registration.Dispose();
+                        cancellation.Dispose();
 
                         onResult?.Invoke();
 
@@ -294,9 +319,13 @@ namespace BuildXL.FrontEnd.Utilities
 
         /// <summary>
         /// The FrontEnds that use an out-of-proc tool should sandbox that process and call this method
-        /// in order to tack the tool's file accesses, enumerations, etc. in order to make graph caching sound
+        /// in order to track the tool's file accesses, enumerations, etc. in order to make graph caching sound
         /// </summary>
-        public static void TrackToolFileAccesses(FrontEndEngineAbstraction engine, FrontEndContext context, string frontEndName, IEnumerable<ReportedFileAccess> fileAccesses, AbsolutePath frontEndFolder)
+        /// <remarks>
+        /// <paramref name="resolverName"/> is forwarded to <see cref="FrontEndEngineAbstraction.RecordFrontEndFile"/>
+        /// as informational ownership. Callers may use either their resolver kind or configured resolver name.
+        /// </remarks>
+        public static void TrackToolFileAccesses(FrontEndEngineAbstraction engine, FrontEndContext context, string resolverName, IEnumerable<ReportedFileAccess> fileAccesses, AbsolutePath frontEndFolder)
         {
             // Compute all parseable paths
             // TODO: does it make sense to consider enumerations, or as a result the graph will be too unstable? Does it matter for MsBuild graph construction?
@@ -329,11 +358,40 @@ namespace BuildXL.FrontEnd.Utilities
                         // the file may not exist at this point
                         if (engine.FileExists(path))
                         {
-                            engine.RecordFrontEndFile(path, frontEndName);
+                            engine.RecordFrontEndFile(path, resolverName);
                         }
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Registers the environment and file-system inputs of an out-of-process graph construction tool.
+        /// </summary>
+        /// <remarks>
+        /// <paramref name="frontEndName"/> must be the registered frontend kind used to look up build parameters.
+        /// <paramref name="resolverName"/> is forwarded to <see cref="FrontEndEngineAbstraction.RecordFrontEndFile"/>
+        /// as informational ownership and may be either a resolver kind or configured resolver name.
+        /// </remarks>
+        public static void TrackToolFileAccessesAndEnvironment(
+            FrontEndEngineAbstraction engine,
+            FrontEndContext context,
+            string frontEndName,
+            string resolverName,
+            IEnumerable<string> environmentVariables,
+            IEnumerable<ReportedFileAccess> fileAccesses,
+            AbsolutePath frontEndFolder)
+        {
+            // Register all build parameters the graph construction process inherited from the process environment.
+            // Environment values defined by the configuration were tracked when the configuration was evaluated.
+            // TODO: we actually need the build parameters *used* by the graph construction process, but for now this is a compromise to keep
+            // graph caching sound. We need to modify this when MsBuild static graph API starts providing used env vars.
+            foreach (string variable in environmentVariables)
+            {
+                engine.TryGetBuildParameter(variable, frontEndName, out _);
+            }
+
+            TrackToolFileAccesses(engine, context, resolverName, fileAccesses, frontEndFolder);
         }
 
         private sealed class ToolBuildStorage : ISandboxedProcessFileStorage

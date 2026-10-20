@@ -31,9 +31,11 @@ namespace BuildXL.Utilities.Configuration
         public static RewritePolicy DoubleWritePolicy(this IUnsafeSandboxConfigurationWithSafeOrSafer configuration) =>
             configuration.DoubleWritePolicy ?? DefaultDoubleWritePolicy;
 
-        /// <nodoc/>
+        /// <summary>
+        /// Source rewrites have no setting of their own, so this is always the default.
+        /// </summary>
         public static RewritePolicy SourceWritePolicy(this IUnsafeSandboxConfigurationWithSafeOrSafer configuration) =>
-            configuration.DoubleWritePolicy ?? DefaultSourceRewritePolicy;
+            DefaultSourceRewritePolicy;
 
         /// <summary>
         /// Whether <see cref="IUnsafeSandboxConfigurationWithSafeOrSafer.EnableFullReparsePointResolving"/> is enabled and we are in a Windows-based OS

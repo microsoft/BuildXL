@@ -31,6 +31,8 @@ namespace Factory {
             Lage.dll,
             Ninja.dll,
             Nx.dll,
+            DirectGraph.dll,
+            importFrom("BuildXL.Engine").DirectGraph.dll,
             MsBuild.dll,               
         ],
         internalsVisibleTo: [

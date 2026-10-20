@@ -277,7 +277,15 @@ namespace Test.BuildXL.TestUtilities
                 Contract.Requires(sealDirectory != null);
 
                 sealDirectory.PipId = GetPipId();
-                sealDirectory.SetDirectoryArtifact(DirectoryArtifact.CreateWithZeroPartialSealId(sealDirectory.DirectoryRoot));
+
+                // A composite shared opaque arrives already initialized: its directory artifact was reserved through
+                // ReserveSharedOpaqueDirectory before the pip was constructed. Re-initializing it would violate
+                // SealDirectory.SetDirectoryArtifact's precondition.
+                if (!sealDirectory.IsInitialized)
+                {
+                    sealDirectory.SetDirectoryArtifact(DirectoryArtifact.CreateWithZeroPartialSealId(sealDirectory.DirectoryRoot));
+                }
+
                 Contract.Assume(sealDirectory.IsInitialized);
                 m_pips.Enqueue(sealDirectory);
                 return sealDirectory.Directory;

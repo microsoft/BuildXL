@@ -1009,6 +1009,53 @@ interface NinjaResolver extends ResolverBase, UntrackingSettings {
     enableProjectGraphVerboseLogging?: boolean;
 }
 
+/**
+ * Resolver that lets an external tool contribute pips directly to the BuildXL graph.
+ */
+interface DirectGraphResolver extends ResolverBase {
+    kind: "DirectGraph";
+
+    /** The working directory for the tool. */
+    workingDirectory: Directory;
+
+    /** 
+     * The names of the modules owned by this resolver. A name is a path atom because each module is represented by a
+     * virtual spec file named after it. 
+     * Names must be unique within the resolver, and names that differ only in case are duplicates.
+     * As for every resolver kind, when an earlier resolver declares a module of the same name, that module is used; a
+     * resolver whose modules are all declared by earlier resolvers does not run its tool.
+     * The tool must refer to a module by exactly the name given here. 
+     */
+    moduleNames: PathAtom[];
+
+    /** The tool that contributes pips to the graph. */
+    tool: File;
+
+    /** Arguments passed to the tool as individual command-line arguments. */
+    arguments?: string[];
+
+    /**
+     * Environment exposed to the tool. If omitted, the current process environment is exposed and each of its variables
+     * is an input of the graph: changing one invalidates the cached graph. If given, the variables with a value are
+     * inputs of the graph; a passthrough variable is exposed with its current value and is not an input, and neither are
+     * PATH, ComSpec, SystemRoot and the few other OS variables the tool inherits.
+     * BuildXL sets BUILDXL_DIRECT_GRAPH_CHANNEL to the address of its server when launching the tool.
+     */
+    environment?: Map<string, (PassthroughEnvironmentVariable | EnvironmentData)>;
+
+    /**
+     * How long, in minutes, the tool may go without sending an operation before BuildXL terminates it and fails the
+     * build. This is the gap between two consecutive operations: every operation restarts the clock. The clock runs
+     * from the tool's first operation until the one that completes the graph, so the time the tool takes to send its
+     * first operation, and the time after it completes the graph, are not limited.
+     * Must be at least 1. Defaults to 10.
+     */
+    idleTimeoutMin?: number;
+
+    /** Turns on file access reporting for the tool, and logs every operation BuildXL handles and the response to it. */
+    enableProjectGraphVerboseLogging?: boolean;
+}
+
 interface ToolConfiguration {
     toolUrl?: string;
     hash?: string;
@@ -1122,4 +1169,4 @@ interface MsBuildResolverDefaults {
 
 }
 
-type Resolver = DScriptResolver | NuGetResolver | DownloadResolver | MsBuildResolver | NinjaResolver | RushResolver | YarnResolver | LageResolver | CustomJavaScriptResolver | NxResolver;
+type Resolver = DScriptResolver | NuGetResolver | DownloadResolver | MsBuildResolver | NinjaResolver | RushResolver | YarnResolver | LageResolver | CustomJavaScriptResolver | NxResolver | DirectGraphResolver;

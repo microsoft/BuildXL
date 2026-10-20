@@ -57,25 +57,6 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
         public virtual string Kind { get; }
 
         /// <summary>
-        /// Collection of environment variables that are allowed to the graph construction process to see (in addition to the ones specified by the user)
-        /// </summary>
-        private static readonly string[] s_environmentVariableAllowlist = new[]
-            {
-                "ComSpec",
-                "PATH",
-                "PATHEXT",
-                "NUMBER_OF_PROCESSORS",
-                "OS",
-                "PROCESSOR_ARCHITECTURE",
-                "PROCESSOR_IDENTIFIER",
-                "PROCESSOR_LEVEL",
-                "PROCESSOR_REVISION",
-                "SystemDrive",
-                "SystemRoot",
-                "SYSTEMTYPE"
-            };
-
-        /// <summary>
         /// The result of computing the build graph
         /// </summary>
         public Possible<TProjectGraphResult> ComputedProjectGraph
@@ -267,7 +248,7 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
             var buildParameters = BuildParameters
                 .GetFactory()
                 .PopulateFromEnvironment()
-                .Select(s_environmentVariableAllowlist)
+                .Select(FrontEndUtilities.GraphConstructionEnvironmentVariableAllowlist)
                 .Override(configuredEnvironment.ToDictionary());
 
             return buildParameters;
@@ -278,20 +259,16 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
         /// </summary>
         protected void TrackFilesAndEnvironment(IEnumerable<ReportedFileAccess> fileAccesses, AbsolutePath frontEndFolder)
         {
-            // Register all build parameters passed to the graph construction process if they were retrieved from the process environment
-            // Otherwise, if build parameters were defined by the main config file, then there is nothing to register: if the definition
-            // in the config file actually accessed the environment, that was already registered during config evaluation.
-            // TODO: we actually need the build parameters *used* by the graph construction process, but for now this is a compromise to keep
-            // graph caching sound. We need to modify this when MsBuild static graph API starts providing used env vars.
-            if (m_processEnvironmentUsed)
-            {
-                foreach (string key in m_trackedEnvironmentVariables.Keys)
-                {
-                    Host.Engine.TryGetBuildParameter(key, Name, out _);
-                }
-            }
-
-            FrontEndUtilities.TrackToolFileAccesses(Host.Engine, Context, Name, fileAccesses, frontEndFolder);
+            FrontEndUtilities.TrackToolFileAccessesAndEnvironment(
+                Host.Engine,
+                Context,
+                frontEndName: Name,
+                resolverName: Name,
+                environmentVariables: m_processEnvironmentUsed
+                    ? m_trackedEnvironmentVariables.Keys
+                    : CollectionUtilities.EmptyArray<string>(),
+                fileAccesses,
+                frontEndFolder);
         }
 
         /// <summary>

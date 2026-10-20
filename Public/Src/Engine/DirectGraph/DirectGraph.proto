@@ -1,0 +1,441 @@
+syntax = "proto3";
+
+package BuildXL.Engine.DirectGraph;
+
+// Contract: operations must arrive in topological order. A dependency is expressed by naming the operation that
+// produced the artifact (its operation_id), so an operation that references one BuildXL has not received yet is
+// rejected at that operation. An output, file or directory, is identified by the id of the operation that produced it
+// and its path. BuildXL handles operations one at a time, in the order they arrive, and answers each one, in that
+// order, with a response carrying its operation_id.
+//
+// Paths and strings are interned: a value is registered, with its id, in the first operation written that uses it
+// (GraphOperation.new_paths / new_strings), and referenced by id afterwards. Ids are dense: paths and strings are each
+// numbered from 0 in registration order, and BuildXL rejects a registration whose id is not the next one. The emitter
+// assigns the ids, so nothing it sends has to wait for a response: if BuildXL assigned them, the emitter would have to
+// wait for the response to each registration before sending an operation that uses the value, and a round trip per
+// registration is very costly for throughput. BuildXL checks the ids so that a mismatch fails at the registration
+// instead of binding a value to the wrong id. Registering a value again under a new id is allowed.
+// Assign ids in the one place operations are written to the stream, at the moment each is written - operations can be
+// generated concurrently, but ids must follow the order they are written in.
+//
+// Nothing an emitter sends depends on a response, so it should not wait for responses before sending more. It must
+// still read them continuously while it sends: one that stops reading stalls both sides on flow control. And it should
+// keep the call open until it has read the response to Complete: if the call is cancelled or the connection is lost
+// before BuildXL has handled Complete, BuildXL drops the operations it has received but not yet handled, and the build
+// fails.
+//
+// A graph is built over exactly one BuildGraph call, which the ids above are scoped to, and ends with Complete. BuildXL
+// rejects any further call.
+//
+// A process's settings are those of DScript's Transformer.execute and of the tool definition it runs: each means what it
+// means there, with the same defaults and the same way of combining with the others, except that a process without a
+// tool description gets a generic one. Only some are exposed, and a setting DScript does not offer does not belong
+// here.
+//
+// Skew between an emitter and BuildXL is reported through the version fields, so those must stay readable by every
+// version. The numbers of GraphOperation.operation_id and protocol_version, of GraphOperationResponse.operation_id,
+// status, error and protocol_version, and the values of GraphOperationResponseStatus never change.
+service DirectGraphService {
+    rpc BuildGraph(stream GraphOperation) returns (stream GraphOperationResponse) {}
+}
+
+message GraphOperation {
+    // Assigned by the emitter; non-zero and unique within the stream, Complete included. Later operations name this
+    // operation to depend on what it produces; Complete produces nothing to depend on. Ids need not be consecutive
+    // or increasing.
+    uint64 operation_id = 1;
+
+    // Version of this protocol that the emitter was built against. The authoritative version is
+    // DirectGraphProtocol.Version. Bump it for every change to this file, additive fields included - an
+    // emitter that sets a field the receiver does not know has it dropped silently, which is the skew this
+    // field exists to catch.
+    //
+    // BuildXL rejects any operation whose version is not exactly its own, and reports its own version on every
+    // response. Zero means the emitter declares no version at all, which is reported as its own case.
+    //
+    // It is carried on every operation, not in a first message, so each operation can be checked and rejected on its own.
+    uint32 protocol_version = 2;
+
+    // Paths and strings this operation uses for the first time on this stream. BuildXL registers them before handling
+    // the operation, so the operation may use them itself.
+    repeated Registration new_paths = 3;
+    repeated Registration new_strings = 4;
+
+    oneof operation {
+        AddProcessRequest add_process = 5;
+        AddWriteFileRequest add_write_file = 6;
+        AddCopyFileRequest add_copy_file = 7;
+        AddSealDirectoryRequest add_seal_directory = 8;
+        AddCompositeSharedOpaqueDirectoryRequest add_composite_shared_opaque_directory = 9;
+        CompleteRequest complete = 10;
+    }
+}
+
+// A value and the id the emitter gave it. The id must be the next one of its kind: the number of paths (or strings)
+// registered so far on the stream. For GraphOperation.new_paths, value must be an absolute path.
+// For GraphOperation.new_strings, an empty value is valid.
+message Registration {
+    uint32 id = 1;
+    string value = 2;
+}
+
+// Every path_id and string_id below refers to a value registered through GraphOperation.new_paths or new_strings.
+// Scalar ID fields use proto3 optional so BuildXL can distinguish an omitted field from id 0, which is valid.
+// Omission is accepted only where the field's comment says so; otherwise BuildXL rejects it.
+// Required enum fields use their UNSPECIFIED zero value for the same purpose.
+message AddProcessRequest {
+    // One of the moduleNames configured on the DirectGraph resolver serving this stream, spelled exactly as configured.
+    string module = 1;
+
+    // Stable name of the target that owns this pip, within the module.
+    //
+    // BuildXL derives pip provenance from it, which includes seeding the pip's semi-stable hash. Because that seed is
+    // a function of (module, symbol, qualifier) rather than of arrival order, adding or removing an unrelated pip does
+    // not renumber this one, so historic performance data keyed by semi-stable hash survives graph changes.
+    //
+    // It does not have to be unique per pip: a target that emits several pips should reuse the same symbol for all of
+    // them. It does have to be stable across builds and distinct between targets. BuildXL turns the symbol into an
+    // identifier, replacing characters that are not valid in one, so symbols that become the same identifier name the
+    // same target.
+    string symbol = 2;
+
+    // The tool to run: a source path, or a file another operation in this graph produces.
+    FileArtifactReference executable = 3;
+    optional uint32 working_directory = 4;
+    repeated uint32 arguments = 5;  // string ids
+    repeated EnvironmentVariableEntry environment_variables = 6;
+    // DScript's description of the execute: part of the pip's description in logs. May be omitted.
+    optional uint32 description = 7;  // string id
+    // DScript's description of the tool. May be omitted, in which case BuildXL uses a generic one.
+    optional uint32 tool_description = 8;  // string id
+
+    // --- Dependencies and outputs ---
+    repeated FileArtifactReference input_files = 9;
+    repeated DirectoryArtifactReference input_directories = 10;
+    repeated OutputFile output_files = 11;
+    repeated OutputDirectory output_directories = 12;
+
+    // --- Sandbox scope (path ids) ---
+    repeated uint32 untracked_paths = 13;
+    repeated uint32 untracked_scopes = 14;
+    optional uint32 temp_directory = 15;  // path id; may be omitted
+    repeated uint32 additional_temp_directories = 16;
+    repeated uint32 output_directory_exclusions = 17;
+    repeated uint32 allowed_undeclared_source_read_scopes = 18;
+    repeated uint32 allowed_undeclared_source_read_paths = 19;
+    repeated uint32 allowed_surviving_child_process_names = 20;  // string ids
+
+    // May be omitted, which leaves every option at its default.
+    ProcessOptions options = 21;
+
+    // --- Runtime behaviour ---
+    repeated uint32 tags = 22;  // string ids
+    // As in DScript, the succeed-fast and uncacheable exit codes below are also success codes. When all three lists are
+    // empty only 0 succeeds; otherwise only the listed codes do, so list 0 as well if it should succeed.
+    repeated int32 success_exit_codes = 23;
+    repeated int32 retry_exit_codes = 24;
+    repeated int32 succeed_fast_exit_codes = 25;
+    repeated int32 uncacheable_exit_codes = 26;
+    // The timeouts, weight, priority and process_retries are unset at zero or less, where DScript can also set an
+    // explicit zero.
+    int64 timeout_millis = 27;
+    int64 warning_timeout_millis = 28;
+    int32 weight = 29;
+    int32 priority = 30;
+    int32 process_retries = 31;
+    repeated ProcessSemaphore semaphores = 32;
+    // Custom output patterns. As in DScript, each is matched with no regex options, so it is case-sensitive unless the
+    // pattern itself says otherwise. Omitting one keeps BuildXL's default.
+    optional uint32 warning_regex = 33;  // string id
+    optional uint32 error_regex = 34;  // string id
+    bool enable_multi_line_error_scanning = 35;
+
+    // --- Redirection (path ids, all optional) ---
+    optional uint32 standard_output = 36;
+    optional uint32 standard_error = 37;
+    optional uint32 trace_file = 38;
+
+    // Child processes that are not tracked by the sandbox at all. Distinct from allowed_surviving_child_process_names,
+    // which concerns processes that outlive the pip while still being tracked.
+    repeated BreakawayChildProcess breakaway_child_processes = 39;
+
+    // Name of an environment variable that carries the current retry attempt number. It is always a passthrough
+    // variable, so it does not affect caching. String id; optional.
+    optional uint32 retry_attempt_environment_variable = 40;
+
+    // DScript's doubleWritePolicy, sourceRewritePolicy and absentPathProbeInUndeclaredOpaqueMode. Optional: when
+    // absent, the process gets what a DScript process gets, the build's configured policy or BuildXL's default mode.
+    optional DoubleWritePolicy double_write_policy = 41;
+    optional SourceRewritePolicy source_rewrite_policy = 42;
+    optional AbsentPathProbeMode absent_path_probe_in_undeclared_opaque_mode = 43;
+}
+
+// The process options of DScript's Transformer.execute, named after them in snake_case. Each is off unless set, as in
+// DScript; the one DScript turns on by default, requiring the build's global untracked scopes and passthrough
+// environment variables, appears here as its opt-out.
+message ProcessOptions {
+    // Leaves outputs writable, which prevents BuildXL from defensively making them read-only or hardlinking them
+    // into the cache.
+    bool keep_outputs_writable = 1;
+    // Requests DScript's privilegeLevel: "admin".
+    bool requires_admin = 2;
+    // Places the process in the scheduler's light-process queue.
+    bool is_light = 3;
+    // Scans standard output and error for ##bxl hint lines, such as an overridden runtime.
+    bool scan_for_buildxl_hints = 4;
+    // Allows source reads that were not declared statically. Build correctness then depends on sandbox observations
+    // and any allowed_undeclared_source_read paths or scopes.
+    bool allow_undeclared_source_reads = 5;
+    // Preserves path casing in serialized path sets on Windows, at the cost of less cache convergence.
+    bool preserve_path_set_casing = 6;
+    // Forces weak-fingerprint augmentation for this process when it is not configured globally.
+    bool enforce_weak_fingerprint_augmentation = 7;
+    // Skips cache lookup. BuildXL may still publish the result to support distribution.
+    bool disable_cache_lookup = 8;
+    // Prevents BuildXL from cancelling the process for performance or resource-management reasons.
+    bool uncancellable = 9;
+    // Requires execution on the orchestrator in a distributed build.
+    bool must_run_on_orchestrator = 10;
+    // Fails the process if it writes to standard error, regardless of its exit code.
+    bool writing_to_standard_error_fails_execution = 11;
+    // Applies BuildXL's platform-specific host-OS access defaults. These mostly add untracked files and scopes;
+    // on macOS, some system directories are also source-sealed as inputs.
+    bool depends_on_current_host_os_directories = 12;
+    // Requests DScript's dependsOnAppDataDirectory: untracks the Windows AppData locations, allowing accesses without
+    // including their contents in the fingerprint. Has no effect on other operating systems.
+    bool depends_on_windows_app_data = 13;
+
+    // DScript's unsafe options.
+    // Excludes child processes from sandbox file-access monitoring.
+    bool unsafe_has_untracked_child_processes = 14;
+    // Allows outputs from a prior execution to remain. Use only when the process's incremental behavior is trusted.
+    // Also makes the process an incremental tool when the build preserves outputs for incremental tools, as in DScript.
+    bool unsafe_allow_preserved_outputs = 15;
+    // Marks the process as an incremental tool, which includes allowing preserved outputs.
+    bool unsafe_incremental_tool = 16;
+    // Opts out of the build's global untracked scopes and passthrough environment variables.
+    bool unsafe_skip_global_dependencies = 17;
+    // Reports every statically declared input and output as though the sandbox observed it. Only meaningful with
+    // breakaway child processes, and safe only when the declarations exactly describe their accesses.
+    bool unsafe_trust_statically_declared_accesses = 18;
+    // Disables full reparse-point resolution for this process.
+    bool unsafe_disable_full_reparse_point_resolving = 19;
+    // Runs the process without sandbox observation tracking and disables cache lookup.
+    bool unsafe_disable_sandboxing = 20;
+}
+
+enum DoubleWritePolicy {
+    DOUBLE_WRITE_POLICY_UNSPECIFIED = 0;
+    DOUBLE_WRITE_POLICY_DOUBLE_WRITES_ARE_ERRORS = 1;
+    DOUBLE_WRITE_POLICY_ALLOW_SAME_CONTENT_DOUBLE_WRITES = 2;
+    DOUBLE_WRITE_POLICY_UNSAFE_FIRST_DOUBLE_WRITE_WINS = 3;
+}
+
+enum SourceRewritePolicy {
+    SOURCE_REWRITE_POLICY_UNSPECIFIED = 0;
+    SOURCE_REWRITE_POLICY_SOURCE_REWRITES_ARE_ERRORS = 1;
+    SOURCE_REWRITE_POLICY_SAFE_SOURCE_REWRITES_ARE_ALLOWED = 2;
+}
+
+enum AbsentPathProbeMode {
+    ABSENT_PATH_PROBE_MODE_UNSPECIFIED = 0;
+    ABSENT_PATH_PROBE_MODE_UNSAFE = 1;
+    ABSENT_PATH_PROBE_MODE_STRICT = 2;
+    ABSENT_PATH_PROBE_MODE_RELAXED = 3;
+}
+
+message BreakawayChildProcess {
+    // File name of the child process, for example 'VBCSCompiler.exe'. String id.
+    optional uint32 process_name = 1;
+    // Optional. The process breaks away only if its command line contains this substring. DScript's execute can only
+    // name the process; the other resolvers' untracking settings can also require arguments, as here.
+    string required_arguments = 2;
+    bool required_arguments_ignore_case = 3;
+}
+
+// The same kinds as DScript's FileExistenceKind.
+enum FileExistenceKind {
+    FILE_EXISTENCE_KIND_UNSPECIFIED = 0;
+    // The process must write the file, and other operations may consume it.
+    FILE_EXISTENCE_KIND_REQUIRED = 1;
+    // Other operations should not consume it.
+    FILE_EXISTENCE_KIND_TEMPORARY = 2;
+    // Other operations may consume it, but BuildXL does not verify that the process wrote it.
+    FILE_EXISTENCE_KIND_OPTIONAL = 3;
+}
+
+message OutputFile {
+    // The file the process writes. Set exactly one of:
+    //   path: a new file.
+    //   rewrites: a file another operation produced, which the process rewrites in place. The output is the next
+    //   version of that file, at the same path, and the file is also an input of the process, so BuildXL
+    //   materializes it before the process runs.
+    oneof target {
+        uint32 path = 1;  // path id
+        ProducedFileReference rewrites = 2;
+    }
+    FileExistenceKind existence = 3;
+}
+
+message EnvironmentVariableEntry {
+    optional uint32 name = 1;  // string id
+    // String id. Ignored, and may be omitted, for a passthrough variable.
+    optional uint32 value = 2;
+    // A passthrough variable is visible to the process but excluded from its fingerprint.
+    bool is_pass_through = 3;
+}
+
+message ProcessSemaphore {
+    optional uint32 name = 1;  // string id
+    int32 increment_by = 2;
+    int32 limit = 3;
+}
+
+message FileArtifactReference {
+    oneof reference {
+        uint32 source_path = 1;  // path id
+        ProducedFileReference produced_file = 2;
+    }
+}
+
+// A file another operation in this graph produces. BuildXL checks that the operation named here really produced it.
+message ProducedFileReference {
+    uint64 producer_operation_id = 1;
+    optional uint32 path = 2;  // path id
+}
+
+// A directory another operation in this graph produces: one of a process's declared output directories, a sealed
+// directory, or a composite. The path says which of the producer's directories is meant.
+message DirectoryArtifactReference {
+    uint64 producer_operation_id = 1;
+    optional uint32 path = 2;  // path id
+}
+
+enum OutputDirectoryKind {
+    OUTPUT_DIRECTORY_KIND_UNSPECIFIED = 0;
+    OUTPUT_DIRECTORY_KIND_EXCLUSIVE = 1;
+    OUTPUT_DIRECTORY_KIND_SHARED = 2;
+}
+
+message OutputDirectory {
+    optional uint32 path = 1;  // path id
+    OutputDirectoryKind kind = 2;
+}
+
+enum SealDirectoryKind {
+    SEAL_DIRECTORY_KIND_UNSPECIFIED = 0;
+    SEAL_DIRECTORY_KIND_PARTIAL = 1;
+    SEAL_DIRECTORY_KIND_FULL = 2;
+    SEAL_DIRECTORY_KIND_SOURCE_ALL_DIRECTORIES = 3;
+    SEAL_DIRECTORY_KIND_SOURCE_TOP_DIRECTORY_ONLY = 4;
+}
+
+message AddCopyFileRequest {
+    // See AddProcessRequest.module.
+    string module = 1;
+    // See AddProcessRequest.symbol.
+    string symbol = 2;
+    FileArtifactReference source = 3;
+    optional uint32 destination = 4;  // path id
+    repeated uint32 tags = 5;  // string ids
+    optional uint32 description = 6;  // string id; may be omitted
+    bool outputs_must_remain_writable = 7;
+}
+
+message AddSealDirectoryRequest {
+    // See AddProcessRequest.module.
+    string module = 1;
+    // See AddProcessRequest.symbol.
+    string symbol = 2;
+    optional uint32 directory_root = 3;  // path id
+    SealDirectoryKind kind = 4;
+    repeated FileArtifactReference contents = 5;
+    repeated DirectoryArtifactReference output_directory_contents = 6;
+    // Only allowed for the source seal kinds. String ids.
+    repeated uint32 patterns = 7;
+    repeated uint32 tags = 8;  // string ids
+    optional uint32 description = 9;  // string id; may be omitted
+    bool scrub = 10;
+}
+
+enum ContentFilterKind {
+    CONTENT_FILTER_KIND_UNSPECIFIED = 0;
+    CONTENT_FILTER_KIND_INCLUDE = 1;
+    CONTENT_FILTER_KIND_EXCLUDE = 2;
+}
+
+message ContentFilter {
+    ContentFilterKind kind = 1;
+    // Regular expression matched against the absolute path of each file.
+    string regex = 2;
+}
+
+enum CompositionActionKind {
+    COMPOSITION_ACTION_KIND_UNSPECIFIED = 0;
+    // Place the composed content under the given root, which must contain all composed directories.
+    COMPOSITION_ACTION_KIND_WIDEN_DIRECTORY_CONE = 1;
+    // Restrict the composed content to the given root, which must be contained by the composed directories.
+    COMPOSITION_ACTION_KIND_NARROW_DIRECTORY_CONE = 2;
+}
+
+// Composes several shared opaque directories into one.
+//
+// This is the operation behind a dependency barrier: a composite acts both as a single handle over the outputs of many
+// pips and as a scheduling fence, since anything consuming it waits for every composed producer.
+message AddCompositeSharedOpaqueDirectoryRequest {
+    // See AddProcessRequest.module.
+    string module = 1;
+    // See AddProcessRequest.symbol.
+    string symbol = 2;
+    optional uint32 directory_root = 3;  // path id
+    // The directories being composed. Each must itself be a shared opaque.
+    repeated DirectoryArtifactReference contents = 4;
+    CompositionActionKind action = 5;
+    // Optional. When absent, all content of the composed directories is included.
+    ContentFilter content_filter = 6;
+    repeated uint32 tags = 7;  // string ids
+    optional uint32 description = 8;  // string id; may be omitted
+}
+
+message AddWriteFileRequest {
+    // See AddProcessRequest.module.
+    string module = 1;
+    // See AddProcessRequest.symbol.
+    string symbol = 2;
+    optional uint32 destination = 3;  // path id
+    optional uint32 content = 4;  // string id
+    optional uint32 description = 5;  // string id; may be omitted
+    repeated uint32 tags = 6;  // string ids
+}
+
+// Ends the graph, and must be the last operation: BuildXL stops reading when it arrives, so anything written after it
+// is not processed. An emitter that exits without sending it fails the build, and one that exits before it has read the
+// response to it can fail the build too.
+message CompleteRequest {}
+
+message GraphOperationResponse {
+    uint64 operation_id = 1;
+    GraphOperationResponseStatus status = 2;
+    string error = 3;
+
+    // Version of this protocol that BuildXL speaks. Present on every response so an emitter can detect skew and
+    // report it itself rather than only seeing an operation rejected.
+    uint32 protocol_version = 4;
+
+    // The semi-stable hash of the pip this operation added: how BuildXL names the pip in its logs and filters. For
+    // diagnostics only, since nothing an emitter sends depends on it. Zero when the operation added no pip.
+    int64 semi_stable_hash = 5;
+}
+
+enum GraphOperationResponseStatus {
+    GRAPH_OPERATION_RESPONSE_STATUS_UNSPECIFIED = 0;
+    GRAPH_OPERATION_RESPONSE_STATUS_SUCCESS = 1;
+    GRAPH_OPERATION_RESPONSE_STATUS_INVALID_REQUEST = 2;
+    GRAPH_OPERATION_RESPONSE_STATUS_GRAPH_ERROR = 3;
+    GRAPH_OPERATION_RESPONSE_STATUS_VERSION_MISMATCH = 4;
+    // Nothing is wrong with this operation. An earlier one was rejected, so graph construction has already
+    // failed and BuildXL will discard the graph. Reported for every operation after the first rejection,
+    // including Complete, so an emitter can stop and exit on its own terms. The error text names the
+    // operation that actually failed.
+    GRAPH_OPERATION_RESPONSE_STATUS_PREVIOUS_OPERATION_REJECTED = 5;
+}

@@ -225,11 +225,24 @@ namespace BuildXL.Pips
             string description, 
             out FileArtifact fileArtifact)
         {
+            return TryCopyFile(source, destination, options, tags, description, out fileArtifact, out _);
+        }
+
+        /// <nodoc />
+        public bool TryCopyFile(
+            FileArtifact source,
+            AbsolutePath destination,
+            CopyFile.Options options,
+            string[] tags,
+            string description,
+            out FileArtifact fileArtifact,
+            out CopyFile pip)
+        {
             Contract.Requires(source.IsValid);
             Contract.Requires(destination.IsValid);
 
             fileArtifact = FileArtifact.CreateSourceFile(destination).CreateNextWrittenVersion();
-            var pip = new CopyFile(
+            pip = new CopyFile(
                 source,
                 fileArtifact,
                 ToStringIds(tags),
@@ -260,11 +273,25 @@ namespace BuildXL.Pips
             out FileArtifact fileArtifact,
             WriteFile.Options options = default)
         {
+            return TryWriteFile(destination, content, encoding, tags, description, out fileArtifact, out _, options);
+        }
+
+        /// <nodoc />
+        public bool TryWriteFile(
+            AbsolutePath destination,
+            PipData content,
+            WriteFileEncoding encoding,
+            string[] tags,
+            string description,
+            out FileArtifact fileArtifact,
+            out WriteFile pip,
+            WriteFile.Options options = default)
+        {
             Contract.Requires(destination.IsValid);
             Contract.Requires(content.IsValid);
 
             fileArtifact = FileArtifact.CreateSourceFile(destination).CreateNextWrittenVersion();
-            var pip = new WriteFile(
+            pip = new WriteFile(
                 fileArtifact,
                 content,
                 encoding,
@@ -298,6 +325,22 @@ namespace BuildXL.Pips
             out DirectoryArtifact sealedDirectory,
             bool scrub = false)
         {
+            return TrySealDirectory(directoryRoot, contents, outputDirectorycontents, kind, tags, description, patterns, out sealedDirectory, out _, scrub);
+        }
+
+        /// <nodoc />
+        public bool TrySealDirectory(
+            AbsolutePath directoryRoot,
+            SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> contents,
+            SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer> outputDirectorycontents,
+            SealDirectoryKind kind,
+            string[] tags,
+            string description,
+            string[] patterns,
+            out DirectoryArtifact sealedDirectory,
+            out SealDirectory pip,
+            bool scrub = false)
+        {
             Contract.Requires(directoryRoot.IsValid);
             Contract.Requires(contents.IsValid);
             Contract.Requires(outputDirectorycontents.IsValid);
@@ -307,7 +350,7 @@ namespace BuildXL.Pips
                 : new PipDataAtom[] { "'", directoryRoot, "' [", contents.Length.ToString(CultureInfo.InvariantCulture), " files - ", 
                     outputDirectorycontents.Length.ToString(CultureInfo.InvariantCulture), " output directories]" });
 
-            var pip = new SealDirectory(
+            pip = new SealDirectory(
                 directoryRoot,
                 contents,
                 outputDirectorycontents,
@@ -350,9 +393,25 @@ namespace BuildXL.Pips
             [MaybeNull] string[] tags,
             out DirectoryArtifact sharedOpaqueDirectory)
         {
+            return TryComposeSharedOpaqueDirectory(directoryRoot, contents, actionKind, contentFilter, description, tags, out sharedOpaqueDirectory, out _);
+        }
+
+        /// <nodoc/>
+        public bool TryComposeSharedOpaqueDirectory(
+            AbsolutePath directoryRoot,
+            IReadOnlyList<DirectoryArtifact> contents,
+            SealDirectoryCompositionActionKind actionKind,
+            SealDirectoryContentFilter? contentFilter,
+            [MaybeNull] string description,
+            [MaybeNull] string[] tags,
+            out DirectoryArtifact sharedOpaqueDirectory,
+            out SealDirectory pip)
+        {
             Contract.Requires(directoryRoot.IsValid);
             Contract.Requires(contents != null);
             Contract.Requires(actionKind.IsComposite());
+
+            pip = null;
 
             if (m_pipGraph == null)
             {
@@ -366,7 +425,7 @@ namespace BuildXL.Pips
 
             sharedOpaqueDirectory = m_pipGraph.ReserveSharedOpaqueDirectory(directoryRoot);
 
-            var pip = new CompositeSharedOpaqueSealDirectory(
+            var compositePip = new CompositeSharedOpaqueSealDirectory(
                     directoryRoot,
                     contents,
                     CreatePipProvenance(usage),
@@ -374,8 +433,10 @@ namespace BuildXL.Pips
                     contentFilter,
                     actionKind);
 
+            pip = compositePip;
+
             // The seal directory is ready to be initialized, since the directory artifact has been reserved already
-            pip.SetDirectoryArtifact(sharedOpaqueDirectory);
+            compositePip.SetDirectoryArtifact(sharedOpaqueDirectory);
 
             var valuePipId = GetValuePipId();
             if (!valuePipId.IsValid)
@@ -384,7 +445,7 @@ namespace BuildXL.Pips
                 return false;
             }
 
-            sharedOpaqueDirectory = m_pipGraph.AddSealDirectory(pip, valuePipId);
+            sharedOpaqueDirectory = m_pipGraph.AddSealDirectory(compositePip, valuePipId);
             if (!sharedOpaqueDirectory.IsValid)
             {
                 return false;

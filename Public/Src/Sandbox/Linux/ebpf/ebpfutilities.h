@@ -429,21 +429,25 @@ struct
     __uint(value_size, sizeof(struct vfsmount*)); 
     // Max entries set to a reasonably high number to accommodate many concurrent tasks
     // This maps has a rough size of 1MB. In theory we could use BPF_F_NO_PREALLOC to avoid preallocating memory,
-    // but considering this map is only used in older kernels and is a single instance, we can afford to preallocate 
+    // but considering this map is a single instance, we can afford to preallocate
     // to favor performance.
     __uint(max_entries, 1024 * 10);
 } follow_link_mount SEC(".maps");
 
-// Map used to temporarily hold whether a given path where readlink is called on is in the path cache
+struct readlink_context {
+    u64 pathname;
+    int dfd;
+    bool should_send_path;
+};
+
+// Readlink arguments and path-cache state, retained from syscall entry to exit.
 struct
 {
     __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(key_size, sizeof(u64)); // bpf_get_current_pid_tgid as key -> unique identifier of the task
-    __uint(value_size, sizeof(u8)); // whether the path was found in the cache or not
+    __type(key, u64); // bpf_get_current_pid_tgid identifies the calling thread
+    __type(value, struct readlink_context);
     // Max entries set to a reasonably high number to accommodate many concurrent tasks
-    // This maps has a rough size of 650KB. In theory we could use BPF_F_NO_PREALLOC to avoid preallocating memory,
-    // but considering this map is only used in older kernels and is a single instance, we can afford to preallocate 
-    // to favor performance.
+    // Preallocate the shared map to favor performance.
     __uint(max_entries, 1024 * 10);
 } should_send_readlink SEC(".maps");
 

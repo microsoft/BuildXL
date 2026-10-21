@@ -85,6 +85,8 @@ namespace BuildXL.Pips.Graph
                         UnixPaths.TmpDir,
                         UnixPaths.EtcOsRelease
                     }
+                    // WSL's /etc/resolv.conf points outside /etc; this is OS DNS configuration, not a build input.
+                    .Concat(If(OperatingSystemHelper.IsLinuxOS, "/mnt/wsl/resolv.conf"))
                     .Concat(IfMacOs(
                         MacPaths.UserKeyChainsDb,
                         MacPaths.UserKeyChains,

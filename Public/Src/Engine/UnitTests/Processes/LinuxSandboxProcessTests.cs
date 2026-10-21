@@ -65,6 +65,15 @@ namespace Test.BuildXL.Processes
             }
         }
 
+        [Fact]
+        public void LastThreadExitPreservesFileAccessAttribution()
+        {
+            var result = RunNativeTest("LastThreadExit");
+            AssertLogContains(GetAccessReportRegex(
+                ReportedFileOperation.CreateFile,
+                Path.Combine(result.rootDirectory, "after-leader-exit")));
+        }
+
         [FactIfSupported(requiresSymlinkPermission: true)]
         public void FullPathResolutionOnReports()
         {

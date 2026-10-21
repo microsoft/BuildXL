@@ -69,7 +69,8 @@ namespace Test.BuildXL.FrontEnd.Ninja
             bool includeSpecFile = true,
             IEnumerable<(string Key, string Value)> environment = null,
             IEnumerable<string> passthroughs = null,
-            IEnumerable<string> additionalOutputDirectories = null)
+            IEnumerable<string> additionalOutputDirectories = null,
+            string specFile = null)
         {
             var environmentDict = (environment == null && passthroughs == null) ? null : new Dictionary<string, DiscriminatingUnion<string, UnitValue>>();
 
@@ -96,8 +97,8 @@ namespace Test.BuildXL.FrontEnd.Ninja
             }
 
             return base.Build()
-                .Configuration(NinjaPrelude(targets: spec.Targets, includeProjectRoot: includeProjectRoot, includeSpecFile: includeSpecFile, environment: environmentDict, additionalOutputDirectories: additionalDirs))
-                .AddSpec(Path.Combine(SourceRoot, DefaultProjectRoot, DefaultSpecFileName), spec.Content)
+                .Configuration(NinjaPrelude(targets: spec.Targets, includeProjectRoot: includeProjectRoot, includeSpecFile: includeSpecFile, environment: environmentDict, additionalOutputDirectories: additionalDirs, specFile: specFile))
+                .AddSpec(Path.Combine(SourceRoot, specFile ?? DefaultSpecFileLocation), spec.Content)
                 .PersistSpecsAndGetConfiguration();
         }
 

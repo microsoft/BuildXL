@@ -1569,7 +1569,104 @@ int Start(sandbox_bpf *skel, char **argv) {
     return g_exit_code;
 }
 
+bool HasReadlinkSyscallTracepoints() {
+    const char *roots[] = {"/sys/kernel/tracing", "/sys/kernel/debug/tracing"};
+    const char *events[] = {"sys_enter_readlink", "sys_exit_readlink", "sys_enter_readlinkat", "sys_exit_readlinkat"};
+    for (const char *root : roots) {
+        bool all_available = true;
+        for (const char *event : events) {
+            std::string path = std::string(root) + "/events/syscalls/" + event + "/id";
+            // Unlike access(), fopen honors the runner's effective CAP_DAC_OVERRIDE.
+            FILE *file = fopen(path.c_str(), "r");
+            if (!file) {
+                all_available = false;
+                break;
+            }
+            fclose(file);
+        }
+        if (all_available) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int SetBtfBasedAutoLoad(struct sandbox_bpf *skel) {
+    struct btf *kernel_btf = btf__load_vmlinux_btf();
+    long error = libbpf_get_error(kernel_btf);
+    if (error) {
+        LogError("Failed to load kernel BTF for hook selection: %s\n", strerror(-error));
+        return -1;
+    }
+
+    bool use_sched_exit = false;
+    int id = btf__find_by_name_kind(kernel_btf, "btf_trace_sched_process_exit", BTF_KIND_TYPEDEF);
+    if (id > 0) {
+        const struct btf_type *type = btf__type_by_id(kernel_btf, btf__resolve_type(kernel_btf, id));
+        if (type && btf_is_ptr(type)) {
+            const struct btf_type *proto = btf__type_by_id(kernel_btf, type->type);
+            // Tracepoint prototypes include an initial void* context argument.
+            if (proto && btf_is_func_proto(proto) && btf_vlen(proto) == 3) {
+                const struct btf_type *group_dead_type = btf__type_by_id(
+                    kernel_btf, btf__resolve_type(kernel_btf, btf_params(proto)[2].type));
+                use_sched_exit = group_dead_type && btf_is_int(group_dead_type) &&
+                    (btf_int_encoding(group_dead_type) & BTF_INT_BOOL);
+            }
+        }
+    }
+
+    bool has_taskstats_exit = btf__find_by_name_kind(kernel_btf, "taskstats_exit", BTF_KIND_FUNC) > 0;
+    bool has_pick_link = btf__find_by_name_kind(kernel_btf, "pick_link", BTF_KIND_FUNC) > 0;
+    bool has_legacy_symlink_hooks =
+        btf__find_by_name_kind(kernel_btf, "step_into", BTF_KIND_FUNC) > 0 &&
+        btf__find_by_name_kind(kernel_btf, "security_inode_follow_link", BTF_KIND_FUNC) > 0;
+    bool has_do_readlinkat = btf__find_by_name_kind(kernel_btf, "do_readlinkat", BTF_KIND_FUNC) > 0;
+    bool use_readlink_tracepoints = HasReadlinkSyscallTracepoints();
+    btf__free(kernel_btf);
+    if (!use_sched_exit && !has_taskstats_exit) {
+        LogError("No supported process exit hook: sched_process_exit lacks group_dead and taskstats_exit is unavailable\n");
+        return -1;
+    }
+
+    if (!has_pick_link && !has_legacy_symlink_hooks) {
+        LogError("No supported symlink traversal hook: pick_link and its step_into/security_inode_follow_link fallback are unavailable\n");
+        return -1;
+    }
+
+    if (!use_readlink_tracepoints && !has_do_readlinkat) {
+        LogError("No supported readlink hook: syscall tracepoints and do_readlinkat BTF are unavailable\n");
+        return -1;
+    }
+
+    skel->rodata->use_legacy_symlink_hooks = !has_pick_link;
+
+    if (bpf_program__set_autoload(skel->progs.sched_process_exit, use_sched_exit) ||
+        bpf_program__set_autoload(skel->progs.taskstats_exit, !use_sched_exit) ||
+        bpf_program__set_autoload(skel->progs.pick_link_exit, has_pick_link) ||
+        bpf_program__set_autoload(skel->progs.step_into_entry, !has_pick_link) ||
+        bpf_program__set_autoload(skel->progs.security_inode_follow_link_exit, !has_pick_link) ||
+        bpf_map__set_autocreate(skel->maps.follow_link_mount, !has_pick_link) ||
+        bpf_program__set_autoload(skel->progs.readlink_enter_tracepoint, use_readlink_tracepoints) ||
+        bpf_program__set_autoload(skel->progs.readlink_exit_tracepoint, use_readlink_tracepoints) ||
+        bpf_program__set_autoload(skel->progs.readlinkat_enter_tracepoint, use_readlink_tracepoints) ||
+        bpf_program__set_autoload(skel->progs.readlinkat_exit_tracepoint, use_readlink_tracepoints) ||
+        bpf_program__set_autoload(skel->progs.do_readlink_entry, !use_readlink_tracepoints) ||
+        bpf_program__set_autoload(skel->progs.do_readlink_exit, !use_readlink_tracepoints)) {
+        LogError("Failed to select kernel-dependent BPF programs\n");
+        return -1;
+    }
+
+    g_bxl->LogDebug(getpid(), "Process exit hook: %s", use_sched_exit ? "sched_process_exit" : "taskstats_exit");
+    g_bxl->LogDebug(getpid(), "Symlink traversal hook: %s", has_pick_link ? "pick_link" : "step_into/security_inode_follow_link");
+    g_bxl->LogDebug(getpid(), "Readlink hook: %s", use_readlink_tracepoints ? "syscall tracepoints" : "do_readlinkat");
+    return 0;
+}
+
 int SetAutoLoad(struct sandbox_bpf *skel) {
+    if (SetBtfBasedAutoLoad(skel) != 0) {
+        return -1;
+    }
+
     // Get the Linux kernel major, minor, and patch version numbers.
     struct utsname uts;
     if (uname(&uts) < 0) {
@@ -1604,18 +1701,6 @@ int SetAutoLoad(struct sandbox_bpf *skel) {
         bpf_program__set_autoload(skel->progs.filename_mkdirat_exit, true);
         bpf_program__set_autoload(skel->progs.filename_rmdir_exit, true);
         bpf_program__set_autoload(skel->progs.filename_parentat_exit, true);
-    }
-
-    if (currentVersion < KERNEL_VERSION(6, 8, 0)) {
-        // Enable auto loading for programs that are used on older kernels
-        bpf_program__set_autoload(skel->progs.step_into_entry, true);
-        bpf_program__set_autoload(skel->progs.security_inode_follow_link_exit, true);
-    }
-    else {
-        // Enable auto loading for programs that are used on newer kernels
-        bpf_program__set_autoload(skel->progs.pick_link_exit, true);
-        // This map is not used in this case, disable its autoloading to avoid loading unnecessary maps
-        bpf_map__set_autocreate(skel->maps.follow_link_mount, false);
     }
 
     return 0;

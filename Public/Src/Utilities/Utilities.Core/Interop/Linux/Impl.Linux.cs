@@ -39,6 +39,7 @@ namespace BuildXL.Interop.Unix
         private const string ProcIoPath = "/io";
 
         private static long TicksPerSecond;
+        private static readonly Lazy<bool> s_hasProcessIoAccounting = new Lazy<bool>(() => HasProcessIoAccounting(ProcPath));
 
         /// <summary>
         /// glibc 2.34 consolidated libpthread into the libc shared object.
@@ -382,27 +383,57 @@ namespace BuildXL.Interop.Unix
         }
 
         /// <summary>
-        /// Gets resource consumption data for a specific process, throws if the underlying ProcFS structures are not present or malformed.
+        /// Detects kernel I/O accounting using the current process, which cannot disappear during the probe.
         /// </summary>
-        private static ProcessResourceUsage? CreateProcessResourceUsageForPid(int pid)
+        internal static bool HasProcessIoAccounting(string procPath)
         {
             try
             {
-                var firstLine = File.ReadAllLines($"{ProcPath}/{pid}/{ProcStatPath}").FirstOrDefault();
+                // Probe the current process so a sampled process exiting cannot disable I/O accounting globally.
+                File.ReadAllLines($"{procPath}/self/{ProcIoPath}");
+                return true;
+            }
+            catch (FileNotFoundException)
+            {
+                Trace.TraceWarning("Process I/O accounting is unavailable; I/O counters will be zero. CPU and memory sampling remain enabled.");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Gets resource consumption data, or null if required ProcFS data is unavailable.
+        /// Kernel I/O availability is cached unless overridden for tests.
+        /// </summary>
+        internal static ProcessResourceUsage? CreateProcessResourceUsageForPid(int pid, string procPath = ProcPath, bool? hasIoAccounting = null)
+        {
+            try
+            {
+                var firstLine = File.ReadAllLines($"{procPath}/{pid}/{ProcStatPath}").FirstOrDefault();
                 var splits = firstLine.Split(new[] { ' ' }).ToArray();
                 var utimeMs = ((ulong)TicksToTimeSpan(double.Parse(splits[13])).TotalMilliseconds);
                 var stimeMs = ((ulong)TicksToTimeSpan(double.Parse(splits[14])).TotalMilliseconds);
 
-                string[] lines = System.IO.File.ReadAllLines($"{ProcPath}/{pid}/{ProcIoPath}");
+                var statusLines = File.ReadAllLines($"{procPath}/{pid}/{ProcStatusPath}");
+                string workingSetSize = statusLines.FirstOrDefault(line => line.StartsWith("VmRSS:"));
+                string peakWorkingSetSize = statusLines.FirstOrDefault(line => line.StartsWith("VmHWM:"));
+                string name = statusLines.FirstOrDefault(line => line.StartsWith("Name:"));
+
+                string[] lines = Array.Empty<string>();
+                if (hasIoAccounting ?? s_hasProcessIoAccounting.Value)
+                {
+                    try
+                    {
+                        lines = File.ReadAllLines($"{procPath}/{pid}/{ProcIoPath}");
+                    }
+                    catch (FileNotFoundException)
+                    {
+                        // The process may have exited after its stat/status files were read.
+                    }
+                }
                 string readOps = lines.FirstOrDefault(line => line.StartsWith("syscr:"));
                 string bytesRead = lines.FirstOrDefault(line => line.StartsWith("read_bytes:"));
                 string writeOps = lines.FirstOrDefault(line => line.StartsWith("syscw:"));
                 string bytesWritten = lines.FirstOrDefault(line => line.StartsWith("write_bytes:"));
-
-                lines = System.IO.File.ReadAllLines($"{ProcPath}/{pid}/{ProcStatusPath}");
-                string workingSetSize = lines.FirstOrDefault(line => line.StartsWith("VmRSS:"));
-                string peakWorkingSetSize = lines.FirstOrDefault(line => line.StartsWith("VmHWM:"));
-                string name = lines.FirstOrDefault(line => line.StartsWith("Name:"));
 
                 return new ProcessResourceUsage()
                 {

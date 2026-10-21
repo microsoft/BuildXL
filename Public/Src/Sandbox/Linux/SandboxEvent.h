@@ -49,7 +49,8 @@ struct AccessReport {
     /** Access check result for provided path. */
     AccessCheckResult access_check_result;
 
-    AccessReport() : file_operation(buildxl::linux::FileOperation::kMax), fd(-1), access_check_result(AccessCheckResult::Invalid()) {}
+    AccessReport() : file_operation(buildxl::linux::FileOperation::kMax), fd(-1),
+        access_check_result(RequestedAccess::None, ResultAction::Allow, ReportLevel::Ignore) {}
 
     // Copy Constructor
     AccessReport(const AccessReport& other) :

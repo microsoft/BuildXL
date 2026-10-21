@@ -26,7 +26,19 @@ config({
 Here, the directory pointed by `root` is assumed to have a `build.ninja` file with the specification.
 If this is not the case, a `specFile` property (commented out in the example above) is available, where one can point to the `.ninja` file that is the entry point for the specification.
 
+`root` is the working directory for graph construction and build commands.
+Paths in the Ninja graph are resolved relative to `root`, even when `specFile`
+is stored in a build-output subdirectory.
+
 The full set of options to configure the `Ninja` resolver can be found [here](../../../Public/Sdk/Public/Prelude/Prelude.Configuration.Resolvers.dsc), defined under `interface NinjaResolver`.
+
+On Linux, commands run through `/bin/sh -c`, matching Ninja's shell semantics,
+including redirection, pipelines, and quoting around nested shell invocations.
+When generating Ninja from Make with Kati, also supply Make's exported variables
+through the resolver's `environment` setting. Multi-output generators must declare
+all their outputs in the Ninja graph (for example, with Kati's
+`.KATI_IMPLICIT_OUTPUTS`); do not give each generated file a separate placeholder
+recipe that claims ownership of the same files.
 
 ## Building with BuildXL
 After [installing BuildXL](../../Wiki/Installation.md), one can run the project pointing to the `config.dsc` configuration file: `bxl /c:config.dsc`. 

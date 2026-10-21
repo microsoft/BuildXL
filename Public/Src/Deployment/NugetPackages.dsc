@@ -142,7 +142,7 @@ namespace NugetPackages {
         filterFiles: [a`DetoursServices.pdb`, a`BuildXLAria.pdb`, a`BuildXLNatives.pdb`]
     });
 
-    const osxX64 = pack({
+    const osxX64 = Environment.getFlag("[Sdk.BuildXL]linuxOnly") ? undefined : pack({
         id: `${packageNamePrefix}.osx-x64`,
         deployment: BuildXL.withQualifier({
             targetFramework: defaultTargetFramework,

@@ -29,6 +29,54 @@ namespace Test.BuildXL.Processes
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
         }
 
+        [Theory]
+        [InlineData(false, 0)]
+        [InlineData(true, 143)]
+        public async Task ChildExitReportsDrainBeforeCompletion(bool terminateWithSignal, int expectedExitCode)
+        {
+            string scriptPath = Path.Combine(TemporaryDirectory, "child-exit.sh");
+            string childCommand = terminateWithSignal ? "kill -TERM $$" : "exit 0";
+            File.WriteAllLines(
+                scriptPath,
+                [
+                    "#!/bin/bash",
+                    $"/bin/bash -c '{childCommand}' &",
+                    "wait $!",
+                    "exit $?",
+                ]);
+
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+            };
+
+            var info = new SandboxedProcessInfo(
+                Context.PathTable,
+                new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                "/bin/bash",
+                fileAccessManifest,
+                disableConHostSharing: false,
+                loggingContext: LoggingContext,
+                useGentleKill: true)
+            {
+                Arguments = scriptPath,
+                WorkingDirectory = TemporaryDirectory,
+                PipSemiStableHash = fileAccessManifest.PipId,
+                PipDescription = "EBPF child exit reporting test",
+                SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
+            };
+
+            using var process = await SandboxedProcessFactory.StartAsync(info, forceSandboxing: true);
+            var result = await process.GetResultAsync().WithTimeoutAsync(TimeSpan.FromSeconds(10));
+
+            AssertExitCode(result, expectedExitCode);
+            XAssert.IsFalse(result.Killed);
+            XAssert.IsTrue(result.Processes is { Count: >= 2 }, "Expected the root process and its child to be tracked.");
+        }
+
         [Fact]
         public async Task CancellationWithActiveChildrenCompletes()
         {

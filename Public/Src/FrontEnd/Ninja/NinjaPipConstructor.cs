@@ -231,7 +231,18 @@ namespace BuildXL.FrontEnd.Ninja
 
         private bool TryConfigureProcessBuilder(ProcessBuilder processBuilder, NinjaNode node, QualifierId qualifierId)
         {
-            SeparateExecutableFromCommands(node.Command, out string executable, out string args);
+            string executable;
+            string args;
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                // Ninja commands are shell command lines, not argv strings.
+                executable = "/bin/sh";
+                args = node.Command;
+            }
+            else
+            {
+                SeparateExecutableFromCommands(node.Command, out executable, out args);
+            }
 
             if (!TryFindExecutablePath(executable, out AbsolutePath exePath))
             {
@@ -246,8 +257,14 @@ namespace BuildXL.FrontEnd.Ninja
             using (var pipDataBuilderWrapper = m_context.GetPipDataBuilder())
             {
                 var pipDataBuilder = pipDataBuilderWrapper.Instance;
+                if (OperatingSystemHelper.IsLinuxOS)
+                {
+                    pipDataBuilder.Add("-c");
+                }
                 pipDataBuilder.Add(args);
-                processBuilder.ArgumentsBuilder.Add(pipDataBuilder.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping));
+                processBuilder.ArgumentsBuilder.Add(pipDataBuilder.ToPipData(
+                    OperatingSystemHelper.IsLinuxOS ? " " : string.Empty,
+                    OperatingSystemHelper.IsLinuxOS ? PipDataFragmentEscaping.CRuntimeArgumentRules : PipDataFragmentEscaping.NoEscaping));
             }
 
 
@@ -277,9 +294,7 @@ namespace BuildXL.FrontEnd.Ninja
             processBuilder.RewritePolicy = RewritePolicy.DefaultSafe;
             processBuilder.EnableTempDirectory();
 
-            // Working directory - the directory containing the ninja spec file 
-            // Ninja generators may express paths relative to this
-            processBuilder.WorkingDirectory = DirectoryArtifact.CreateWithZeroPartialSealId(m_specPath.GetParent(m_context.PathTable));
+            processBuilder.WorkingDirectory = DirectoryArtifact.CreateWithZeroPartialSealId(m_projectRoot);
 
             // Untrack directories
             UntrackFilesAndDirectories(processBuilder.WorkingDirectory, processBuilder);

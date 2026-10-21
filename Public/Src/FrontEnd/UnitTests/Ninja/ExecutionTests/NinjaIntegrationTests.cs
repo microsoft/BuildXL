@@ -15,6 +15,7 @@ using Xunit;
 using BuildXL.Engine;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
+using Test.BuildXL.FrontEnd.Ninja.Infrastructure;
 
 namespace Test.BuildXL.FrontEnd.Ninja
 {
@@ -39,6 +40,34 @@ namespace Test.BuildXL.FrontEnd.Ninja
             var config = BuildAndGetConfiguration(CreateHelloWorldProject(OutputFileName));
             var engineResult = RunEngineWithConfig(config);
             Assert.True(engineResult.IsSuccess);
+        }
+
+        [Fact]
+        public void SpecFileCanBeInOutputSubdirectory()
+        {
+            var config = BuildAndGetConfiguration(CreateWriteReadProject("first.txt", "second.txt"),
+                specFile: $"{DefaultProjectRoot}/generated/build.ninja");
+
+            var engineResult = RunEngineWithConfig(config);
+
+            Assert.True(engineResult.IsSuccess);
+            Assert.True(File.Exists(Path.Combine(SourceRoot, DefaultProjectRoot, "second.txt")));
+            Assert.False(File.Exists(Path.Combine(SourceRoot, DefaultProjectRoot, "generated", "second.txt")));
+        }
+
+        [TheoryIfSupported(requiresLinuxBasedOperatingSystem: true)]
+        [InlineData("printf '%s' 'hello world' > $out", "hello world")]
+        [InlineData("printf '%s' `printf 'hello world'` | tr -d ' ' > $out", "helloworld")]
+        [InlineData("/bin/bash -c \"printf '%s' \\`printf 'hello world'\\` > $out\"", "helloworld")]
+        public void LinuxCommandsUseNinjaShellSemantics(string command, string expected)
+        {
+            var spec = new NinjaSpec($"rule r\n  command = {command}\nbuild {OutputFileName}: r\n", new[] { OutputFileName });
+            var config = BuildAndGetConfiguration(spec);
+            var engineResult = RunEngineWithConfig(config);
+
+            Assert.True(engineResult.IsSuccess);
+            var actual = File.ReadAllText(Path.Combine(SourceRoot, DefaultProjectRoot, OutputFileName));
+            Assert.Equal(expected, actual);
         }
 
         [Fact]

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Linq;
 using BuildXL.Utilities.Configuration.Resolvers;
 using BuildXL.Utilities.Configuration.Resolvers.Mutable;
 using BuildXL.Utilities.Core;
@@ -29,7 +30,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
             KeepProjectGraphFile = template.KeepProjectGraphFile;
             SpecFile = pathRemapper.Remap(template.SpecFile);
             Environment = template.Environment;
-            AdditionalOutputDirectories = template.AdditionalOutputDirectories;
+            AdditionalOutputDirectories = template.AdditionalOutputDirectories?.Select(directory =>
+                directory.GetValue() is AbsolutePath absolutePath
+                    ? new DiscriminatingUnion<AbsolutePath, RelativePath>(pathRemapper.Remap(absolutePath))
+                    : new DiscriminatingUnion<AbsolutePath, RelativePath>(pathRemapper.Remap((RelativePath)directory.GetValue())))
+                .ToList();
             EnableProjectGraphVerboseLogging = template.EnableProjectGraphVerboseLogging;
         }
 

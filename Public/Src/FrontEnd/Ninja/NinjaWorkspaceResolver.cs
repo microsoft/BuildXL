@@ -179,7 +179,7 @@ namespace BuildXL.FrontEnd.Ninja
             var serializer = JsonSerializer.Create(GraphSerializationSettings.Settings);
             
             // Add custom deserializer for converting string arrays to AbsolutePath ReadOnlySets
-            serializer.Converters.Add(new RootAwareAbsolutePathConverter(Context.PathTable, SpecFile.GetParent(Context.PathTable)));
+            serializer.Converters.Add(new RootAwareAbsolutePathConverter(Context.PathTable, ProjectRoot));
             serializer.Converters.Add(new ToReadOnlySetJsonConverter<AbsolutePath>());
             
             var outputFileString = outputFile.ToString(Context.PathTable);
@@ -243,7 +243,7 @@ namespace BuildXL.FrontEnd.Ninja
                 buildStorageDirectory: outputDirectory.ToString(Context.PathTable),
                 fileAccessManifest: FrontEndUtilities.GenerateToolFileAccessManifest(Context, m_pathToTool.GetParent(Context.PathTable)),
                 arguments: I($@"""{argumentsFile.ToString(Context.PathTable)}"""),
-                workingDirectory: SpecFile.GetParent(Context.PathTable).ToString(Context.PathTable),
+                workingDirectory: ProjectRoot.ToString(Context.PathTable),
                 description: "Ninja graph builder",
                 RetrieveBuildParameters(),
                 onResult: cleanUpOnResult,
@@ -256,7 +256,7 @@ namespace BuildXL.FrontEnd.Ninja
             var arguments = new NinjaGraphToolArguments()
                             {
                                 BuildFileName = SpecFile.ToString(Context.PathTable),
-                                ProjectRoot = SpecFile.GetParent(Context.PathTable).ToString(Context.PathTable),
+                                ProjectRoot = ProjectRoot.ToString(Context.PathTable),
                                 OutputFile = outputFile.ToString(Context.PathTable),
                                 Targets = m_targets
                             };

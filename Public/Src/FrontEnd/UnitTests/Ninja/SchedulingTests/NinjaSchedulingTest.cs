@@ -52,6 +52,31 @@ namespace Test.BuildXL.FrontEnd.Ninja.SchedulingTests
         }
 
         [Fact]
+        public void AdditionalOutputDirectoriesAreRemapped()
+        {
+            var oldPaths = new PathTable();
+            var newPaths = new PathTable();
+            AbsolutePath.Create(newPaths, Path.GetFullPath("unrelated"));
+            var absolute = Path.GetFullPath("generated");
+            var relative = Path.Combine("extra", "generated");
+            var settings = new NinjaResolverSettings
+            {
+                AdditionalOutputDirectories = new[]
+                {
+                    new DiscriminatingUnion<AbsolutePath, RelativePath>(AbsolutePath.Create(oldPaths, absolute)),
+                    new DiscriminatingUnion<AbsolutePath, RelativePath>(RelativePath.Create(oldPaths.StringTable, relative)),
+                },
+            };
+
+            var remapped = new NinjaResolverSettings(settings, new PathRemapper(oldPaths, newPaths));
+
+            XAssert.AreEqual(AbsolutePath.Create(newPaths, absolute),
+                Assert.IsType<AbsolutePath>(remapped.AdditionalOutputDirectories[0].GetValue()));
+            XAssert.AreEqual(RelativePath.Create(newPaths.StringTable, relative),
+                Assert.IsType<RelativePath>(remapped.AdditionalOutputDirectories[1].GetValue()));
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void CorrectSeparationOfQuotedExecutable()
         {
             var quotedBogus = $@"""{BogusExecutable}""";
@@ -64,7 +89,7 @@ namespace Test.BuildXL.FrontEnd.Ninja.SchedulingTests
             XAssert.AreEqual(options, process.Arguments.ToString(PathTable));
         }
 
-        [Fact]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void CorrectSeparationOfExecutable()
         {
             var options = "--great --options";
@@ -76,7 +101,7 @@ namespace Test.BuildXL.FrontEnd.Ninja.SchedulingTests
             XAssert.AreEqual(options, process.Arguments.ToString(PathTable));
         }
 
-        [Theory]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [InlineData("/SomeArg /ZI", "/SomeArg /Z7 ")]
         [InlineData("/SomeArg /Zi", "/SomeArg /Z7 ")]
         [InlineData("/SomeArg /Zi /AnotherArg", "/SomeArg /Z7 /AnotherArg")]

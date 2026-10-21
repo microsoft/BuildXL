@@ -2,7 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include <errno.h>
+#include <fstream>
 #include <iostream>
+#include <pthread.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include "syscalltests.hpp"
@@ -133,6 +135,41 @@ int ReadLinkOnDirectoryIsRead()
 
     // We should never reach this point because readlink should fail with EINVAL
     return EXIT_FAILURE;
+}
+
+int LastThreadExit()
+{
+    pthread_t worker;
+    int error = pthread_create(&worker, nullptr, [](void *) -> void * {
+        std::string statPath = "/proc/self/task/" + std::to_string(getpid()) + "/stat";
+        for (int attempt = 0; attempt < 1000; ++attempt)
+        {
+            std::ifstream stat(statPath);
+            std::string line;
+            std::getline(stat, line);
+            auto nameEnd = line.rfind(')');
+            if (nameEnd != std::string::npos && nameEnd + 2 < line.size() && line[nameEnd + 2] == 'Z')
+            {
+                // This access must still be attributed after the group leader has exited.
+                int fd = open("after-leader-exit", O_CREAT | O_WRONLY, 0600);
+                if (fd == -1 || close(fd) == -1)
+                {
+                    _exit(EXIT_FAILURE);
+                }
+                return nullptr;
+            }
+            usleep(10000);
+        }
+        std::cerr << "Timed out waiting for the group leader to exit" << std::endl;
+        _exit(EXIT_FAILURE);
+    }, nullptr);
+    if (error != 0)
+    {
+        std::cerr << "pthread_create failed with error " << error << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    pthread_exit(nullptr);
 }
 
 int main(int argc, char **argv)
@@ -281,6 +318,7 @@ int main(int argc, char **argv)
     IF_COMMAND(OpenAtHandlesInvalidFd);
     IF_COMMAND(AccessLongPath);
     IF_COMMAND(ReadLinkOnDirectoryIsRead);
+    IF_COMMAND(LastThreadExit);
 
     // Invalid command
     exit(-1);

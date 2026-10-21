@@ -169,7 +169,11 @@ config({
                 { id: "JsonDiffPatch.Net", version: "2.1.0" },
 
                 // BuildXL macOS native interop library.
-                { id: "Microsoft.BuildXL.Interop.Runtime.osx-x64", version: "0.1.0-20260914.6" },
+                {
+                    id: "Microsoft.BuildXL.Interop.Runtime.osx-x64",
+                    version: "0.1.0-20260914.6",
+                    osSkip: Environment.getFlag("[Sdk.BuildXL]linuxOnly") ? [ "unix" ] : [],
+                },
 
                 // Event hubs
                 { id: "Microsoft.Azure.Amqp", version: "2.6.1" },

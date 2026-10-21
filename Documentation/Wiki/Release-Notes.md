@@ -2,6 +2,15 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20261016.6 (Release [32319011](https://dev.azure.com/mseng/Domino/_build/results?buildId=32319011&view=results))
+- [Performance] Speed up graph filtering. **Compatibility:** `pipid` filters now match only Process pips.
+- [Scheduler] Re-enable supported pip filters with `/unsafe_EnableDynamicGraph`; reject unsupported pip features only after filtering.
+- [EBPF] Add support for Linux 7 kernel.
+- [Download] Add `requiredFiles` to expose extracted files as static outputs.
+- [MSBuild] Honor the selected MSBuild toolset's runtime dependencies when building .NET graphs.
+- [CloudTest SDK] Remove unnecessary input dependencies from job submission pips.
+- Various bug fixes and improvements.
+
 # 0.1.0-20261009.1 (Release [32234966](https://dev.azure.com/mseng/Domino/_build/results?buildId=32234966&view=results))
 - [Performance] Speed up `FileContentTable` loading and saving.
 - [QTest] Expose `isSharedTestRun` for ADO test runs shared across a machine's test targets.

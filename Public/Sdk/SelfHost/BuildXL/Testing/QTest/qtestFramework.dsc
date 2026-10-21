@@ -137,12 +137,10 @@ function runTest(args : TestRunArguments) : File[] {
         additionalOptions = `/testcaseFilter:"${filterArgs.join("&")}"`;
     }
 
-    // We use the log directory only when BuildXL is run in CloudBuild.
-    // Although BuildXL can create a junction (or directory symlink) to the log directory, but
-    // because the junction's target changes in every build, incremental scheduling can unnecesarily
-    // makes the pips dirty. However, if we don't use a stable junction, then we won't get any cache
-    // hit because the log directory can change in every build.
-    const qtestLogDir = Qtest.isRunningOnCloudBuild()
+    // Collect logs under the build log directory in CI. Keep local outputs stable to avoid
+    // incremental scheduling and cache effects from the log junction changing between builds.
+    const useBuildLogDirectory = Qtest.isRunningOnCloudBuild() || Qtest.isRunningOnAzureDevOps();
+    const qtestLogDir = useBuildLogDirectory
         ? d`${Context.getMount("LogsDirectory").path}/QTest/${args.testDeployment.primaryFile.name}`
         : d`${Context.getNewOutputDirectory("QTestLog")}`;
 
@@ -192,7 +190,7 @@ function runTest(args : TestRunArguments) : File[] {
         }),
         qTestDotNetFramework: getQTestDotNetFramework(),
         qTestPlatform: Qtest.QTestPlatform.x64,
-        qTestRetryOnFailure: true,
+        qTestRetryOnFailureMode: "Failed",
         qTestAttemptCount: 1,
         qTestIgnoreQTestSkip: true,
         qTestAdditionalOptions: additionalOptions,
@@ -225,7 +223,11 @@ function runTest(args : TestRunArguments) : File[] {
         qTestDisableCodeCoverage : args.disableCodeCoverage,
         tools: args.tools,
         qTestPassThroughEnvironmentVariables: passThroughVars,
-        qTestUntrackedScopes: args.unsafeTestRunArguments && args.unsafeTestRunArguments.untrackedScopes,
+        // Untracking the mount root also untracks its timestamped redirection target.
+        qTestUntrackedScopes: [
+            ...(args.unsafeTestRunArguments && args.unsafeTestRunArguments.untrackedScopes || []),
+            ...addIf(useBuildLogDirectory, d`${Context.getMount("LogsDirectory").path}`),
+        ],
         qTestUntrackedPaths:  (
             args.unsafeTestRunArguments && 
             args.unsafeTestRunArguments.untrackedPaths && 

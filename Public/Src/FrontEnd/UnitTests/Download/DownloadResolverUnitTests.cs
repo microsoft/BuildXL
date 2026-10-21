@@ -202,7 +202,7 @@ namespace Test.BuildXL.FrontEnd.Download
         [InlineData("payload")]
         public void DeclaredRequiredFilesAreRequiredOutputsAndCanBeConsumed(string extractedValueName)
         {
-            var data = new DownloadFileSettings(GetSampleData(TestServer + "map-test.zip", DownloadArchiveType.Zip))
+            var data = new DownloadFileSettings(GetSampleData(TestServer + "map-test.zip", DownloadArchiveType.Zip), new PathRemapper())
             {
                 ExtractedValueName = extractedValueName,
                 RequiredFiles = new[]
@@ -262,7 +262,7 @@ const copies = all.map((file, index) => Transformer.copyFile(file, p`${{objectRo
         public void InvalidExtractedFileSettingsAreRejected(DownloadArchiveType archiveType, bool nameCollision, bool duplicatePath)
         {
             var world = RelativePath.Create(FrontEndContext.StringTable, "world");
-            var data = new DownloadFileSettings(GetSampleData(TestServer + "file.zip", archiveType))
+            var data = new DownloadFileSettings(GetSampleData(TestServer + "file.zip", archiveType), new PathRemapper())
             {
                 DownloadedValueName = nameCollision ? "payloadFiles" : null,
                 ExtractedValueName = "payload",
@@ -277,7 +277,7 @@ const copies = all.map((file, index) => Transformer.copyFile(file, p`${{objectRo
         [Fact]
         public void MissingDeclaredExtractedFileFailsExecution()
         {
-            var data = new DownloadFileSettings(GetSampleData(TestServer + "file.zip", DownloadArchiveType.Zip))
+            var data = new DownloadFileSettings(GetSampleData(TestServer + "file.zip", DownloadArchiveType.Zip), new PathRemapper())
             {
                 RequiredFiles = new[] { RelativePath.Create(FrontEndContext.StringTable, "missing") },
             };
@@ -290,10 +290,12 @@ const copies = all.map((file, index) => Transformer.copyFile(file, p`${{objectRo
             AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessError);
         }
 
-        [Fact]
-        public void RequiredFileMapConsumersSurviveGraphReload()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void RequiredFileMapConsumersSurviveGraphReload(bool partialReload)
         {
-            var data = new DownloadFileSettings(GetSampleData(TestServer + "file.zip", DownloadArchiveType.Zip))
+            var data = new DownloadFileSettings(GetSampleData(TestServer + "file.zip", DownloadArchiveType.Zip), new PathRemapper())
             {
                 RequiredFiles = new[] { RelativePath.Create(FrontEndContext.StringTable, "multi/universe") },
             };
@@ -307,6 +309,7 @@ const copy = Transformer.copyFile(file, p`${Context.getMount('ObjectRoot').path}
             configuration.Cache.CacheGraph = true;
             configuration.Cache.AllowFetchingCachedGraphFromContentCache = true;
             configuration.Cache.Incremental = true;
+            configuration.FrontEnd.ReloadPartialEngineStateWhenPossible = true;
             var testCache = new TestCache();
             string objectRoot = configuration.Layout.ObjectDirectory.ToString(FrontEndContext.PathTable);
 
@@ -315,9 +318,15 @@ const copy = Transformer.copyFile(file, p`${Context.getMount('ObjectRoot').path}
             AssertInformationalEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues);
             AssertInformationalEventLogged(global::BuildXL.Engine.Tracing.LogEventId.EndSerializingPipGraph);
 
+            if (partialReload)
+            {
+                File.AppendAllText(Path.Combine(SourceRoot, "test.dsc"), "\n");
+            }
+
             result = StartServerAndRunTest(() => RunEngine(configuration, testCache));
             Assert.True(result.IsSuccess);
-            AssertInformationalEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues, count: 0);
+            AssertInformationalEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues, count: partialReload ? 1 : 0);
+            AssertInformationalEventLogged(global::BuildXL.Engine.Tracing.LogEventId.StartDeserializingEngineState, count: partialReload ? 1 : 0);
             AssertInformationalEventLogged(global::BuildXL.Engine.Tracing.LogEventId.EndDeserializingEngineState);
             var extractPip = result.EngineState.RetrieveProcesses()
                 .Single(process => process.Tags.Any(tag => tag.ToString(result.EngineState.StringTable) == "extract"));
@@ -335,7 +344,7 @@ const copy = Transformer.copyFile(file, p`${Context.getMount('ObjectRoot').path}
         [InlineData(true)]
         public void EmptyRequiredFilesPreserveDirectoryOnlyExtraction(bool emptyList)
         {
-            var data = new DownloadFileSettings(GetSampleData(TestServer + "file.zip", DownloadArchiveType.Zip))
+            var data = new DownloadFileSettings(GetSampleData(TestServer + "file.zip", DownloadArchiveType.Zip), new PathRemapper())
             {
                 RequiredFiles = emptyList ? new RelativePath[0] : null,
             };

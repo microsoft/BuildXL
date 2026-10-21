@@ -26,7 +26,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Downloads = new List<IDownloadFileSettings>(template.Downloads.Count);
             foreach (var download in template.Downloads)
             {
-                Downloads.Add(new DownloadFileSettings(download));
+                Downloads.Add(new DownloadFileSettings(download, pathRemapper));
             }
         }
     

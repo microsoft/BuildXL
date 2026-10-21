@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration.Mutable
@@ -15,8 +17,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
         }
 
         /// <nodoc />
-        public DownloadFileSettings(IDownloadFileSettings template)
+        public DownloadFileSettings(IDownloadFileSettings template, PathRemapper pathRemapper)
         {
+            Contract.Assume(template != null);
+            Contract.Assume(pathRemapper != null);
+
             ModuleName = template.ModuleName;
             Url = template.Url;
             FileName = template.FileName;
@@ -24,7 +29,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Hash = template.Hash;
             DownloadedValueName = template.DownloadedValueName;
             ExtractedValueName = template.ExtractedValueName;
-            RequiredFiles = template.RequiredFiles == null ? null : new List<RelativePath>(template.RequiredFiles);
+            RequiredFiles = template.RequiredFiles?.Select(pathRemapper.Remap).ToList();
         }
 
         /// <inheritdoc />

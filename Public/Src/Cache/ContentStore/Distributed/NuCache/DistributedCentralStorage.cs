@@ -85,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var result = await base.TryGetAndPutFileAsync(context, storageId, targetFilePath, isImmutable);
 
-            if (result.TryGetValue(out var contentHashWithSize))
+            if (result.TryGetValue(out var contentHashWithSize) && !contentHashWithSize.Hash.IsEmptyHash())
             {
                 // Register that the machine now has the content
                 await RegisterContent(context, contentHashWithSize).ThrowIfFailure();
@@ -176,7 +176,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected override async Task<PutResult> PutFileAsync(OperationContext context, AbsolutePath file, ContentHash? hash, bool isImmutable = false, bool isUpload = false)
         {
             var putResult = await base.PutFileAsync(context, file, hash, isImmutable);
-            if (putResult.Succeeded)
+            if (putResult.Succeeded && !putResult.ContentHash.IsEmptyHash())
             {
                 var contentInfo = new ContentHashWithSize(putResult.ContentHash, putResult.ContentSize);
                 await RegisterContent(context, contentInfo).ThrowIfFailure();

@@ -127,7 +127,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var fileRealizationMode = isImmutable ? FileRealizationMode.Any : FileRealizationMode.Copy;
                 BoolResult? externalCacheResult = null;
 
-                if (PrivateCas.Contains(hash.Value) ||
+                // Empty checkpoint files can be materialized locally without querying a service that may itself be restoring.
+                if (hash.Value.IsEmptyHash() ||
+                    PrivateCas.Contains(hash.Value) ||
                     (externalCacheResult = await TryRetrieveFromExternalCacheAsync(context, hash.Value)))
                 {
                     // First attempt to place file from content store

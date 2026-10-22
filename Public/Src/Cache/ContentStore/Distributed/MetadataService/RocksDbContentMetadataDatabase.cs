@@ -1282,7 +1282,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
             try
             {
-                return long.Parse(store.GetProperty(propertyName, columnFamilyName));
+                return long.Parse(store.GetProperty(propertyName, columnFamilyName)
+                    ?? throw new InvalidOperationException($"RocksDB property '{propertyName}' is unavailable for column '{columnFamilyName}'."));
             }
             catch (Exception exception)
             {

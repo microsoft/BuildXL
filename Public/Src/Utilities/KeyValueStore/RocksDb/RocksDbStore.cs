@@ -1012,12 +1012,14 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             return new RocksDbStore(this);
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Returns the property value, or null if the property is unavailable.
+        /// </summary>
         /// <remarks>
         /// See https://github.com/facebook/rocksdb/blob/master/include/rocksdb/db.h#L547 for a list of all the
         /// valid properties.
         /// </remarks>
-        public string GetProperty(string propertyName, string? columnFamilyName = null)
+        public string? GetProperty(string propertyName, string? columnFamilyName = null)
         {
             return m_store.GetProperty(propertyName, GetColumnFamilyInfo(columnFamilyName).Handle);
         }

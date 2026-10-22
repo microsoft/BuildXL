@@ -38,7 +38,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         {
             try
             {
-                return long.Parse(db.GetProperty(propertyName, cfh));
+                return long.Parse(db.GetProperty(propertyName, cfh)
+                    ?? throw new InvalidOperationException($"RocksDB property '{propertyName}' is unavailable for column '{columnFamilyName}'."));
             }
             catch (Exception exception)
             {

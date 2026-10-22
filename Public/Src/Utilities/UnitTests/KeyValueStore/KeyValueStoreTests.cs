@@ -59,6 +59,19 @@ namespace Test.BuildXL.Engine.Cache
             }
         }
 
+        [Theory]
+        [InlineData("rocksdb.estimate-live-data-size", true)]
+        [InlineData("rocksdb.unknown-property", false)]
+        public void GetPropertyHandlesUnavailableProperties(string propertyName, bool isAvailable)
+        {
+            using var accessor = KeyValueStoreAccessor.Open(StoreDirectory).Result;
+            XAssert.IsTrue(accessor.Use(store =>
+            {
+                string? value = store.GetProperty(propertyName);
+                Assert.Equal(isAvailable, value != null);
+            }).Succeeded);
+        }
+
         [Fact]
         public void PutMultipleKeys()
         {

@@ -23,7 +23,7 @@ parameters:
   - name: buildsPerCodebase
     displayName: "Maximum builds per codebase"
     type: number
-    default: 500
+    default: 1000
   - name: underpredictionMultiplier
     displayName: "Loss multiplier when a prediction is below actual usage"
     type: number
@@ -31,14 +31,15 @@ parameters:
   - name: maxEstimators
     displayName: "Maximum boosting trees for every model"
     type: number
-    default: 800
+    default: 100
 
 trigger: none
 pr: none
 
 schedules:
-  - cron: "0 0 * * 6"
-    displayName: "Weekly Pip Usage model training"
+  # Thursday and Friday at 06:00 UTC.
+  - cron: "0 6 * * 4,5"
+    displayName: "Twice-weekly Pip Usage model training"
     branches:
       include:
         - main

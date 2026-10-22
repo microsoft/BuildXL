@@ -2,7 +2,9 @@
 
 The Pip Usage training pipeline trains and validates the models, packages them as `BuildXL.ML.Models`, and optionally publishes the NuGet package consumed by the BuildXL scheduler.
 
-The pipeline runs every Saturday at 00:00 UTC. Scheduled runs leave the `trainingEndDate` placeholder as `2026-MM-DD` to train on the preceding seven complete UTC days, use 10 tuning trials per target, retain up to 500 time-distributed builds per codebase, and publish the validated package. Manual runs can replace the placeholder with a UTC date in `YYYY-MM-DD` format for backfills.
+The pipeline trains every Thursday and Friday at 06:00 UTC.
+
+Scheduled runs leave the `trainingEndDate` placeholder as `2026-MM-DD` to train on the preceding seven complete UTC days, use 10 tuning trials per target with a maximum of 100 trees per trial, retain up to 1,000 time-distributed builds per codebase, and publish the validated package. Manual runs can override the tree cap and replace the date placeholder with a UTC date in `YYYY-MM-DD` format for backfills.
 
 See [Pip Usage ML](../../Documentation/Wiki/Advanced-Features/Pip-Usage-ML.md) for the scheduler runtime contract, enablement modes, telemetry, and package update procedure.
 

@@ -4,6 +4,8 @@
 import * as XUnitV3 from "Sdk.Managed.Testing.XUnitV3";
 
 namespace Plugin {
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
+
     @@public
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Plugin",

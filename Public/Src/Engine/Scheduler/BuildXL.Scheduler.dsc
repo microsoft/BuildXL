@@ -60,6 +60,7 @@ namespace Scheduler {
             importFrom("BuildXL.Utilities").Ipc.dll,
             importFrom("BuildXL.Utilities").Ipc.Providers.dll,
             importFrom("BuildXL.Utilities").Plugin.dll,
+            importFrom("BuildXL.Utilities").PluginGrpc.dll,
             importFrom("BuildXL.Utilities").KeyValueStore.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Native.Extensions.dll,

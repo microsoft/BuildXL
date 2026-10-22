@@ -2222,7 +2222,9 @@ namespace BuildXL.Scheduler
                         detoursListener: detoursEventListener,
                         reparsePointResolver: environment.ReparsePointAccessResolver,
                         staleOutputsUnderSharedOpaqueDirectories: staleDynamicOutputs,
-                        pluginManager: environment.PluginManager,
+                        plugin: environment.PluginManager == null
+                            ? null
+                            : new ProcessPipExecutionPlugin(environment.PluginManager, pip, context.PathTable),
                         pipGraphFileSystemView: environment.PipGraphView,
                         runLocation: runLocation,
                         sandboxFileSystemView: environment.State.FileSystemView,

@@ -23,7 +23,6 @@ using BuildXL.Pips;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Plugin;
 using BuildXL.Processes;
 using BuildXL.Processes.External;
 using BuildXL.Processes.Remoting;
@@ -150,7 +149,9 @@ namespace BuildXL.ProcessPipExecutor
 
         private readonly string m_workingDirectory;
 
-        private readonly PluginEndpoints m_pluginEP;
+        private readonly IProcessPipExecutionPlugin m_plugin;
+
+        private const string PluginCapabilitiesEnvironmentVariable = "[BUILDXL]LOADED_PLUGIN_CAPABILITIES";
 
         private string m_standardDirectory;
 
@@ -283,7 +284,7 @@ namespace BuildXL.ProcessPipExecutor
             IDetoursEventListener detoursListener = null,
             ReparsePointResolver reparsePointResolver = null,
             IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> staleOutputsUnderSharedOpaqueDirectories = null,
-            PluginManager pluginManager = null,
+            IProcessPipExecutionPlugin plugin = null,
             ISandboxFileSystemView sandboxFileSystemView = null,
             IPipGraphFileSystemView pipGraphFileSystemView = null,
             ProcessRunLocation runLocation = ProcessRunLocation.Default,
@@ -383,7 +384,7 @@ namespace BuildXL.ProcessPipExecutor
             m_processIdListener = processIdListener;
             m_pipEnvironment = pipEnvironment;
             m_pipDataRenderer = pipDataRenderer ?? new PipFragmentRenderer(m_pathTable);
-            m_pluginEP = pluginManager != null ? new PluginEndpoints(pluginManager, m_pip, m_pathTable) : null;
+            m_plugin = plugin;
 
             if (pip.WarningRegex.IsValid)
             {
@@ -908,9 +909,9 @@ namespace BuildXL.ProcessPipExecutor
                         : null,
                 };
 
-                if (m_pluginEP != null)
+                if (m_plugin != null)
                 {
-                    m_pluginEP.ProcessInfo = info;
+                    m_plugin.SetProcessInfo(info);
                 }
 
                 if (m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternalVm() || VmSpecialEnvironmentVariables.IsRunningInVm)
@@ -1731,6 +1732,57 @@ namespace BuildXL.ProcessPipExecutor
                 SandboxedProcessInfo.MaxCommandLineLength);
         }
 
+        private async Task<SandboxedProcessResult> ProcessPluginResultAsync(SandboxedProcessResult result)
+        {
+            if (m_plugin == null)
+            {
+                return result;
+            }
+
+            var pluginResult = await m_plugin.ProcessResultAsync(result);
+            if (pluginResult == null)
+            {
+                return result;
+            }
+
+            result.StandardOutput = await AppendPluginOutputAsync(result.StandardOutput, pluginResult.StandardOutToAppend);
+            result.StandardError = await AppendPluginOutputAsync(result.StandardError, pluginResult.StandardErrToAppend);
+
+            if (pluginResult.ExitCode.HasValue)
+            {
+                result.ExitCode = pluginResult.ExitCode.Value;
+            }
+
+            return result;
+        }
+
+        private static async Task<SandboxedProcessOutput> AppendPluginOutputAsync(SandboxedProcessOutput output, string content)
+        {
+            if (output.HasException || string.IsNullOrEmpty(content))
+            {
+                return output;
+            }
+
+            const int MaxMemoryLength = 16384;
+            using (var builder = new SandboxedProcessOutputBuilder(
+                output.Encoding,
+                MaxMemoryLength,
+                output.FileStorage,
+                output.File,
+                null))
+            using (TextReader reader = output.CreateReader())
+            {
+                string chunk;
+                while ((chunk = await reader.ReadLineAsync()) != null)
+                {
+                    builder.AppendLine(chunk);
+                }
+
+                builder.AppendLine(content);
+                return builder.Freeze();
+            }
+        }
+
         private async Task<SandboxedProcessPipExecutionResult> ProcessSandboxedProcessResultAsync(
             LoggingContext loggingContext,
             SandboxedProcessResult result,
@@ -1742,7 +1794,7 @@ namespace BuildXL.ProcessPipExecutor
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
-            result = await (m_pluginEP?.ProcessResultAsync(result) ?? Task.FromResult(result));
+            result = await ProcessPluginResultAsync(result);
 
             bool canceled = result.Killed && cancellationToken.IsCancellationRequested;
             bool hasMessageParsingError = result?.MessageProcessingFailure != null;
@@ -3200,15 +3252,15 @@ namespace BuildXL.ProcessPipExecutor
                 }
             }
 
-            if (m_pluginEP != null)
+            if (m_plugin != null)
             {
                 try
                 {
                     environmentVariables = environmentVariables.Override(
                     [
                         new KeyValuePair<string, string>(
-                            PluginConstants.PluginCapabilitiesEnvVar,
-                            string.Join(",", m_pluginEP.LoadedPluginSupportedMessageTypes.Select(m => m.ToString())))
+                            PluginCapabilitiesEnvironmentVariable,
+                            string.Join(",", m_plugin.LoadedPluginSupportedMessageTypes))
                     ]);
                 }
                 catch (TimeoutException)
@@ -4756,8 +4808,8 @@ namespace BuildXL.ProcessPipExecutor
                 HandleErrorsFromTool(standardOutput);
 
                 // Send the message to plugin if there is log parsing plugin available
-                standardError = await (m_pluginEP?.ProcessStdOutAndErrorAsync(standardError, true) ?? Task.FromResult(standardError));
-                standardOutput = await (m_pluginEP?.ProcessStdOutAndErrorAsync(standardOutput, true) ?? Task.FromResult(standardOutput));
+                standardError = await (m_plugin?.ProcessStdOutAndErrorAsync(standardError, true) ?? Task.FromResult(standardError));
+                standardOutput = await (m_plugin?.ProcessStdOutAndErrorAsync(standardOutput, true) ?? Task.FromResult(standardOutput));
                 var errorFiltered = standardErrorFilterResult.IsFiltered || standardOutputFilterResult.IsFiltered;
                 if (!result.TimedOut)
                 {
@@ -4833,8 +4885,8 @@ namespace BuildXL.ProcessPipExecutor
                             HandleErrorsFromTool(stdOut);
 
                             // Send the message to plugin if there is log parsing plugin available
-                            stdError = await (m_pluginEP?.ProcessStdOutAndErrorAsync(stdError, true) ?? Task.FromResult(stdError));
-                            stdOut = await (m_pluginEP?.ProcessStdOutAndErrorAsync(stdOut, true) ?? Task.FromResult(stdOut));
+                            stdError = await (m_plugin?.ProcessStdOutAndErrorAsync(stdError, true) ?? Task.FromResult(stdError));
+                            stdOut = await (m_plugin?.ProcessStdOutAndErrorAsync(stdOut, true) ?? Task.FromResult(stdOut));
 
                             // For the last iteration, check if error was truncated
                             if (errorReader.Peek() == -1 && outReader.Peek() == -1)
@@ -4983,8 +5035,8 @@ namespace BuildXL.ProcessPipExecutor
                     bool stdErrorEmpty = string.IsNullOrWhiteSpace(stdError);
 
                     // Send the message to plugin if there is log parsing plugin available
-                    stdError = await (m_pluginEP?.ProcessStdOutAndErrorAsync(stdError, true) ?? Task.FromResult(stdError));
-                    stdOut = await (m_pluginEP?.ProcessStdOutAndErrorAsync(stdOut, true) ?? Task.FromResult(stdOut));
+                    stdError = await (m_plugin?.ProcessStdOutAndErrorAsync(stdError, true) ?? Task.FromResult(stdError));
+                    stdOut = await (m_plugin?.ProcessStdOutAndErrorAsync(stdOut, true) ?? Task.FromResult(stdOut));
 
                     string outputToLog = (stdOutEmpty ? string.Empty : stdOut) +
                         (!stdOutEmpty && !stdErrorEmpty ? Environment.NewLine : string.Empty) +

@@ -38,7 +38,6 @@ namespace Processes.Detours {
                 importFrom("BuildXL.Utilities").Native.dll,
                 importFrom("BuildXL.Utilities").Storage.dll,
                 importFrom("BuildXL.Utilities").Configuration.dll,
-                importFrom("BuildXL.Utilities").Plugin.dll,
                 importFrom("BuildXL.Utilities").Utilities.Core.dll,
                 importFrom("BuildXL.Utilities.UnitTests").Storage.dll,
                 Processes.test_BuildXL_Processes_dll,

@@ -88,9 +88,10 @@ namespace BuildXL.Processes
         public string ExecutableAbsolutePath => Process.StartInfo.FileName;
 
         /// <inheritdoc/>
-        protected override bool HasSandboxFailures => m_infraErrorReceived;
+        protected override bool HasSandboxFailures => m_infraErrorReceivedTask.Task.IsCompleted;
 
-        private bool m_infraErrorReceived = false;
+        private readonly TaskCompletionSource<Unit> m_infraErrorReceivedTask =
+            new TaskCompletionSource<Unit>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         /// <summary>
         /// Gets file path for standard input.
@@ -215,7 +216,7 @@ namespace BuildXL.Processes
                     catch (BuildXLException ex)
                     {
                         // Treat any exception thrown when notifying pip readiness as an infrastructure error.
-                        m_infraErrorReceived = true;
+                        m_infraErrorReceivedTask.TrySetResult(Unit.Void);
                         Logger.Log.SandboxInternalError(info.LoggingContext, info.PipSemiStableHash, info.PipDescription!);
                         Logger.Log.FullSandboxInternalErrorMessage(info.LoggingContext, info.PipDescription!, ex.ToString());
                         // Complete pending reports so GetReportsAsync doesn't hang waiting for sandbox
@@ -373,7 +374,10 @@ namespace BuildXL.Processes
         protected override bool Killed => Interlocked.Read(ref m_processKilledFlag) > 0;
 
         /// <inheritdoc />
-        protected override async Task KillAsyncInternal(bool dumpProcessTree)
+        protected override Task KillAsyncInternal(bool dumpProcessTree) =>
+            KillAsyncInternal(dumpProcessTree, reportSurvivingChildren: true);
+
+        private async Task KillAsyncInternal(bool dumpProcessTree, bool reportSurvivingChildren)
         {
             LogDebug($"SandboxedProcessUnix::KillAsync({ProcessId})");
             // In the case that the process gets shut down by either its timeout or e.g. SandboxedProcessPipExecutor
@@ -384,8 +388,10 @@ namespace BuildXL.Processes
             // Make sure this is done no more than once.
             if (incrementedValue == 1)
             {
-                // surviving child processes may only be set when the process is explicitly killed
-                m_survivingChildProcesses = NullIfEmpty(CoalesceProcesses(GetCurrentlyActiveChildProcesses()));
+                if (reportSurvivingChildren)
+                {
+                    m_survivingChildProcesses = NullIfEmpty(CoalesceProcesses(GetCurrentlyActiveChildProcesses()));
+                }
                 // Before notifying that the root process has exited, kill all ptracerunners to avoid receiving access reports after the communication pipe is closed.
                 LogDebug("KillAsyncInternal: KillActivePTraceRunners()");
                 KillActivePTraceRunners();
@@ -412,6 +418,33 @@ namespace BuildXL.Processes
         /// collected reports.
         /// </summary>
         internal override async Task<SandboxedProcessReports?>? GetReportsAsync()
+        {
+            var reportsTask = GetReportsCoreAsync();
+            // Recheck after awaiting because report completion can race with the error signal.
+            if (!reportsTask.IsCompleted
+                && await Task.WhenAny(reportsTask, m_infraErrorReceivedTask.Task) != reportsTask
+                && !reportsTask.IsCompleted)
+            {
+                // Termination drains the report queue, so it must not be awaited from a report callback.
+                // Active processes are being terminated for infrastructure recovery, not unexpected child survival.
+                await KillAsyncInternal(dumpProcessTree: false, reportSurvivingChildren: false);
+            }
+
+            var reports = await reportsTask;
+
+            // Finalization can report a failure after the process and report queue have already finished.
+            // Record that failure without racing it against report completion and killing the process again.
+            if (!SandboxConnection.NotifyPipFinished(PipId, this))
+            {
+                // Errors should be logged already.
+                m_infraErrorReceivedTask.TrySetResult(Unit.Void);
+            }
+
+            LogDebug("GetReportsAsync: Returning reports.");
+            return reports;
+        }
+
+        private async Task<SandboxedProcessReports?> GetReportsCoreAsync()
         {
             LogDebug($"[SandboxedProcessUnix]GetReportsAsync");
             // It is not ideal from a design standpoint that this class is aware of the sandbox connection kind,
@@ -482,16 +515,6 @@ namespace BuildXL.Processes
             LogDebug("GetReportsAsync: Waiting for pending reports to complete.");
             // in any case must wait for pending reports to complete, because we must not freeze m_reports before that happens
             await m_pendingReports.Completion;
-
-            // at this point this pip is done executing (it's only left to construct SandboxedProcessResult,
-            // which is done by the base class) so notify the sandbox connection about it.
-            if (!SandboxConnection.NotifyPipFinished(PipId, this))
-            {
-                // Errors should be logged already
-                m_infraErrorReceived = true;
-            }
-
-            LogDebug("GetReportsAsync: Returning reports.");
 
             return m_reports;
         }
@@ -750,7 +773,7 @@ namespace BuildXL.Processes
                         case SandboxInfraSeverity.Error:
                             // Let's log a generic user-friendly message only once per pip, so that we don't spam the logs
                             // with the same message multiple times.
-                            if (!m_infraErrorReceived)
+                            if (!m_infraErrorReceivedTask.Task.IsCompleted)
                             {
                                 // Log a user-friendly message
                                 // Since this pip can be retried, we log this as verbose rather than an error.
@@ -768,10 +791,10 @@ namespace BuildXL.Processes
                             break;
                     }
 
-                    // If we got an infra error, set the sandbox failure flag so the pip ends up failing appropriately 
+                    // Signal a sandbox failure so the attempt can be terminated and classified appropriately.
                     if (report.Severity == SandboxInfraSeverity.Error)
                     {
-                        m_infraErrorReceived = true;
+                        m_infraErrorReceivedTask.TrySetResult(Unit.Void);
                     }
 
                     if (ReportsCompleted())

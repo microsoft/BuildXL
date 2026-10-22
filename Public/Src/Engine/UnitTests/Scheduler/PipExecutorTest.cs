@@ -3530,6 +3530,7 @@ EXIT /b 3
                     // and if any of those attempts ended up logging DX0064, a subsequent successful retry would trigger a
                     // catastrophic build failure (see Engine.ValidateSuccessLoggedNoErrors).
                     AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 0);
+                    AssertErrorEventLogged(ProcessesLogEventId.PipProcessChildrenSurvivedError, count: 0);
                     // Logged once when the final attempt fails
                     AssertErrorEventLogged(SchedulerLogEventId.PipFailedDueToSandboxInternalError, count: 1);
                 }

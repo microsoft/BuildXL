@@ -37,6 +37,8 @@ namespace Test.DScript.Ast
 
         protected TestCache TestCache { get; }
 
+        protected virtual CancellationToken EngineCancellationToken => CancellationToken.None;
+
         protected override FrontEndContext FrontEndContext => m_frontEndContext ?? base.FrontEndContext;
 
         public DsTestWithCacheBase(ITestOutputHelper output, bool usePassThroughFileSystem = false) : base(output, usePassThroughFileSystem)
@@ -77,7 +79,7 @@ namespace Test.DScript.Ast
             Action<EngineTestHooksData> verifyEngineTestHooksData = null)
         {
 
-            var engineContext = EngineContext.CreateNew(CancellationToken.None, PathTable, FileSystem);
+            var engineContext = EngineContext.CreateNew(EngineCancellationToken, PathTable, FileSystem);
 
             var factory = FrontEndControllerFactory.Create(
                 FrontEndMode.NormalMode,

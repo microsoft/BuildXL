@@ -197,6 +197,7 @@ namespace BuildXL.FrontEnd.JavaScript
             long pipSemiStableHash = 0;
             do
             {
+                Context.CancellationToken.ThrowIfCancellationRequested();
                 // The ring buffer size multiplier grows exponentially with the number of retries
                 // This is only relevant for Linux/EBPF sandboxing and will be ignored otherwise
                 // With the current settings (ProcessLaunchRetryCountMax = 5), the multiplier will start at 1 and go up to 16, which will result
@@ -207,6 +208,7 @@ namespace BuildXL.FrontEnd.JavaScript
                 FileUtilities.DeleteFile(outputFile.ToString(Context.PathTable));
                 FileUtilities.DeleteFile(errorFile);
                 result = await RunJavaScriptGraphBuilderAsync(nodeExeLocation, outputFile, buildParameters, foundLocation, pipDescription, ringBufferMultiplier, out pipSemiStableHash);
+                Context.CancellationToken.ThrowIfCancellationRequested();
                 retryCount++;
             } while (result.ExitCode == ExitCodes.MessageProcessingFailure && retryCount < SandboxedProcessPipExecutor.ProcessLaunchRetryCountMax);
 

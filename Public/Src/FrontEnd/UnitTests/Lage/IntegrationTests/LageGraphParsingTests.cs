@@ -1,16 +1,21 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Engine;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tasks;
 using Test.BuildXL.FrontEnd.Core;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
 namespace Test.BuildXL.FrontEnd.Lage
@@ -53,10 +58,83 @@ namespace Test.BuildXL.FrontEnd.Lage
 
         protected override EnginePhases Phase => EnginePhases.Schedule;
 
+        private CancellationToken m_engineCancellationToken;
+        protected override CancellationToken EngineCancellationToken => m_engineCancellationToken;
+
         private string PathToLageMock => Path.Combine(TestDeploymentDir, "lage-mock", OperatingSystemHelper.IsWindowsOS ? "lage.exe" : "lage").Replace("\\", "/");
 
         public LageGraphParsingTests(ITestOutputHelper output) : base(output)
         {
+        }
+
+        [TheoryIfSupported(requiresEBPFEnabled: true)]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task GraphConstructionTerminatesOnSandboxError(bool injectSandboxError)
+        {
+            using var cancellation = new CancellationTokenSource();
+            m_engineCancellationToken = cancellation.Token;
+            string entryPoint = Path.Combine(SourceRoot, "graph.js").Replace("\\", "/");
+            var environment = new Dictionary<string, DiscriminatingUnion<string, UnitValue>>
+            {
+                ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
+                ["__BUILDXL_TEST_INJECTINFRAERROR"] = new DiscriminatingUnion<string, UnitValue>(injectSandboxError ? "1" : "0"),
+            };
+
+            var config = Build(environment: environment, lageLocation: entryPoint)
+                .AddFile("graph.js", """
+                    #!/usr/bin/env node
+                    const fs = require("fs");
+                    const path = require("path");
+                    // A failed attempt must be terminated before it reaches this normal completion.
+                    setTimeout(() => {
+                        fs.writeFileSync(path.join(__dirname, `graph-completed-${process.pid}`), "done");
+                        console.log(JSON.stringify({
+                            timestamp: 1, level: 30, msg: "info", data: { packageTasks: [] }
+                        }));
+                    }, 2000);
+                    """.ReplaceLineEndings("\n"))
+                .PersistSpecsAndGetConfiguration();
+            File.SetUnixFileMode(entryPoint, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+            var runTask = Task.Run(() => RunEngine(config));
+            try
+            {
+                // Standalone eBPF runs may reload programs for each of the five attempts.
+                var result = await runTask.WithTimeoutAsync(TimeSpan.FromMinutes(1));
+                var invocations = EventListener.GetLogMessagesForEventId((int)global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.ConstructingGraphScript);
+                if (injectSandboxError)
+                {
+                    Assert.False(result.IsSuccess);
+                    Assert.Empty(Directory.GetFiles(SourceRoot, "graph-completed-*"));
+                    Assert.Equal(5, invocations.Length);
+                    Assert.Equal(
+                        invocations.Length,
+                        EventListener.GetLogMessagesForEventId((int)global::BuildXL.Processes.Tracing.LogEventId.FullSandboxInternalErrorMessage)
+                            .Count(message => message.Contains("Injected infrastructure error for testing purposes")));
+                    AssertErrorEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.PipFailedDueToSandboxInternalError);
+                }
+                else
+                {
+                    Assert.True(result.IsSuccess);
+                    Assert.Single(Directory.GetFiles(SourceRoot, "graph-completed-*"));
+                    Assert.Single(invocations);
+                    Assert.Empty(EventListener.GetLogMessagesForEventId((int)global::BuildXL.Processes.Tracing.LogEventId.SandboxInternalError));
+                }
+            }
+            finally
+            {
+                await cancellation.CancelAsync().WithTimeoutAsync(TimeSpan.FromSeconds(10));
+                try
+                {
+                    await runTask.WithTimeoutAsync(TimeSpan.FromSeconds(20));
+                }
+                finally
+                {
+                    AllowErrorEventMaybeLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
+                    AllowErrorEventMaybeLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndBuildWorkspacePhaseCanceled);
+                }
+            }
         }
 
         [Theory]

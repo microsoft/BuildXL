@@ -1,4 +1,6 @@
 parameters:
+- name: ignoreDirectories
+  type: string
 - name: experimentalFlag
   type: string
   default: ''
@@ -8,6 +10,7 @@ jobs:
   parameters:
     jobName: BuildCandidate
     displayName: Build candidate BuildXL
+    ignoreDirectories: ${{ parameters.ignoreDirectories }}
     arguments:
       uploadDropMetadata: false
       additionalFlags: >-
@@ -28,6 +31,7 @@ jobs:
   parameters: 
     jobName: CbAllQualifiers
     displayName: Build all qualifiers with candidate BuildXL
+    ignoreDirectories: ${{ parameters.ignoreDirectories }}
     dependsOn:
     - BuildCandidate
     arguments:

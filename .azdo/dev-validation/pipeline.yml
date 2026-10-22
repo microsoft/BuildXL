@@ -18,6 +18,7 @@ resources:
 
 variables:
 - template: variables.yml
+- template: /.azdo/common/component-detection-exclusions.yml
 
 extends:
   template: /pipelines/dev-validation/validations.yml@DominoReleaseManagement
@@ -48,6 +49,7 @@ extends:
       jobs:
       - template: /.azdo/rolling/jobs/cb.yml@self
         parameters:
+          ignoreDirectories: ${{ variables['BuildXL.ComponentGovernanceIgnoreDirectories'] }}
           experimentalFlag: '/p:[Sdk.BuildXL]experimentalDeployment=1'
     
     - stage: LinuxBuild

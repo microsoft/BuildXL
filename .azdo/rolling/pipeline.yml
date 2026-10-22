@@ -77,6 +77,8 @@ extends:
       dependsOn: prepare
       jobs:
       - template: .azdo/rolling/jobs/cb.yml@self
+        parameters:
+          ignoreDirectories: ${{ variables['BuildXL.ComponentGovernanceIgnoreDirectories'] }}
 
     - stage: RCIT
       displayName: RunCheckInTests

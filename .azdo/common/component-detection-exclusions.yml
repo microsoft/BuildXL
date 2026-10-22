@@ -1,6 +1,12 @@
 # Exclude intermediate downloads and generated JavaScript unit-test tool trees from component detection. These artifacts are either unused downloads or tools used
 # only during tests. Product dependencies are copied to locations outside these directories and remain covered by component detection.
 variables:
-# Exclusions for the native ADO Component Detection task (semicolon-separated globs matched against drive-relative paths)
+# ADO: ComponentDetection.DirectoryExclusionPatterns accepts semicolon-separated globs.
+# CloudBuild: SDL ignoreDirectories -> CG_DirectoryExclusionList -> --IgnoreDirectories accepts comma-separated literals.
+# The other six exclusions contain generated hashes/PIDs and remain ADO-only.
+# Sharing globs requires a new opt-in 1ES/CloudBuild input mapped to --DirectoryExclusionList, deployed before use.
+# Preserve the legacy literal input; do not emit both switches, since --IgnoreDirectories takes precedence.
 - name: ComponentDetection.DirectoryExclusionPatterns
   value: '**/Out/frontend/Download*;**/Out/NodeJsForUnitTests*;**/Out/Objects/**/testRun/**;**/Out/Objects/**/nx-test/**;**/Out/Objects/**/lage-test/**;**/Out/Objects/**/rush-test/**;**/Out/Objects/**/rushlib-test/**;**/Out/Objects/**/t_*/BuildXL-RushUserProfile-*/**'
+- name: BuildXL.ComponentGovernanceIgnoreDirectories
+  value: 'Out/frontend/Download,Out/NodeJsForUnitTests'

@@ -15,6 +15,7 @@ resources:
 
 variables:
 - group: "BuildXL Common variables"
+- template: /.azdo/common/component-detection-exclusions.yml
 - name: BuildXLDropName
   value: buildxl.pr.$(Build.BuildId)
 
@@ -25,9 +26,6 @@ extends:
       name: Windows-SDL-Agents
       os: windows
     sdl:
-      componentgovernance:
-        # CODESYNC: .azdo/common/component-detection-exclusions.yml
-        ignoreDirectories: 'Out/frontend/Download,Out/NodeJsForUnitTests'
       codeql:
         compiled:
           enabled: false
@@ -42,6 +40,9 @@ extends:
         timeoutInMinutes: 180
         templateContext:
           type: cloudBuildJob
+          sdl:
+            componentgovernance:
+              ignoreDirectories: ${{ variables['BuildXL.ComponentGovernanceIgnoreDirectories'] }}
           arguments:
             connectedServiceName: 2aef3ce3-3585-4f28-94a9-9b6cf2ff8dfe # CloudBuild Prod
             buildQueue: BuildXL_Internal_PR
@@ -66,6 +67,9 @@ extends:
         dependsOn: MinimalBuild
         templateContext:
           type: cloudBuildJob
+          sdl:
+            componentgovernance:
+              ignoreDirectories: ${{ variables['BuildXL.ComponentGovernanceIgnoreDirectories'] }}
           arguments:
             connectedServiceName: 2aef3ce3-3585-4f28-94a9-9b6cf2ff8dfe # CloudBuild Prod
             buildQueue: BuildXL_Internal_PR

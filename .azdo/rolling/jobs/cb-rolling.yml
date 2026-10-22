@@ -1,4 +1,6 @@
 parameters:
+- name: ignoreDirectories
+  type: string
 - name: jobName
   type: string
 - name: displayName
@@ -26,6 +28,10 @@ jobs:
     condition: ${{ parameters.condition }}
   templateContext:
     type: cloudBuildJob
+    sdl:
+      componentgovernance:
+        # Keep job-scoped: pipeline-wide ignoreDirectories overrides native ADO wildcard exclusions.
+        ignoreDirectories: ${{ parameters.ignoreDirectories }}
     arguments:
       description: ${{ parameters.displayName }}
       connectedServiceName: 2aef3ce3-3585-4f28-94a9-9b6cf2ff8dfe # CloudBuild Prod

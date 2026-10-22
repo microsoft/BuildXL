@@ -4,17 +4,16 @@
 import * as Branding from "BuildXL.Branding";
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
-import * as JS from "Sdk.JavaScript";
 import * as InternalJS from "Sdk.NodeJs";
 import * as Managed from "Sdk.Managed";
 
-import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
+import {Transformer} from "Sdk.Transformers";
 
 namespace npmPackages {
     export declare const qualifier : { configuration: "debug" | "release" };
     
     /** 
-     * Layout containing the core bxl app. 
+     * Installer-only layout; npm preinstall acquires the matching internal NuGet distribution.
      * We currently deploy either Win or Linux package depending on the current host OS.
      * Internal only.
      **/
@@ -66,7 +65,7 @@ namespace npmPackages {
             const versionedJson = InternalJS.Node.runNpmVersion(
                 packageJson,
                 Branding.version,
-                [npmrc]
+                [npmrc, f`install.js`]
             );
 
             // Put the rest of the deployment side-by-side
@@ -74,22 +73,7 @@ namespace npmPackages {
                 contents: [
                     versionedJson,
                     npmrc,
-                    f`tsconfig.json`,
-                    {
-                        subfolder: r`build/${qualifier.targetRuntime}`,
-                        contents: [
-                                    // Main bxl app (minimal deployment)
-                                    importFrom("BuildXL.App").withQualifier({
-                                        targetFramework: Managed.TargetFrameworks.DefaultTargetFramework,
-                                        targetRuntime: qualifier.targetRuntime,
-                                        configuration: qualifier.configuration}).minimalDeployment,
-                                    // Execution analyzer
-                                    importFrom("BuildXL.Tools").withQualifier({
-                                        targetFramework: Managed.TargetFrameworks.DefaultTargetFramework,
-                                        targetRuntime: qualifier.targetRuntime,
-                                        configuration: qualifier.configuration}).Execution.Analyzer.exe,
-                                ]
-                    },
+                    f`install.js`,
                 ]
             };
         

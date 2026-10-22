@@ -7,13 +7,16 @@
         "url": "https://github.com/Microsoft/BuildXL"
     },
     "license": "MIT",
+    "os": ["win32"],
+    "cpu": ["x64"],
+    "engines": { "node": ">=16.0.0" },
+    "files": ["install.js"],
     "bin": {
         "bxl": "build/win-x64/bxl.exe",
         "bxl-adobuildrunner": "build/win-x64/AdoBuildRunner.exe"
     },
     "scripts": {
-        "build": "tsc",
-        "start": "tsc --watch"
+        "preinstall": "node install.js"
     },
     "publishConfig": {
         "registry": "https://1essharedassets.pkgs.visualstudio.com/_packaging/BuildXL/npm/registry/"

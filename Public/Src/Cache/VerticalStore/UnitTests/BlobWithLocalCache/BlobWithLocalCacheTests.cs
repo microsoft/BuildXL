@@ -49,11 +49,7 @@ namespace BuildXL.Cache.Tests
 
             // This check serves two purposes: we want to check the log file is properly setup and reflects both local and remote cache activity.
             // We also want to check that the fake build resulted in adding (a CompareExchange call) content to both caches.
-#if NET
             var lines = await File.ReadAllLinesAsync(logPath);
-#else
-            var lines = File.ReadAllLines(logPath);
-#endif
             Assert.True(lines.Any(line => line.Contains(cacheRecord.StrongFingerprint.WeakFingerprint.ToString()) && line.Contains("AzureBlobStorageMetadataStore.CompareExchangeAsync")));
             Assert.True(lines.Any(line => line.Contains(cacheRecord.StrongFingerprint.WeakFingerprint.ToString()) && line.Contains("RocksDbMemoizationDatabase.CompareExchangeAsync")));
         }
@@ -65,11 +61,7 @@ namespace BuildXL.Cache.Tests
             FullCacheRecord cacheRecord = await CreateCacheAndRunPip(config);
 
             // We want to check that the fake build resulted in adding (a CompareExchange call) content to the local cache, but not to the remote cache.
-#if NET
             var lines = await File.ReadAllLinesAsync(logPath);
-#else
-            var lines = File.ReadAllLines(logPath);
-#endif
             Assert.False(lines.Any(line => line.Contains(cacheRecord.StrongFingerprint.WeakFingerprint.ToString()) && line.Contains("AzureBlobStorageMetadataStore.CompareExchangeAsync")));
             Assert.True(lines.Any(line => line.Contains(cacheRecord.StrongFingerprint.WeakFingerprint.ToString()) && line.Contains("RocksDbMemoizationDatabase.CompareExchangeAsync")));
         }
@@ -109,11 +101,7 @@ namespace BuildXL.Cache.Tests
 
             // In the fallback case, the logger was created from the remote config's log path.
             // Verify local cache activity is logged there (the pip should have been stored in the local cache).
-#if NET
             var lines = await File.ReadAllLinesAsync(baseLogPath);
-#else
-            var lines = File.ReadAllLines(baseLogPath);
-#endif
             Assert.True(lines.Any(line => line.Contains(cacheRecord.StrongFingerprint.WeakFingerprint.ToString()) && line.Contains("RocksDbMemoizationDatabase.CompareExchangeAsync")));
         }
 

@@ -7,7 +7,6 @@
 // can't find them. This module initializer registers a resolver that probes
 // the application directory as a fallback.
 
-#if NETCOREAPP
 using System;
 using System.IO;
 using System.Reflection;
@@ -34,4 +33,3 @@ namespace BuildXL.Cache.Tests
         }
     }
 }
-#endif

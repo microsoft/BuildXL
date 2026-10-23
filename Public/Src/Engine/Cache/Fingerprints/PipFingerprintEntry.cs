@@ -204,12 +204,8 @@ namespace BuildXL.Engine.Cache.Fingerprints
 
         private static string ToByteArrayString(byte[] bytes)
         {
-#if NETCOREAPP
             // Faster, vectorized, single-allocation uppercase hex (matches previous output).
             return Convert.ToHexString(bytes);
-#else
-            return BitConverter.ToString(bytes).Replace("-", string.Empty);
-#endif
         }
     }
 }

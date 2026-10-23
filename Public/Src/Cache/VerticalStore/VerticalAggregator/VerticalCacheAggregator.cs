@@ -52,11 +52,7 @@ namespace BuildXL.Cache.VerticalAggregator
         /// Our event source.
         /// </summary>
         public static readonly EventSource EventSource =
-#if NET_FRAMEWORK_451
-            new EventSource();
-#else
             new EventSource("VerticalCacheAggregatorEvt", EventSourceSettings.EtwSelfDescribingEventFormat);
-#endif
 
         internal VerticalCacheAggregator(ICache localCache, ICache remoteCache, ICache remoteReadCache, IVerticalAggregatorConfig config)
         {

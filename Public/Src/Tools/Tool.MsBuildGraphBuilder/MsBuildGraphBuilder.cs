@@ -290,6 +290,8 @@ namespace MsBuildGraphBuilderTool
                 {
                     GlobalProperties = globalProperties,
                     ProjectCollection = projectCollection,
+                    // Build graphs do not need design-time items from false conditions, which can glob entire subtrees.
+                    LoadSettings = ProjectLoadSettings.DoNotEvaluateElementsWithFalseCondition
                 });
 
             ProjectInstance projectInstance = project.CreateProjectInstance(ProjectInstanceSettings.ImmutableWithFastItemLookup);

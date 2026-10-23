@@ -1,8 +1,8 @@
 # Mostly Copilot generated. Excuse the quirks..
-# 
-# This script queries the .NET 8.0 and 9.0 download pages to determine the latest runtime version,
+#
+# This script queries the .NET 8.0, 9.0, and 10.0 download pages to determine the latest runtime version,
 # updates the constants in config.nuget.aspNetCore.dsc and config.nuget.dotnetcore.dsc,
-# and updates download URLs in config.dsc by navigating to the thank-you pages and extracting Direct download links.
+# and updates download URLs in config.dsc using the official release metadata.
 
 function Get-LatestDotNetVersion {
     param(
@@ -10,10 +10,10 @@ function Get-LatestDotNetVersion {
         [string]$Url
     )
     Write-Host "Querying $Url ..."
-    $response = Invoke-WebRequest $Url -UseBasicParsing
+    $response = Invoke-WebRequest $Url -UseBasicParsing -ErrorAction Stop
     $content = $response.Content
 
-    # S scrape the version from a marker like ".NET Runtime x.y.z".
+    # Scrape the version from a marker like ".NET Runtime x.y.z".
     $regex = [regex] "\.NET\s+Runtime\s+(\d+\.\d+\.\d+)"
     $match = $regex.Match($content)
     if ($match.Success) {
@@ -28,37 +28,35 @@ function Get-DirectDownloadUrl {
         [Parameter(Mandatory=$true)]
         [string]$Version,
         [Parameter(Mandatory=$true)]
-        [string]$Os  # expected values: "windows-x64", "macos-x64", "linux-x64"
+        [string]$Os  # expected values: "windows-x64", "macos-x64", "macos-arm64", "linux-x64"
     )
-    # Construct the thank-you URL. Example for Windows:
-    # https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-8.0.14-windows-x64-binaries
-    $thankYouUrl = "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-$Version-$Os-binaries"
-    Write-Host "Navigating to thank-you URL: $thankYouUrl ..."
-    $response = Invoke-WebRequest $thankYouUrl -UseBasicParsing
-    $content = $response.Content
-
-    # Adjusted regex: match "Direct link" (case-insensitive) then capture an HTTP(S) URL.
-    $regex = [regex]::new('<a[^>]+id="directLink"[^>]+href="([^"]+)"', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-    $match = $regex.Match($content)
-    if ($match.Success) {
-        $directUrl = $match.Groups[1].Value.Trim()
-        Write-Host "Found Direct download URL: $directUrl"
-        return $directUrl
+    # Read the published archive URL instead of constructing a thank-you URL.
+    $majorVersion = $Version.Split(".")[0]
+    $metadataUrl = "https://builds.dotnet.microsoft.com/dotnet/release-metadata/$majorVersion.0/releases.json"
+    Write-Host "Querying $metadataUrl for $Version ($Os) ..."
+    $metadata = Invoke-RestMethod $metadataUrl -ErrorAction Stop
+    $release = $metadata.releases | Where-Object { $_.runtime.version -eq $Version }
+    $rid = $Os -replace "macos", "osx" -replace "windows", "win"
+    $extension = if ($rid -eq "win-x64") { "zip" } else { "tar.gz" }
+    $archive = @($release.runtime.files | Where-Object { $_.rid -eq $rid -and $_.name -eq "dotnet-runtime-$rid.$extension" })
+    if ($archive.Count -ne 1 -or -not $archive[0].url) {
+        throw "Could not find a direct download URL for .NET $Version ($Os)."
     }
-    else {
-        Write-Warning "Could not extract Direct download URL from $thankYouUrl"
-        return $null
-    }
+    $directUrl = $archive[0].url
+    Write-Host "Found Direct download URL: $directUrl"
+    return $directUrl
 }
 
-# URLs for .NET 8.0 and 9.0 downloads pages
+# URLs for .NET 8.0, 9.0, and 10.0 download pages
 $dotnet8Url = "https://dotnet.microsoft.com/en-us/download/dotnet/8.0"
 $dotnet9Url = "https://dotnet.microsoft.com/en-us/download/dotnet/9.0"
+$dotnet10Url = "https://dotnet.microsoft.com/en-us/download/dotnet/10.0"
 
 $latestDotnet8 = Get-LatestDotNetVersion -Url $dotnet8Url
 $latestDotnet9 = Get-LatestDotNetVersion -Url $dotnet9Url
+$latestDotnet10 = Get-LatestDotNetVersion -Url $dotnet10Url
 
-if (-not $latestDotnet8 -or -not $latestDotnet9) {
+if (-not $latestDotnet8 -or -not $latestDotnet9 -or -not $latestDotnet10) {
     Write-Error "Could not determine latest version(s). Exiting."
     exit 1
 }
@@ -70,69 +68,68 @@ $DotNetCoreNugetFile = Join-Path $PSScriptRoot "..\..\config.nuget.dotnetcore.ds
 
 Write-Host "Updating NuGet config file: $NugetFile"
 
-# (Existing logic to update version constants in the NuGet config remains unchanged)
-(Get-Content $NugetFile) |
+$updatedContent = (Get-Content $NugetFile -Raw) |
     ForEach-Object {
-        $_ -replace 'const\s+aspVersion\s*=\s*".*?"', "const aspVersion = `"$latestDotnet9`"" `
+        $_ -replace 'const\s+aspVersion\s*=\s*".*?"', "const aspVersion = `"$latestDotnet10`"" `
            -replace 'const\s+asp8RefVersion\s*=\s*".*?"', "const asp8RefVersion = `"$latestDotnet8`"" `
            -replace 'const\s+asp8RuntimeVersion\s*=\s*".*?"', "const asp8RuntimeVersion = `"$latestDotnet8`"" `
            -replace 'const\s+asp9RefVersion\s*=\s*".*?"', "const asp9RefVersion = `"$latestDotnet9`"" `
-           -replace 'const\s+asp9RuntimeVersion\s*=\s*".*?"', "const asp9RuntimeVersion = `"$latestDotnet9`""
-    } | Set-Content $NugetFile
+           -replace 'const\s+asp9RuntimeVersion\s*=\s*".*?"', "const asp9RuntimeVersion = `"$latestDotnet9`"" `
+           -replace 'const\s+asp10RefVersion\s*=\s*".*?"', "const asp10RefVersion = `"$latestDotnet10`"" `
+           -replace 'const\s+asp10RuntimeVersion\s*=\s*".*?"', "const asp10RuntimeVersion = `"$latestDotnet10`""
+    }
+[IO.File]::WriteAllText($NugetFile, $updatedContent)
 
 Write-Host "Updated NuGet file: $NugetFile"
 
 Write-Host "Updating NuGet dotnet core config file: $DotNetCoreNugetFile"
 
-(Get-Content $DotNetCoreNugetFile) |
+$updatedContent = (Get-Content $DotNetCoreNugetFile -Raw) |
     ForEach-Object {
         $_ -replace 'const\s+core80Version\s*=\s*".*?"', "const core80Version = `"$latestDotnet8`"" `
-           -replace 'const\s+core90Version\s*=\s*".*?"', "const core90Version = `"$latestDotnet9`""
-    } | Set-Content $DotNetCoreNugetFile
+           -replace 'const\s+core90Version\s*=\s*".*?"', "const core90Version = `"$latestDotnet9`"" `
+           -replace 'const\s+core100Version\s*=\s*".*?"', "const core100Version = `"$latestDotnet10`""
+    }
+[IO.File]::WriteAllText($DotNetCoreNugetFile, $updatedContent)
 
 Write-Host "Updated NuGet dotnet core config file: $DotNetCoreNugetFile"
 
 Write-Host "Updating config file: $ConfigFile"
 
-$osList = @("windows-x64", "macos-x64", "linux-x64")
+$osList = @("windows-x64", "macos-x64", "macos-arm64", "linux-x64")
 
-foreach ($latestDotnet in @($latestDotnet9, $latestDotnet8))
+foreach ($latestDotnet in @($latestDotnet10, $latestDotnet9, $latestDotnet8))
 {
     foreach ($os in $osList)
     {
-        # For the download config file, we now update the entry for the dotnet version and OS
-        # Fetch the new direct download URL.
-        $newUrl = Get-DirectDownloadUrl -Version $latestDotnet -Os $os
-        if (-not $newUrl) {
-            Write-Warning "Failed to get new direct download URL for .NET $latesDotnet ($os)."
-        }
-
         # The URLs and package names don't exactly match up. Switch them around
         $packageOs = $os -replace "macos", "osx" -replace "windows", "win"
-
-        # extract the first number before the dot in $latestDotNet
         $majorVersion = $latestDotnet.Split(".")[0]
+        $newUrl = Get-DirectDownloadUrl -Version $latestDotnet -Os $os
 
-        # Read the file and use a regex to update the URL for the DotNet-Runtime.win-x64.8.0 entry.
-        # This regex looks for the moduleName "DotNet-Runtime.win-x64.8.0", then the url field.
+        # Match the runtime entry's URL, leaving its hash for the manual update.
         $pattern = '(?ms)(moduleName:\s*"DotNet-Runtime\.' + $packageOs + '\.' + $majorVersion + '\.0".*?url:\s*")[^"]+(")'
-
-        $updatedContent = (Get-Content $ConfigFile) -join "`n" -replace $pattern, "`$1$newUrl`$2"
-
-        Set-Content $ConfigFile $updatedContent
+        $updatedContent = (Get-Content $ConfigFile -Raw) -replace $pattern, "`$1$newUrl`$2"
+        [IO.File]::WriteAllText($ConfigFile, $updatedContent)
     }
 }
 
 Write-Host "Updated config file: $ConfigFile"
 
 Write-Host "Update Step 1 complete."
+Write-Host "Complete the supporting-package, framework-config, and binding-redirect edits in .github\instructions\update-dotnet-runtime.instructions.md."
 
-Write-Warning "You now must do a bxl build and update $ConfigFile with the expected content hashes. Run: bxl.cmd ""/f:tag='extract'"""
+Write-Warning "You now must do a bxl build and update $ConfigFile with the expected content hashes. Run: bxl.cmd ""/f:tag='extract'"" /server-"
 $runBxl = Read-Host "Do you want to do it now? (y/yes to proceed)"
 if ($runBxl -match '^(?i:y(?:es)?)$') {
     $repoRoot = Join-Path $PSScriptRoot "..\.."
     Push-Location $repoRoot
-    Write-Host "Executing bxl.cmd /f:tag='extract'..."
-    & ".\bxl.cmd" "/f:tag='extract'"
-    Pop-Location
+    Write-Host "Executing bxl.cmd /f:tag='extract' /server-..."
+    try {
+        & $env:ComSpec /c "call .\bxl.cmd /f:tag='extract' /server-"
+        $buildExitCode = $LASTEXITCODE
+    } finally {
+        Pop-Location
+    }
+    exit $buildExitCode
 }

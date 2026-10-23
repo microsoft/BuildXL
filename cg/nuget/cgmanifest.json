@@ -3147,7 +3147,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Configuration.ConfigurationManager",
-          "Version": "10.0.8"
+          "Version": "10.0.13"
         }
       }
     },
@@ -3210,7 +3210,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Diagnostics.EventLog",
-          "Version": "10.0.8"
+          "Version": "10.0.13"
         }
       }
     },
@@ -4101,7 +4101,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Security.Cryptography.ProtectedData",
-          "Version": "10.0.8"
+          "Version": "10.0.13"
         }
       }
     },

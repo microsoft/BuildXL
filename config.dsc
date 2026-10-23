@@ -288,9 +288,9 @@ config({
                 { id: "BuildXL.Azurite.Executables", version: "1.0.0-CI-20230614-171424" },
 
                 // Testing
-                { id: "System.Security.Cryptography.ProtectedData", version: "10.0.8" },
-                { id: "System.Configuration.ConfigurationManager", version: "10.0.8" },
-                { id: "System.Diagnostics.EventLog", version: "10.0.8" },
+                { id: "System.Security.Cryptography.ProtectedData", version: "10.0.13" },
+                { id: "System.Configuration.ConfigurationManager", version: "10.0.13" },
+                { id: "System.Diagnostics.EventLog", version: "10.0.13" },
 
                 // WARNING: FluentAssertions moved to a commercial license starting from V8.0.0
                 // NEVER EVER UPDATE THIS PACKAGE BEYOND V7

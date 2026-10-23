@@ -9,9 +9,9 @@ variables:
   # Enable bug filing for CodeQL issues
   - name: Codeql.TSAEnabled
     value: true
-  # YarnTool is an external tool
+  # Exclude downloaded third-party tools from source analysis.
   - name: Codeql.ExcludePathPatterns
-    value: "Out/frontend/Download/YarnTool"
+    value: "Out/frontend/Download/YarnTool,Out/frontend/Download/NodeJs.win-x64,Out/NodeJsForUnitTests"
 
 parameters:
   # A way to specify a custom job name.

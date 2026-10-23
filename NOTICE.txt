@@ -10022,7 +10022,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-MessagePack 2.5.301 - MIT
+MessagePack 2.5.307 - MIT
 
 
 (c) Yoshifumi Kawai and contributors
@@ -10041,7 +10041,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-MessagePack.Annotations 2.5.301 - MIT
+MessagePack.Annotations 2.5.307 - MIT
 
 
 (c) Yoshifumi Kawai and contributors

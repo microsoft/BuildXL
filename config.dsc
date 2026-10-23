@@ -532,26 +532,26 @@ config({
                 // NodeJs
                 {
                     moduleName: "NodeJs.win-x64",
-                    url: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
-                    hash: "VSO0:822942606F0951EC547B40DACB4B4079832ECFF3A8173C875FA6C8F611137DD100",
+                    url: "https://nodejs.org/dist/v24.22.0/node-v24.22.0-win-x64.zip",
+                    hash: "VSO0:8AA65D092321F477371C33D9353CE1B977F09DADD53381DDCB45738A6B2BB2A700",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "NodeJs.osx-x64",
-                    url: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-darwin-x64.tar.gz",
-                    hash: "VSO0:AE3B2A327128DFCCA575830366364C1B3509CADF16F3679BC09BBD12A8A2C09C00",
+                    url: "https://nodejs.org/dist/v24.22.0/node-v24.22.0-darwin-x64.tar.gz",
+                    hash: "VSO0:9696FA2E3D7D229365F9FDA2096C4B7E842BC74B1207038AB5AABBC15B115DF500",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "NodeJs.osx-arm64",
-                    url: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-darwin-arm64.tar.gz",
-                    hash: "VSO0:569975677F42DC3ADD7861BE366F4BC6F88D31127748CB43D3C950DF7C6EEEC800",
+                    url: "https://nodejs.org/dist/v24.22.0/node-v24.22.0-darwin-arm64.tar.gz",
+                    hash: "VSO0:482A917EED36FE8E3FD780DA51B71809069CE9C696DFEB7F84152CFD22C4085000",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "NodeJs.linux-x64",
-                    url: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.gz",
-                    hash: "VSO0:300DDB7F0432522192E24904836CA48D5CFCE3710089D57FFB3F06228041F62A00",
+                    url: "https://nodejs.org/dist/v24.22.0/node-v24.22.0-linux-x64.tar.gz",
+                    hash: "VSO0:B76EDA87EA7DF2FC09E3A2CA4E13A5AA915B81B2226211F3F50CB76B6425D5DB00",
                     archiveType: "tgz",
                 },
                 {

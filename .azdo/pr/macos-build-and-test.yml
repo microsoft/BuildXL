@@ -19,8 +19,9 @@ jobs:
         configurationArgument: '--release'
         qualifierArgument: '/q:ReleaseDotNetCoreMacArm64'
   pool:
-    name: GitHub-hosted Agents
-    vmImage: macos-26-arm64
+    name: AcesShared
+    os: macOS
+    demands: ACES_VM_SharedPool_GoldenGate
   steps:
   - checkout: self
     fetchDepth: 1

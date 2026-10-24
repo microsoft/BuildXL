@@ -226,26 +226,31 @@ namespace Test.BuildXL.Processes
 
             var result = await RunProcess(info);
 
-            // We should get a report where we see the creation attempt that results in a file exists error
-            result.AllUnexpectedFileAccesses.Single(fa =>
+            // We should get a report where we see the creation attempt that results in a file exists error.
+            // Directory creation (when not enforced) is reported as a probe rather than an unexpected access,
+            // so look for it among all reported accesses.
+            result.FileAccesses.Single(fa =>
                 fa.Operation == ReportedFileOperation.CreateDirectory &&
                 fa.ManifestPath == existentFile &&
                 fa.Error != 0);
 
             // Now perform the same operation but in a way it should succeed
+            var newDirectory = FileArtifact.CreateSourceFile(CreateUniqueSourcePath());
             fam = CreateManifest();
             info = ToProcessInfo(
                 ToProcess(
                     // This is a unique file, and therefore the create dir should succeed
-                    Operation.CreateDir(FileArtifact.CreateSourceFile(CreateUniqueSourcePath()))
+                    Operation.CreateDir(newDirectory)
                 ),
                 fileAccessManifest: fam);
 
             result = await RunProcess(info);
 
-            // We should get a report where we see the creation attempt with a successful error code
-            result.AllUnexpectedFileAccesses.Single(fa =>
+            // We should get a report where we see the creation attempt with a successful error code.
+            // Directory creation is reported as a probe, so look for it among all reported accesses.
+            result.FileAccesses.Single(fa =>
                 fa.Operation == ReportedFileOperation.CreateDirectory &&
+                fa.ManifestPath == newDirectory &&
                 fa.Error == 0);
 
             AssertVerboseEventLogged(ProcessesLogEventId.PTraceSandboxLaunchedForPip, 2);

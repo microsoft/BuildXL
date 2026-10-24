@@ -68,7 +68,7 @@ This page lists flags that can be used to configure BuildXL.
 | Environment | Environment build is running in. Allowed values '{0}'. |
 | ExitOnNewGraph | When enabled, exit early if a new graph needs to be created.  This differs from phase:schedule because it doesn't actually create the graph. |
 | Experimental__0 | Enables an experimental feature (short form: /exp). Available experimental features: {0} |
-| ExperimentalSharedOpaqueTracking | Enables experimental shared opaque tracking while preserving input and output timestamp policies. Automatically configures the sandbox to allow and report accesses for post-execution validation instead of blocking them immediately; undeclared accesses remain errors by default. Defaults to off. |
+| ExperimentalSharedOpaqueTracking | Enables experimental shared opaque tracking while preserving input and output timestamp policies. Reads of shared opaque inputs are allowed and reported through a directory scope and validated against the declared contents after execution; undeclared accesses are still blocked and remain errors. Defaults to on. |
 | ExplicitlyReportDirectoryProbes | When enabled, detours will explicitly report directory probes. Note that this may result in an increased amount of DFAs. |
 | FancyConsole | When enabled, the console will give frequent updates of the status of processes that are running. Defaults to off. |
 | FancyConsoleMaxStatusPips | Maximum number of concurrently executing pips to render in Fancy Console view. Defaults to 5. |

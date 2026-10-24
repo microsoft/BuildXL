@@ -3906,7 +3906,6 @@ namespace Test.BuildXL.Processes.Detours
                 {
                     FileAccessIgnoreCodeCoverage = true,
                     NormalizeReadTimestamps = normalize,
-                    FailUnexpectedFileAccesses = !experimentalSharedOpaqueTracking,
                     ExperimentalSharedOpaqueTracking = experimentalSharedOpaqueTracking,
                 };
 

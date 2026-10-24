@@ -30,7 +30,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ForceReadOnlyForRequestedReadWrite = false;
             FlushPageCacheToFileSystemOnStoringOutputsToCache = true;
             NormalizeReadTimestamps = true;
-            ExperimentalSharedOpaqueTracking = false;
+            // TODO: Remove the option to disable shared opaque tracking once it is stable.
+            ExperimentalSharedOpaqueTracking = true;
             UseLargeNtClosePreallocatedList = false;
             UseExtraThreadToDrainNtClose = true;
             MaskUntrackedAccesses = true;

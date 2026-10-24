@@ -278,5 +278,104 @@ File accesses:{Environment.NewLine}
 {string.Join(Environment.NewLine, result.FileAccesses.Select(f => $"Path: {f.ManifestPath.ToString(Context.PathTable)}, Requested Access: {f.RequestedAccess}"))}"
             );
         }
+
+        /// <summary>
+        /// mkdir on an existing directory where directory creation is not allowed must be reported as a probe rather than a write,
+        /// even when unexpected file accesses are not being blocked. Otherwise it surfaces as a false DX0500 write violation.
+        /// </summary>
+        [Fact]
+        public void MkdirOnExistingDirectoryIsReportedAsProbe()
+        {
+            var tempFiles = new TempFileStorage(canGetFileNames: true);
+            var existingDirectory = tempFiles.GetDirectory("existingDirectory");
+
+            var process = CreateTestProcess(
+                Context.PathTable,
+                tempFiles,
+                "MkdirOnExistingDirectory",
+                inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+            var processInfo = ToProcessInfo(process, workingDirectory: tempFiles.RootDirectory);
+            processInfo.FileAccessManifest.ReportFileAccesses = true;
+            processInfo.FileAccessManifest.MonitorChildProcesses = true;
+            processInfo.FileAccessManifest.FailUnexpectedFileAccesses = false;
+            processInfo.FileAccessManifest.EnforceAccessPoliciesOnDirectoryCreation = false;
+            // Reads are allowed under the temp root, but directory creation is not.
+            processInfo.FileAccessManifest.AddScope(
+                AbsolutePath.Create(Context.PathTable, tempFiles.RootDirectory),
+                FileAccessPolicy.MaskAll,
+                FileAccessPolicy.AllowRead | FileAccessPolicy.AllowReadIfNonexistent | FileAccessPolicy.ReportAccess);
+
+            var result = RunProcess(processInfo).Result;
+
+            XAssert.AreEqual(0, result.ExitCode, $"stdout: {result.StandardOutput.ReadValueAsync().Result}{Environment.NewLine}stderr: {result.StandardError.ReadValueAsync().Result}");
+
+            var accessesOnDirectory = result.FileAccesses
+                .Where(access => access.ManifestPath.ToString(Context.PathTable) == existingDirectory)
+                .ToList();
+            var renderedAccesses = string.Join(Environment.NewLine, accessesOnDirectory.Select(f => $"Operation: {f.Operation}, Requested Access: {f.RequestedAccess}, Status: {f.Status}"));
+
+            // EBPF does not report failed mkdir calls, so the probe is only expected from the interpose/ptrace sandboxes.
+            if (!UsingEBPFSandbox)
+            {
+                XAssert.IsTrue(accessesOnDirectory.Any(access => access.RequestedAccess == RequestedAccess.Probe), $"Expected a probe on {existingDirectory}. Accesses:{Environment.NewLine}{renderedAccesses}");
+            }
+
+            XAssert.IsFalse(accessesOnDirectory.Any(access => access.RequestedAccess.HasFlag(RequestedAccess.Write)), $"Unexpected write on {existingDirectory}. Accesses:{Environment.NewLine}{renderedAccesses}");
+            XAssert.IsFalse(accessesOnDirectory.Any(access => access.Status == FileAccessStatus.Denied), $"Unexpected denied access on {existingDirectory}. Accesses:{Environment.NewLine}{renderedAccesses}");
+        }
+
+        /// <summary>
+        /// Complements <see cref="MkdirOnExistingDirectoryIsReportedAsProbe"/>: a successful mkdir of a new directory where directory
+        /// creation is not allowed (and not enforced) is also reported as a probe rather than an unexpected write, even when unexpected
+        /// file accesses are not being blocked. This matches the behavior when blocking is on.
+        /// </summary>
+        [Fact]
+        public void MkdirOnNewDirectoryIsReportedAsProbe()
+        {
+            var tempFiles = new TempFileStorage(canGetFileNames: true);
+            var newDirectory = Path.Combine(tempFiles.RootDirectory, "newDirectory");
+
+            var process = CreateTestProcess(
+                Context.PathTable,
+                tempFiles,
+                "MkdirOnNewDirectory",
+                inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+            var processInfo = ToProcessInfo(process, workingDirectory: tempFiles.RootDirectory);
+            processInfo.FileAccessManifest.ReportFileAccesses = true;
+            processInfo.FileAccessManifest.MonitorChildProcesses = true;
+            processInfo.FileAccessManifest.FailUnexpectedFileAccesses = false;
+            processInfo.FileAccessManifest.EnforceAccessPoliciesOnDirectoryCreation = false;
+            // Reads are allowed under the temp root, but directory creation is not.
+            processInfo.FileAccessManifest.AddScope(
+                AbsolutePath.Create(Context.PathTable, tempFiles.RootDirectory),
+                FileAccessPolicy.MaskAll,
+                FileAccessPolicy.AllowRead | FileAccessPolicy.AllowReadIfNonexistent | FileAccessPolicy.ReportAccess);
+
+            var result = RunProcess(processInfo).Result;
+
+            XAssert.AreEqual(0, result.ExitCode, $"stdout: {result.StandardOutput.ReadValueAsync().Result}{Environment.NewLine}stderr: {result.StandardError.ReadValueAsync().Result}");
+
+            var accessesOnDirectory = result.FileAccesses
+                .Where(access => access.ManifestPath.ToString(Context.PathTable) == newDirectory)
+                .ToList();
+            var renderedAccesses = string.Join(Environment.NewLine, accessesOnDirectory.Select(f => $"Operation: {f.Operation}, Requested Access: {f.RequestedAccess}, Status: {f.Status}"));
+
+            XAssert.IsTrue(
+                accessesOnDirectory.Any(access => access.Operation == ReportedFileOperation.CreateDirectory && access.RequestedAccess == RequestedAccess.Probe),
+                $"Expected the directory creation on {newDirectory} to be reported as a probe. Accesses:{Environment.NewLine}{renderedAccesses}");
+            XAssert.IsFalse(
+                result.AllUnexpectedFileAccesses.Any(access => access.ManifestPath.ToString(Context.PathTable) == newDirectory && access.RequestedAccess.HasFlag(RequestedAccess.Write)),
+                $"Unexpected write on {newDirectory}. Accesses:{Environment.NewLine}{renderedAccesses}");
+        }
     }
 }

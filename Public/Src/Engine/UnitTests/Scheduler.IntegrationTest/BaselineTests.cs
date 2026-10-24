@@ -1590,9 +1590,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             // to \finalOut.
             RunScheduler().AssertFailure();
 
-            // Error DX0064: The test process failed to execute an operation: MoveDir (access denied)
-            // Error DX0500: Disallowed write access.
-            SetExpectedFailures(2, 0);
+            // DX0064: The test process failed to execute an operation: MoveDir (access denied).
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
+            // DX0500: Disallowed write access.
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Theory]

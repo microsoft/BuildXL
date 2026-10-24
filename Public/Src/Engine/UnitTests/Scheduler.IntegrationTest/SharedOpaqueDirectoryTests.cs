@@ -33,6 +33,8 @@ namespace IntegrationTest.BuildXL.Scheduler
     {
         public SharedOpaqueDirectoryTests(ITestOutputHelper output) : base(output)
         {
+            // The derived experimental tracking suite enables this flag so both modes remain covered.
+            Configuration.Sandbox.ExperimentalSharedOpaqueTracking = false;
         }
 
         /// <summary>
@@ -2735,9 +2737,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(LogEventId.FileMonitoringError, count: 1);
             if (dependencyBetweenPips)
             {
-                // Detours normally blocks the deletion and causes the process to fail. EBPF and experimental
-                // shared opaque tracking allow the operation, but post-execution validation still fails the build.
-                bool validateAfterExecution = UsingEBPFSandbox || Configuration.Sandbox.ExperimentalSharedOpaqueTracking;
+                // Detours normally blocks the deletion and causes the process to fail. EBPF allows the operation,
+                // but post-execution validation still fails the build.
+                bool validateAfterExecution = UsingEBPFSandbox;
                 AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: validateAfterExecution ? 0 : 1);
                 AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: validateAfterExecution ? 1 : 0);
             }

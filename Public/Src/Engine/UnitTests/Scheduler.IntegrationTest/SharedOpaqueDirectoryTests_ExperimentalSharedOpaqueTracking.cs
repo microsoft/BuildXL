@@ -24,7 +24,8 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Experimental tracking allows sandbox accesses but still rejects undeclared dependencies after execution.
+        /// Experimental tracking relies on the shared opaque input scope instead of per-member manifest entries.
+        /// Declared consumers can still read the members, while undeclared reads remain blocked by the sandbox.
         /// </summary>
         [Theory]
         [InlineData(true)]
@@ -58,19 +59,29 @@ namespace IntegrationTest.BuildXL.Scheduler
             // RunScheduler copies and normalizes Configuration through BuildXLEngine before creating the scheduler.
             // Do not set FailUnexpectedFileAccesses here: this must exercise the feature's automatic configuration.
             var result = RunScheduler();
+            var consumerContent = File.ReadAllText(consumerOutput.Path.ToString(Context.PathTable));
             if (declareDependency)
             {
                 result.AssertSuccess();
+                XAssert.AreEqual(SharedContent, consumerContent);
             }
             else
             {
                 result.AssertFailure();
                 AssertErrorEventLogged(LogEventId.FileMonitoringError);
                 AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            }
 
-            // Check the actual content: ReadAndWriteFile catches access-denied errors and writes random content instead.
-            XAssert.AreEqual(SharedContent, File.ReadAllText(consumerOutput.Path.ToString(Context.PathTable)));
+                // The sandbox blocks the undeclared read when it is able to: ReadAndWriteFile catches the
+                // access-denied error and writes random content instead. EBPF has no blocking capabilities.
+                if (UsingEBPFSandbox)
+                {
+                    XAssert.AreEqual(SharedContent, consumerContent);
+                }
+                else
+                {
+                    XAssert.AreNotEqual(SharedContent, consumerContent);
+                }
+            }
         }
     }
 }

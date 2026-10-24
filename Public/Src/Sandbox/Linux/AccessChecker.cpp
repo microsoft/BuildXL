@@ -290,8 +290,11 @@ void AccessChecker::CheckCreateDirectory(PolicyResult policy, bool is_dir, Acces
 
 void AccessChecker::CheckCreateDirectoryNoEnforcement(PolicyResult policy, bool is_dir, bool exists, AccessCheckResult *check_result) {
     // CODESYNC: CreateDirectoryW in DetouredFunctions.cpp
+    // When directory creation is not enforced, a disallowed directory creation is treated as a probe. This holds regardless of
+    // whether unexpected accesses are blocked (Deny) or only reported (Warn), so that disabling blocking (e.g., via
+    // ExperimentalSharedOpaqueTracking) does not turn directory creations into write violations.
     *check_result = policy.CheckCreateDirectoryAccess();
-    if (check_result->ShouldDenyAccess()) {
+    if (check_result->Result != ResultAction::Allow) {
         CheckProbe(policy, is_dir, exists, check_result);
     }
 }

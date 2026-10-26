@@ -532,26 +532,26 @@ config({
                 // NodeJs
                 {
                     moduleName: "NodeJs.win-x64",
-                    url: "https://nodejs.org/dist/v24.22.0/node-v24.22.0-win-x64.zip",
-                    hash: "VSO0:8AA65D092321F477371C33D9353CE1B977F09DADD53381DDCB45738A6B2BB2A700",
+                    url: "https://nodejs.org/dist/v24.22.1/node-v24.22.1-win-x64.zip",
+                    hash: "VSO0:A01B03925DDA793E1466B42066D00C856CB3EF3CA899F13CAEF15BD94DAA821F00",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "NodeJs.osx-x64",
-                    url: "https://nodejs.org/dist/v24.22.0/node-v24.22.0-darwin-x64.tar.gz",
-                    hash: "VSO0:9696FA2E3D7D229365F9FDA2096C4B7E842BC74B1207038AB5AABBC15B115DF500",
+                    url: "https://nodejs.org/dist/v24.22.1/node-v24.22.1-darwin-x64.tar.gz",
+                    hash: "VSO0:7F3C94D91664037BCCC56C51D640FD5983EC1D14A98278B0068734182B714C6400",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "NodeJs.osx-arm64",
-                    url: "https://nodejs.org/dist/v24.22.0/node-v24.22.0-darwin-arm64.tar.gz",
-                    hash: "VSO0:482A917EED36FE8E3FD780DA51B71809069CE9C696DFEB7F84152CFD22C4085000",
+                    url: "https://nodejs.org/dist/v24.22.1/node-v24.22.1-darwin-arm64.tar.gz",
+                    hash: "VSO0:E10738210792B42BB83F1A79AE788DFB0BE67244393E25619BDBEC9CA012A07B00",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "NodeJs.linux-x64",
-                    url: "https://nodejs.org/dist/v24.22.0/node-v24.22.0-linux-x64.tar.gz",
-                    hash: "VSO0:B76EDA87EA7DF2FC09E3A2CA4E13A5AA915B81B2226211F3F50CB76B6425D5DB00",
+                    url: "https://nodejs.org/dist/v24.22.1/node-v24.22.1-linux-x64.tar.gz",
+                    hash: "VSO0:FFF81473DE286B1D4C0B92B50822E8B2DF960119DF85504AA8518A39C632D52500",
                     archiveType: "tgz",
                 },
                 {

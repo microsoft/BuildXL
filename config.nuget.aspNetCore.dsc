@@ -1,18 +1,18 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-const aspVersion = "10.0.13";
+const aspVersion = "10.0.14";
 
 // Versions used by framework reference packages for reference assemblies
 // and runtime assemblies respectively
-const asp8RefVersion = "8.0.32";
-const asp8RuntimeVersion = "8.0.32";
+const asp8RefVersion = "8.0.33";
+const asp8RuntimeVersion = "8.0.33";
 
-const asp9RefVersion = "9.0.21";
-const asp9RuntimeVersion = "9.0.21";
+const asp9RefVersion = "9.0.22";
+const asp9RuntimeVersion = "9.0.22";
 
-const asp10RefVersion = "10.0.13";
-const asp10RuntimeVersion = "10.0.13";
+const asp10RefVersion = "10.0.14";
+const asp10RuntimeVersion = "10.0.14";
 
 export const pkgs = [
     // aspnet web api

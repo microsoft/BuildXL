@@ -24,6 +24,38 @@ namespace Test.BuildXL.Utilities
             m_logger = message => m_output.WriteLine(message);
         }
 
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task RepeatedFinalizationPreservesFirstExitTime(bool timeOut)
+        {
+            using var process = new Process
+            {
+                StartInfo = OperatingSystemHelper.IsWindowsOS
+                    ? new ProcessStartInfo(Environment.GetEnvironmentVariable("ComSpec"),
+                        timeOut ? "/d /c set /p value=" : "/d /c echo done")
+                    : new ProcessStartInfo("/bin/sh", timeOut ? "-c \"read value\"" : "-c \"echo done\""),
+                EnableRaisingEvents = true,
+            };
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.RedirectStandardInput = timeOut;
+
+            using var executor = new AsyncProcessExecutor(
+                process, TimeSpan.FromMilliseconds(timeOut ? 200 : 500), logger: m_logger);
+            executor.Start();
+            await executor.WaitForExitAsync();
+            DateTime firstExitTime = executor.ExitTime;
+            Assert.NotEqual(default(DateTime), firstExitTime);
+            Assert.Equal(timeOut, executor.TimedOut);
+
+            // Represent report/process-tree cleanup between the timeout wait and the final eBPF wait.
+            await Task.Delay(1);
+            await executor.WaitForExitAsync();
+
+            Assert.Equal(firstExitTime, executor.ExitTime);
+            Assert.Equal(timeOut, executor.TimedOut);
+        }
+
         [FactIfSupported(requiresLinuxBasedOperatingSystem: true)]
         public async Task TestAsyncProcessExecutorGentleKill()
         {

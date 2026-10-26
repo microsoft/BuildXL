@@ -501,11 +501,9 @@ namespace BuildXL.Processes
                 }
             }
 
-            // The whole process tree should be gone already. For EBPF, make sure of it by waiting for the process to exit
-            // and ensuring that it is killed (if appropriate)
-            // Observe that querying 'Killed' here is racy since the process may be in the process of being killed. We need to make sure
-            // that the process is no longer alive before returning from this method since we are going to query the exit code for returning the result.
-            if (SandboxConnection.Kind == SandboxKind.LinuxEBPF && !Process.HasExited)
+            // Finalize the executor even if the eBPF runner already exited. Besides waiting and handling
+            // timeouts, this records the exit timestamp used to calculate wall-clock duration and CPU usage.
+            if (SandboxConnection.Kind == SandboxKind.LinuxEBPF)
             {
                 LogDebug($"GetReportsAsync: Waiting for process tree {ProcessId} to finish.");
                 await WaitForExitAndEnsureKilledAsync();

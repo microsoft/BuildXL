@@ -32,10 +32,13 @@ namespace BuildXL.Utilities.Core
         /// </summary>
         public DateTime StartTime { get; private set; }
 
+        private long m_exitTimeUtcTicks;
+
         /// <summary>
-        /// Exit time.
+        /// Time first observed by <see cref="WaitForExitAsync"/> on exit or timeout.
+        /// Subsequent waits preserve this timestamp.
         /// </summary>
-        public DateTime ExitTime { get; private set; }
+        public DateTime ExitTime => new DateTime(Interlocked.Read(ref m_exitTimeUtcTicks), DateTimeKind.Utc);
 
         /// <summary>
         /// Flag indicating if the process was killed.
@@ -294,7 +297,8 @@ namespace BuildXL.Utilities.Core
         {
             Log($"waiting to exit");
             var finishedTask = await Task.WhenAny(m_timeoutTask, WhenExited);
-            ExitTime = DateTime.UtcNow;
+            // Timeout and final process-tree cleanup may both await exit. Preserve the first timestamp.
+            Interlocked.CompareExchange(ref m_exitTimeUtcTicks, DateTime.UtcNow.Ticks, 0);
 
             var timedOut = finishedTask != WhenExited;
             // If both m_timeoutTask and WhenExited completed before we even reached Task.WhenAny, let's only kill the process if it has not exited yet.

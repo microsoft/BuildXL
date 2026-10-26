@@ -2112,6 +2112,45 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(ExpectedRetainedProcessCount, processResourceUsage.Count);
         }
 
+        [FactIfSupported(requiresEBPFEnabled: true)]
+        public async Task ExitedEbpfProcessRetainsWallClockDuration()
+        {
+            using var tempFiles = new TempFileStorage(canGetFileNames: true);
+            var connection = GetEBPFAwareSandboxConnection();
+            Assert.Equal(SandboxKind.LinuxEBPF, connection.Kind);
+
+            var info = new SandboxedProcessInfo(new PathTable(), tempFiles, "/bin/sh", disableConHostSharing: false, loggingContext: LoggingContext)
+            {
+                PipSemiStableHash = 0,
+                PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
+                Arguments = "-c \"echo done\"",
+                SandboxConnection = connection,
+                Timeout = TimeSpan.FromSeconds(1),
+            };
+            info.FileAccessManifest.PipId = GetNextPipId();
+            info.FileAccessManifest.ReportFileAccesses = true;
+            info.FileAccessManifest.FailUnexpectedFileAccesses = false;
+
+            using var process = await StartProcessAsync(info);
+            using var osProcess = System.Diagnostics.Process.GetProcessById(process.ProcessId);
+            Assert.True(await Task.Run(() => osProcess.WaitForExit(1000)), "The eBPF process did not exit.");
+
+            // Waiting through the OS API does not finalize AsyncProcessExecutor's exit timestamp.
+            var result = await process.GetResultAsync();
+            Assert.Equal(0, result.ExitCode);
+            Assert.False(result.TimedOut);
+            Assert.False(result.Killed);
+            Assert.True(result.JobAccountingInformation.HasValue);
+            var accounting = result.JobAccountingInformation.Value;
+            int cpuPercent = ProcessPipExecutionPerformance.CalculateProcessorsInPercents(
+                accounting.UserTime, accounting.KernelTime, result.PrimaryProcessTimes.TotalWallClockTime);
+            int availableCpuPercent = checked(Environment.ProcessorCount * 100);
+            Assert.True(cpuPercent <= availableCpuPercent,
+                $"Measured CPU usage {cpuPercent}% exceeds the available {availableCpuPercent}% ({Environment.ProcessorCount} logical CPUs).");
+            Assert.True(result.PrimaryProcessTimes.TotalWallClockTime > TimeSpan.Zero,
+                $"The process reported zero wall-clock duration. User: {accounting.UserTime}, kernel: {accounting.KernelTime}, CPU: {cpuPercent}%.");
+        }
+
         [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
         public async Task SandboxedProcessJobAccountingInformationAsync()
         {

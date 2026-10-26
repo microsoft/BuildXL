@@ -1258,6 +1258,13 @@ namespace Test.BuildXL.Storage
             // Tests that the file can still be deleted after removing write permissions
             FileUtilities.DeleteFile(testFilePath);
             XAssert.IsFalse(FileUtilities.FileExistsNoFollow(testFilePath));
+
+            var accessControlException = Assert.Throws<BuildXLException>(() => FileUtilities.HasWritableAccessControl(testFilePath));
+            Assert.IsType<FileNotFoundException>(accessControlException.InnerException);
+            Assert.Contains(testFilePath, accessControlException.Message);
+
+            var attributeAccessControlException = Assert.Throws<BuildXLException>(() => FileUtilities.HasWritableAttributeAccessControl(testFilePath));
+            Assert.IsType<FileNotFoundException>(attributeAccessControlException.InnerException);
         }
 
         /// <summary>

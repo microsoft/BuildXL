@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.AccessControl;
 using BuildXL.Engine;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
@@ -479,6 +480,12 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Output is in opaque dir and Unsafe.AllowPreservedOutputs = true
             var pipA = ScheduleAndGetPip(out var input, out var output, opaque: true, pipPreserveOutputsFlag: true);
 
+            if (!ignorePrivatization)
+            {
+                // Exercise preservation of an existing empty directory on the first run.
+                FileUtilities.CreateDirectory(pipA.Process.DirectoryOutputs[0].Path.ToString(Context.PathTable));
+            }
+
             // No cache hit
             string outputContents = RunSchedulerAndGetOutputContents(output, cacheHitAssert: false, id: pipA.Process.PipId);
             XAssert.AreEqual(CONTENT, outputContents);
@@ -501,6 +508,26 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Cache hit and the appended file (CONTENT_TWICE) should remain the same.
             XAssert.AreEqual(CONTENT_TWICE, outputContents);
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void PreserveOutputsOpaqueDirectoryCleanupAfterPrivatizationFailure()
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
+            Configuration.Schedule.StoreOutputsToCache = false;
+
+            var pip = ScheduleAndGetPip(out var input, out var output, opaque: true, pipPreserveOutputsFlag: true);
+            XAssert.AreEqual(CONTENT, RunSchedulerAndGetOutputContents(output, cacheHitAssert: false, id: pip.Process.PipId));
+
+            string blockedFile = Path.Combine(pip.Process.DirectoryOutputs[0].Path.ToString(Context.PathTable), "blocked");
+            File.WriteAllText(blockedFile, CONTENT);
+            // Deny privatization's read open without denying cleanup's delete access.
+            FileUtilities.SetFileAccessControl(blockedFile, FileSystemRights.ReadData, allow: false);
+            ModifyFile(input);
+
+            XAssert.AreEqual(CONTENT, RunSchedulerAndGetOutputContents(output, cacheHitAssert: false, id: pip.Process.PipId));
+            XAssert.IsFalse(FileUtilities.FileExistsNoFollow(blockedFile));
+            AssertVerboseEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate);
         }
 
         /// <summary>

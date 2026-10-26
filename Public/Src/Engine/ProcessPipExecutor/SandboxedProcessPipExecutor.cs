@@ -3740,8 +3740,9 @@ namespace BuildXL.ProcessPipExecutor
                             if (!m_sandboxConfig.UnsafeSandboxConfiguration.IgnorePreserveOutputsPrivatization)
                             {
                                 int failureCount = 0;
+                                // Privatization creates sibling temporary files, so finish enumeration before starting consumers.
                                 var makeOutputPrivateWorker = ActionBlockSlim.Create<string>(
-                                    degreeOfParallelism: Environment.ProcessorCount,
+                                    degreeOfParallelism: 0,
                                     async path =>
                                     {
                                         if (failureCount == 0 && !await m_makeOutputPrivate(path))
@@ -3756,7 +3757,7 @@ namespace BuildXL.ProcessPipExecutor
                                         }
                                     });
 
-                                FileUtilities.EnumerateDirectoryEntries(
+                                EnumerateDirectoryResult enumerationResult = FileUtilities.EnumerateDirectoryEntries(
                                     directoryExpandedPath.ExpandedPath,
                                     recursive: true,
                                     handleEntry: (currentDir, name, attributes) =>
@@ -3766,12 +3767,41 @@ namespace BuildXL.ProcessPipExecutor
                                             makeOutputPrivateWorker.Post(Path.Combine(currentDir, name));
                                         }
                                     });
-                                makeOutputPrivateWorker.Complete();
+
+                                if (enumerationResult.Succeeded)
+                                {
+                                    makeOutputPrivateWorker.IncreaseConcurrencyTo(Environment.ProcessorCount);
+                                }
+                                else
+                                {
+                                    failureCount = 1;
+                                    Logger.Log.PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate(
+                                        m_loggingContext,
+                                        m_pip.SemiStableHash,
+                                        m_pipDescription,
+                                        directoryOutput.Path.ToString(m_pathTable),
+                                        enumerationResult.Directory);
+                                }
+
+                                makeOutputPrivateWorker.Complete(cancelPending: !enumerationResult.Succeeded);
                                 await makeOutputPrivateWorker.Completion;
 
                                 if (failureCount > 0)
                                 {
                                     PreparePathForDirectory(directoryExpandedPath, createIfNonExistent: true, isPipOutputPath: true);
+
+                                    // Cleanup can suppress enumeration failures on some platforms.
+                                    bool hasRemainingEntries = false;
+                                    EnumerateDirectoryResult cleanupResult = FileUtilities.EnumerateDirectoryEntries(
+                                        directoryExpandedPath.ExpandedPath,
+                                        (name, attributes) => hasRemainingEntries = true);
+                                    if (!cleanupResult.Succeeded || hasRemainingEntries)
+                                    {
+                                        throw new BuildXLException(
+                                            $"Failed to clean preserved output directory '{directoryExpandedPath.ExpandedPath}' " +
+                                            $"({cleanupResult.Status}, native error {cleanupResult.NativeErrorCode}, entries remaining: {hasRemainingEntries}).",
+                                            cleanupResult.ErrorCause);
+                                    }
                                 }
                             }
                             else

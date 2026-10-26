@@ -361,11 +361,23 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
             await actionBlock.Completion;
         }
 
-        [Fact]
-        public async Task Completion_Is_Awaitable_Before_Completed_Is_Called()
+        [Theory]
+        [InlineData(0)]
+        [InlineData(10)]
+        public async Task Completion_Is_Awaitable_Before_Completed_Is_Called(int itemCount)
         {
-            var actionBlock = ActionBlockSlim.Create<int>(0, n => { });
+            int[] processedCounts = new int[itemCount];
+            var actionBlock = ActionBlockSlim.Create<int>(0, n => { Interlocked.Increment(ref processedCounts[n]); });
             var task = actionBlock.Completion;
+
+            for (int i = 0; i < itemCount; i++)
+            {
+                actionBlock.Post(i);
+            }
+
+            Assert.Equal(itemCount, actionBlock.PendingWorkItems);
+            Assert.Equal(0, actionBlock.ProcessedWorkItems);
+            Assert.All(processedCounts, count => Assert.Equal(0, count));
 
             bool completed = false;
             var concurrentWaiter = Task.Run(async () =>
@@ -383,16 +395,32 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
             await concurrentWaiter;
 
             Assert.True(completed);
+            Assert.Equal(itemCount, actionBlock.ProcessedWorkItems);
+            Assert.Equal(0, actionBlock.PendingWorkItems);
+            Assert.All(processedCounts, count => Assert.Equal(1, count));
         }
 
-        [Fact]
-        public Task Completion_Task_Is_Not_Done_When_Completed_With_0_Concurrency_Is_Called()
+        [Theory]
+        [InlineData(0, false)]
+        [InlineData(10, true)]
+        public async Task Completion_Task_Is_Not_Done_When_Completed_With_0_Concurrency_Is_Called(int itemCount, bool cancelPending)
         {
-            var actionBlock = ActionBlockSlim.Create<int>(0, n => { });
+            int processedCount = 0;
+            var actionBlock = ActionBlockSlim.Create<int>(0, n => { Interlocked.Increment(ref processedCount); });
             var task = actionBlock.Completion;
+
+            for (int i = 0; i < itemCount; i++)
+            {
+                actionBlock.Post(i);
+            }
+
+            Assert.Equal(itemCount, actionBlock.PendingWorkItems);
             Assert.NotEqual(TaskStatus.RanToCompletion, task.Status);
-            actionBlock.Complete();
-            return task;
+            actionBlock.Complete(cancelPending: cancelPending);
+            await task;
+
+            Assert.Equal(0, processedCount);
+            Assert.Equal(0, actionBlock.ProcessedWorkItems);
         }
 
 

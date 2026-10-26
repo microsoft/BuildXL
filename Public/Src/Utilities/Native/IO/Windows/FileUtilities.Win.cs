@@ -2217,25 +2217,32 @@ namespace BuildXL.Native.IO.Windows
 
         private bool CheckFileSystemRightsForPath(string path, FileSystemRights fileSystemRights)
         {
-            FileInfo fileInfo = new FileInfo(path);
-            FileSecurity fileSecurity = fileInfo.GetAccessControl();
-            foreach (AuthorizationRule rule in fileSecurity.GetAccessRules(true, true, typeof(SecurityIdentifier)))
+            try
             {
-                var identifier = rule.IdentityReference as SecurityIdentifier;
-
-                if (identifier != null && identifier == s_worldSid)
+                FileInfo fileInfo = new FileInfo(path);
+                FileSecurity fileSecurity = fileInfo.GetAccessControl();
+                foreach (AuthorizationRule rule in fileSecurity.GetAccessRules(true, true, typeof(SecurityIdentifier)))
                 {
-                    var fileSystemAccessRule = rule as FileSystemAccessRule;
-                    if (fileSystemAccessRule != null &&
-                        (fileSystemAccessRule.FileSystemRights & fileSystemRights) != 0 &&
-                        fileSystemAccessRule.AccessControlType == AccessControlType.Deny)
+                    var identifier = rule.IdentityReference as SecurityIdentifier;
+
+                    if (identifier != null && identifier == s_worldSid)
                     {
-                        return false;
+                        var fileSystemAccessRule = rule as FileSystemAccessRule;
+                        if (fileSystemAccessRule != null &&
+                            (fileSystemAccessRule.FileSystemRights & fileSystemRights) != 0 &&
+                            fileSystemAccessRule.AccessControlType == AccessControlType.Deny)
+                        {
+                            return false;
+                        }
                     }
                 }
-            }
 
-            return true;
+                return true;
+            }
+            catch (Exception ex) when (ex.IsRecoverableIoException())
+            {
+                throw new BuildXLException(I($"Failed to check file system rights for '{path}'."), ex);
+            }
         }
 
         /// <inheritdoc />

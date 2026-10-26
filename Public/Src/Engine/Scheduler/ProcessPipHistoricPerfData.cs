@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips;
+using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using static BuildXL.Utilities.Core.FormattableStringEx;
@@ -66,6 +67,32 @@ namespace BuildXL.Scheduler
         /// Check if the structure was recently generated
         /// </summary>
         public bool IsFresh => m_entryTimeToLive == DefaultTimeToLive;
+
+        /// <summary>
+        /// Converts CPU usage into execute slots using the scheduler's minimum weight and Linux limit.
+        /// </summary>
+        internal static int ComputeCpuWeight(int cpuUsageInPercent)
+        {
+            double cpuUsageInCores = ComputeCpuUsageInCores(cpuUsageInPercent);
+            return cpuUsageInCores > 1
+                ? (int)Math.Round(cpuUsageInCores)
+                : Process.MinWeight;
+        }
+
+        /// <summary>
+        /// Converts CPU usage into fractional cores, applying the same measurement limit for scheduling and simulation.
+        /// </summary>
+        internal static double ComputeCpuUsageInCores(int cpuUsageInPercent)
+        {
+            // CPU time measurements can exceed the machine's physical capacity on Linux.
+            // Retain the scheduler's temporary limit until work item #2116515 is resolved.
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                cpuUsageInPercent = Math.Min(cpuUsageInPercent, 1000);
+            }
+
+            return cpuUsageInPercent / 100.0;
+        }
 
         #region Constructors
 

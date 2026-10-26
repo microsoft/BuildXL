@@ -556,7 +556,7 @@ namespace BuildXL.Scheduler.Tracing
         // was DependencyViolationReadUndeclaredOutput_AsError = 25009,
 
         UnableToWritePipStandardOutputLog = 14609,
-        // Available 14610,
+        // Was SchedulerSimulatorInput = 14610 (temporary local diagnostics).
         SchedulerSimulator = 14611,
         SchedulerSimulatorResult = 14612,
         SchedulerSimulatorCompleted = 14613,

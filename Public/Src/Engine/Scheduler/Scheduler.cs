@@ -577,21 +577,7 @@ namespace BuildXL.Scheduler
             }
 #endif
 
-            // TODO(seokur): cpuUsageInPercent sometimes becomes way higher than the number of physical threads of the machine. 
-            // There is an issue about getting user and kernel time for processes in some cases. It is under investigation.
-            // For now, we cap the cpuUsageInPercent to 1000 (weight:10). 
-            if (OperatingSystemHelper.IsLinuxOS)
-            {
-                cpuUsageInPercent = Math.Min(cpuUsageInPercent, 1000); // TEMPORARY. Work item #2116515
-            }
-
-            if (cpuUsageInPercent > 100)
-            {
-                return (int)Math.Round(cpuUsageInPercent / 100.0);
-            }
-
-            // If cpu usage is less than 100%, just use the lowest possible weight.
-            return Process.MinWeight;
+            return ProcessPipHistoricPerfData.ComputeCpuWeight(cpuUsageInPercent);
         }
 
 #if MICROSOFT_INTERNAL
@@ -2057,6 +2043,7 @@ namespace BuildXL.Scheduler
                         m_loggingContext,
                         m_configuration,
                         PipGraph,
+                        HistoricPerfDataTable,
                         m_runnablePipPerformance,
                         ScheduledGraph,
                         GetPipPriority,

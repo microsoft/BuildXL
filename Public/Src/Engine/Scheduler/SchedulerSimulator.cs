@@ -117,6 +117,7 @@ namespace BuildXL.Scheduler
             public int AvailableMemory;
             public int TotalCacheLookupSlots;
             public int AvailableCacheLookupSlots;
+            private int m_executingProcessCount;
 
             public Worker(int memoryLimitMb, int executeSlots, int cacheLookupSlots)
             {
@@ -143,18 +144,29 @@ namespace BuildXL.Scheduler
                 else if (process.Phase == PipPhase.Executable)
                 {
                     int executeSlots = Math.Min(process.CpuWeight, TotalExecuteSlots);
-                    if (AvailableExecuteSlots >= executeSlots && AvailableMemory >= process.MemoryUsageMb)
+                    // Like the live scheduler, allow one process on an idle worker even if it exceeds RAM.
+                    if (AvailableExecuteSlots >= executeSlots &&
+                        (AvailableMemory >= process.MemoryUsageMb || m_executingProcessCount == 0))
                     {
                         process.EndTime = process.StartTime + process.ExecuteDurationMs;
                         process.Worker = this;
                         process.AcquiredExecuteSlots = executeSlots;
                         AvailableExecuteSlots -= executeSlots;
                         AvailableMemory -= process.MemoryUsageMb;
+                        m_executingProcessCount++;
                         return true;
                     }
                 }
 
                 return false;
+            }
+
+            internal void ReleaseExecutionResources(ProcessPipInfo process)
+            {
+                AvailableExecuteSlots += process.AcquiredExecuteSlots;
+                process.AcquiredExecuteSlots = 0;
+                AvailableMemory += process.MemoryUsageMb;
+                m_executingProcessCount--;
             }
         }
 
@@ -260,8 +272,6 @@ namespace BuildXL.Scheduler
                         RunnablePipPerformanceInfo perfInfo = m_runnablePipPerformance[pipId];
 
                         var isCacheHit = perfInfo.CacheLookupPerfInfo?.CacheMissType == PipCacheMissType.Hit;
-                        // TODO: ActualAverageWorkingSetMb is not populated. Wire measured memory in a follow-up
-                        // that also handles pips exceeding worker RAM without negative durations/costs entering scoring.
                         var memoryUsageMb = perfInfo.ActualAverageWorkingSetMb;
                         int cpuUsageInPercent = m_historicPerfDataTable[m_pipGraph.PipTable.GetPipSemiStableHash(pipId)].ProcessorsInPercents;
 
@@ -621,9 +631,7 @@ namespace BuildXL.Scheduler
                 else if (process.Phase == PipPhase.Executable)
                 {
                     // Free CPU and memory on the worker.
-                    worker.AvailableExecuteSlots += process.AcquiredExecuteSlots;
-                    process.AcquiredExecuteSlots = 0;
-                    worker.AvailableMemory += process.MemoryUsageMb;
+                    worker.ReleaseExecutionResources(process);
                     process.Phase = PipPhase.Completed;
                 }
 

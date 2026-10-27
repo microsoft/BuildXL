@@ -6092,6 +6092,7 @@ namespace BuildXL.Scheduler
                 // while still accounting for every other pip step.
                 processRunnablePip.Performance.ExeDuration = processPerf.ProcessExecutionTime;
                 processRunnablePip.Performance.OriginalExeDuration = processPerf.OriginalProcessExecutionTime;
+                processRunnablePip.Performance.ActualAverageWorkingSetMb = processPerf.MemoryCounters.AverageWorkingSetMb;
 
                 long pipDurationMs = runnablePip.Performance.CalculatePipDurationMs(this);
 

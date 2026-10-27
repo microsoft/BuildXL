@@ -896,7 +896,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>Use the historical cpu usages of the process pips as a semaphore to limit the number of processes to execute.</value>
   </data>
   <data name="HelpText_DisplayHelp_SchedulerSimulator" xml:space="preserve">
-    <value>Simulate build duration across SKU and worker count combinations using historical CPU usage for slot demand and estimated utilization. Missing or zero CPU data defaults to one core; slot reservations are bounded by worker capacity. Core-hours measure provisioned capacity. Measured pip durations are not scaled across SKUs.</value>
+    <value>Simulate build duration across SKU and worker count combinations using historical CPU usage for slot demand and estimated utilization, and measured average working sets for memory reservations. An idle worker may run one pip exceeding its RAM limit to prevent deadlock; this does not model its slowdown or physical feasibility. Unsampled memory usage remains zero. Missing or zero CPU data defaults to one core; slot reservations are bounded by worker capacity. Core-hours measure provisioned capacity. Measured pip durations are not scaled across SKUs.</value>
   </data>
   <data name="HelpText_DisplayHelp_VmConcurrencyLimit" xml:space="preserve">
     <value>Max number of processes executed in VM. Value 0 means unbounded. Defaults to 0.</value>

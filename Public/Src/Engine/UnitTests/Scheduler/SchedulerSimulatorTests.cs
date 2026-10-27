@@ -66,6 +66,62 @@ namespace Test.BuildXL.Scheduler
             AssertResourcesReleased(pips);
         }
 
+        [Theory]
+        [InlineData(20, 1000)]
+        [InlineData(10, 2000)]
+        [InlineData(5, 2000)]
+        [InlineData(0, 2000)]
+        public void MemoryDemandLimitsConcurrencyAndOversizedPipsMakeProgress(int memoryLimitMb, int expectedDurationMs)
+        {
+            var (graph, pips) = CreateProcesses(100, 100);
+
+            double durationMin = RunSimulation(pips, graph, workerCount: 1, memoryLimitMb, executeSlots: 4, cacheLookupSlots: 2);
+
+            Assert.Equal(expectedDurationMs / 60000.0, durationMin);
+            AssertResourcesReleased(pips);
+        }
+
+        [Fact]
+        public void OversizedMemoryWaitsForIdleWorkerAndReleasesFullReservation()
+        {
+            var worker = new Worker(memoryLimitMb: 10, executeSlots: 4, cacheLookupSlots: 1);
+            var small = new ProcessPipInfo { Phase = PipPhase.Executable, MemoryUsageMb = 1 };
+            var large = new ProcessPipInfo { Phase = PipPhase.Executable, MemoryUsageMb = 20 };
+            var zeroMemory = new ProcessPipInfo { Phase = PipPhase.Executable, MemoryUsageMb = 0 };
+
+            Assert.True(worker.TryAcquireWorker(small));
+            Assert.False(worker.TryAcquireWorker(large));
+            Assert.Equal(9, worker.AvailableMemory);
+            worker.ReleaseExecutionResources(small);
+            Assert.True(worker.TryAcquireWorker(large));
+            Assert.Equal(-10, worker.AvailableMemory);
+            Assert.False(worker.TryAcquireWorker(zeroMemory));
+            worker.ReleaseExecutionResources(large);
+            Assert.Equal(10, worker.AvailableMemory);
+            Assert.Equal(4, worker.AvailableExecuteSlots);
+            Assert.True(worker.TryAcquireWorker(small));
+            worker.ReleaseExecutionResources(small);
+        }
+
+        [Fact]
+        public void OversizedMemoryCanUseMultipleWorkersAcrossReusedSimulations()
+        {
+            var (graph, source) = CreateProcesses(100, 100);
+            foreach (var process in source.OfType<ProcessPipInfo>())
+            {
+                process.MemoryUsageMb = 100;
+            }
+
+            var pips = ClonePips(source);
+            Assert.All(pips.OfType<ProcessPipInfo>(), process => Assert.Equal(100, process.MemoryUsageMb));
+            Assert.Equal(1000 / 60000.0, RunSimulation(pips, graph, workerCount: 2, memoryLimitMb: 10, executeSlots: 4, cacheLookupSlots: 2));
+            AssertResourcesReleased(pips);
+
+            ResetPipStates(pips);
+            Assert.Equal(2000 / 60000.0, RunSimulation(pips, graph, workerCount: 1, memoryLimitMb: 10, executeSlots: 4, cacheLookupSlots: 2));
+            AssertResourcesReleased(pips);
+        }
+
         [Fact]
         public void WeightedProcessesCanUseMultipleWorkers()
         {

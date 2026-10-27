@@ -64,6 +64,9 @@ namespace BuildXL.Scheduler
 
         internal long PushOutputsToCacheDurationMs { get; private set; }
 
+        /// <summary>
+        /// Measured average working set for simulator reservations; zero when execution memory was not sampled.
+        /// </summary>
         internal int ActualAverageWorkingSetMb;
 
         /// <summary>

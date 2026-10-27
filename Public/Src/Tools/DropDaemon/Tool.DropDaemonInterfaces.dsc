@@ -50,7 +50,8 @@ export interface DropConnectionSettings {
     /** Optional domain id. If no value specified, a default domain id is used. Must have a non-negative value. */
     dropDomainId? : number;
 
-    /** Session guid to use when e.g. calling Azure DevOps. */
+    /** Session guid to use when e.g. calling Azure DevOps. Defaults to Q_SESSION_GUID when forwarded,
+     *  otherwise the build's related session id (BUILD_SESSION_ID). */
     sessionId?: string;
 
     /** Name of an environment variable that contains a PAT. If a value is provided and 

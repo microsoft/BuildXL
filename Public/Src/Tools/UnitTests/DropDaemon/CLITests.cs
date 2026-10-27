@@ -9,6 +9,7 @@ using System.Reflection;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities.CLI;
+using BuildXL.Utilities.Core;
 using Tool.DropDaemon;
 using Tool.ServicePipDaemon;
 using Xunit;
@@ -125,6 +126,48 @@ namespace Test.Tool.DropDaemon
             yield return new object[] { DropNameOption, "a", null, "c" };
             yield return new object[] { DropNameOption, null, "b", "c" };
             yield return new object[] { DropNameOption, null, "b", null };
+        }
+
+        [Fact]
+        public void SessionIdDefaultsToBuildSessionId()
+        {
+            string defaultSessionId = Environment.GetEnvironmentVariable("Q_SESSION_GUID")
+                ?? Environment.GetEnvironmentVariable(BuildParameters.RelatedSessionIdVariableName);
+            Guid? expectedSessionId = Guid.TryParse(defaultSessionId, out var parsedSessionId) ? parsedSessionId : null;
+
+            var dropConfig = CreateDropConfig(ParseArgs("create --name test --service http://xyz"));
+
+            Assert.Equal(expectedSessionId, dropConfig.SessionId);
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void ExplicitSessionIdOverridesDefault(bool useConfigFile)
+        {
+            var sessionId = Guid.NewGuid();
+            string commandLine = "create --name test --service http://xyz";
+            string json = null;
+            if (useConfigFile)
+            {
+                json = ToJsonStr(SessionId.LongName, QuoteStr(sessionId));
+            }
+            else
+            {
+                commandLine += $" --sessionId {sessionId}";
+            }
+
+            var dropConfig = CreateDropConfig(ParseArgs(ConstructCmdLine(commandLine, json)));
+
+            Assert.Equal(sessionId, dropConfig.SessionId);
+        }
+
+        [Fact]
+        public void InvalidExplicitSessionIdDoesNotUseDefault()
+        {
+            var dropConfig = CreateDropConfig(ParseArgs("create --name test --service http://xyz --sessionId invalid"));
+
+            Assert.Null(dropConfig.SessionId);
         }
 
         /// <summary>

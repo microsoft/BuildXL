@@ -568,6 +568,8 @@ export namespace DropDaemonRunner {
             unsafe: {
                 passThroughEnvironmentVariables: [
                     ...(args.forwardEnvironmentVars || []),
+                    // Injected to all pips by the engine
+                    "BUILD_SESSION_ID",
                     // Remove after A/B testing
                     "BuildXLEnableGrpcIpc"
                 ]

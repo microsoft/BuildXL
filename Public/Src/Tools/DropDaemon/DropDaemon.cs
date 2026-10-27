@@ -386,10 +386,11 @@ namespace Tool.DropDaemon
         internal static readonly StrOption SessionId = RegisterConfigOption(new StrOption("sessionId")
         {
             ShortName = "sid",
-            HelpText = "Optional guid to use as a session id when communicating to AzDO.",
+            HelpText = "Optional guid to use as a session id when communicating to AzDO. Defaults to Q_SESSION_GUID, then BUILD_SESSION_ID (the build's related session id).",
             IsRequired = false,
             // TODO: Remove after golden update (#2104026)
             DefaultValue = Environment.GetEnvironmentVariable("Q_SESSION_GUID")
+                ?? Environment.GetEnvironmentVariable(BuildParameters.RelatedSessionIdVariableName)
         });
 
         internal static readonly BoolOption EnableAsyncFinalize = RegisterConfigOption(new BoolOption("enableAsyncFinalize")

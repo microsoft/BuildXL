@@ -10,12 +10,12 @@ namespace Tool.BlobDaemon
     internal struct UploadLocation
     {
         public UploadLocationKind LocationKind { get; }
-        public string Uri { get; }
-        public string Account { get; }
+        public Uri Uri { get; }
+        public Uri Account { get; }
         public string Container { get; }
         public string RelativePath { get; }
 
-        private UploadLocation(UploadLocationKind locationKind, string uri, string account, string container, string relativePath)
+        private UploadLocation(UploadLocationKind locationKind, Uri uri, Uri account, string container, string relativePath)
         {
             LocationKind = locationKind;
             Uri = uri;
@@ -24,15 +24,15 @@ namespace Tool.BlobDaemon
             RelativePath = relativePath;
         }
 
-        public static UploadLocation CreateUriBased(string uri)
+        public static UploadLocation CreateUriBased(Uri uri)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(uri));
+            Contract.Requires(uri != null && uri.IsAbsoluteUri);
             return new UploadLocation(UploadLocationKind.UriBased, uri, null, null, null);
         }
 
-        public static UploadLocation CreateContainerBased(string account, string container, string relativePath)
+        public static UploadLocation CreateContainerBased(Uri account, string container, string relativePath)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(account));
+            Contract.Requires(account != null && account.IsAbsoluteUri);
             Contract.Requires(!string.IsNullOrWhiteSpace(container));
             Contract.Requires(!string.IsNullOrWhiteSpace(relativePath));
             return new UploadLocation(UploadLocationKind.ContainerBased, null, account, container, relativePath);
@@ -68,12 +68,17 @@ namespace Tool.BlobDaemon
                     return new Failure<string>($"URI '{RedactQueryForLogging(parts[1])}' in a URI-based upload location must not contain a query string");
                 }
 
-                return CreateUriBased(parts[1]);
+                return CreateUriBased(uri);
             }
             else if (parts.Length == 4 && parts[0] == "container"
                 && !string.IsNullOrWhiteSpace(parts[1]) && !string.IsNullOrWhiteSpace(parts[2]) && !string.IsNullOrWhiteSpace(parts[3])) // container target
             {
-                return CreateContainerBased(parts[1], parts[2], parts[3]);
+                if (!System.Uri.TryCreate(parts[1], UriKind.Absolute, out var accountUri))
+                {
+                    return new Failure<string>($"Invalid account URI '{RedactQueryForLogging(parts[1])}' in upload location");
+                }
+
+                return CreateContainerBased(accountUri, parts[2], parts[3]);
             }
             else
             {

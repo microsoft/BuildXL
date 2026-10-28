@@ -208,6 +208,8 @@ function getExecuteArguments(command: string, args: CombinedArguments): Transfor
             Cmd.option("--logDir ", blobDaemonLogDirectory.path),
             // CODESYNC: Public/Src/Tools/BlobDaemon/BlobDaemon.cs (CreateContentTypeResolver parses this format).
             Cmd.options("--contentTypeMapping ", (args.contentTypeMappings || []).map(m => `${m.extension}#${m.contentType}`)),
+            // Not Cmd.flag: reporting defaults to on, so turning it off has to be stated explicitly.
+            Cmd.optionalBooleanFlag("--reportTelemetry ", args.reportTelemetry, "true", "false"),
         ],
         consoleOutput: outDir.combine(`${nametag}-stdout.txt`),
         dependencies: [

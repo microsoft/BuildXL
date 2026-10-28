@@ -566,12 +566,12 @@ namespace Tool.SymbolDaemon
                 symbolRequestInfo.Add(addPrefix("FinalizedAtUtc"), m_symbolRequestFinalizedAtUtc.Value.ToString("s", CultureInfo.InvariantCulture));
             }
 
-            string serializedSymbolInfo = JsonConvert.SerializeObject(symbolRequestInfo, Formatting.Indented);
-            string serializedSymbolStats = JsonConvert.SerializeObject(GetStats(), Formatting.Indented);
+            string serializedSymbolInfo = JsonConvert.SerializeObject(symbolRequestInfo);
+            string serializedSymbolStats = JsonConvert.SerializeObject(GetStats());
 
             m_logger.Info("Reporting telemetry to BuildXL");
-            m_logger.Info($"Info:{Environment.NewLine}{serializedSymbolInfo}");
-            m_logger.Info($"Statistics:{Environment.NewLine}{serializedSymbolStats}");
+            m_logger.Info($"Info:{Environment.NewLine}{JsonConvert.SerializeObject(symbolRequestInfo, Formatting.Indented)}");
+            m_logger.Info($"Statistics:{Environment.NewLine}{JsonConvert.SerializeObject(GetStats(), Formatting.Indented)}");
 
             return await m_apiClient.ReportDaemonTelemetry(daemonName, serializedSymbolStats, serializedSymbolInfo);
 

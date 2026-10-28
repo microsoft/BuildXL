@@ -334,12 +334,12 @@ namespace Tool.DropDaemon
                 dropStats.Add(addPrefix("SbomManifestFileSize"), sbomTelemetry.ManifestFileSize);
             }
 
-            string serializedDropInfo = JsonConvert.SerializeObject(dropInfo, Formatting.Indented);
-            string serializedDropStats = JsonConvert.SerializeObject(dropStats, Formatting.Indented);
+            string serializedDropInfo = JsonConvert.SerializeObject(dropInfo);
+            string serializedDropStats = JsonConvert.SerializeObject(dropStats);
 
             m_logger.Info("Reporting telemetry to BuildXL");
-            m_logger.Info($"Info:{Environment.NewLine}{serializedDropInfo}");
-            m_logger.Info($"Statistics:{Environment.NewLine}{serializedDropStats}");
+            m_logger.Info($"Info:{Environment.NewLine}{JsonConvert.SerializeObject(dropInfo, Formatting.Indented)}");
+            m_logger.Info($"Statistics:{Environment.NewLine}{JsonConvert.SerializeObject(dropStats, Formatting.Indented)}");
 
             return await m_bxlApiClient.ReportDaemonTelemetry(daemonName, serializedDropStats, serializedDropInfo);
 

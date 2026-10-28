@@ -45,6 +45,11 @@ export interface ServiceStartArguments extends ConnectionArguments {
      * Content-Type values are set verbatim (not validated).
      */
     contentTypeMappings?: ContentTypeMapping[];
+
+    /**
+     * Whether to report the daemon's counters and configuration to telemetry. Defaults to true.
+     */
+    reportTelemetry?: boolean;
 }
 
 /** Associates a file extension with a Content-Type. */

@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure.Storage.Blobs;
@@ -15,6 +16,7 @@ using BuildXL.Ipc.Interfaces;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.CLI;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.Tool.ServicePipDaemonTestUtilities;
 using Tool.BlobDaemon;
@@ -36,12 +38,18 @@ namespace Test.Tool.BlobDaemon
         public BlobUploadOrchestrationTests(ITestOutputHelper output)
             : base(output) { }
 
-        [Fact]
-        public void SuccessfulServerSideCopyDoesNotFallBackToLocalUpload()
+        [Theory]
+        [InlineData(false, "#uri#https://targetaccount.blob.core.windows.net/target/prefix%2Fsegment/file.txt#", "https://targetaccount.blob.core.windows.net/target/prefix%2Fsegment/file.txt")]
+        [InlineData(false, "#container#https://targetaccount.blob.core.windows.net#target#prefix/file.txt#", "https://targetaccount.blob.core.windows.net/target/prefix/file.txt")]
+        [InlineData(true, "#uri#https://targetaccount.blob.core.windows.net/target/prefix%2Fsegment#", "https://targetaccount.blob.core.windows.net/target/prefix%2Fsegment/nested/file.txt")]
+        [InlineData(true, "#container#https://targetaccount.blob.core.windows.net#target#prefix#", "https://targetaccount.blob.core.windows.net/target/prefix/nested/file.txt")]
+        public void SuccessfulServerSideCopyDoesNotFallBackToLocalUpload(bool uploadDirectory, string uploadTarget, string expectedDestination)
         {
-            var (mock, materializeCallCount, ipcResult) = RunSingleOutputFileUpload(serverSideCopySucceeds: true);
+            var (mock, materializeCallCount, ipcResult, destination) = RunSingleOutputFileUpload(
+                serverSideCopySucceeds: true, uploadTarget: uploadTarget, uploadDirectory: uploadDirectory);
 
             XAssert.IsTrue(ipcResult.Succeeded, ipcResult.Payload);
+            XAssert.AreEqual(expectedDestination, destination.AbsoluteUri);
             XAssert.AreEqual(1, mock.TryServerSideCopyCallCount);
             XAssert.AreEqual(0, mock.UploadCallCount, "A successful server-side copy must not trigger a local upload.");
             XAssert.AreEqual(0, materializeCallCount, "A successful server-side copy must not trigger a materialization.");
@@ -52,7 +60,7 @@ namespace Test.Tool.BlobDaemon
         {
             // Regression guard: a server-side copy that does not succeed must fall through to the
             // materialize + local-upload path (this was silently skipped when failed copies were treated as success).
-            var (mock, materializeCallCount, ipcResult) = RunSingleOutputFileUpload(serverSideCopySucceeds: false);
+            var (mock, materializeCallCount, ipcResult, _) = RunSingleOutputFileUpload(serverSideCopySucceeds: false);
 
             XAssert.IsTrue(ipcResult.Succeeded, ipcResult.Payload);
             XAssert.AreEqual(1, mock.TryServerSideCopyCallCount);
@@ -124,7 +132,7 @@ namespace Test.Tool.BlobDaemon
             // The upload client picks between the synchronous and asynchronous Azure copy APIs based on the
             // source size, so the real length has to reach it rather than a placeholder.
             const long SizeBytes = 6_827;
-            var (mock, _, ipcResult) = RunSingleOutputFileUpload(serverSideCopySucceeds: true, knownLengthBytes: SizeBytes);
+            var (mock, _, ipcResult, _) = RunSingleOutputFileUpload(serverSideCopySucceeds: true, knownLengthBytes: SizeBytes);
 
             XAssert.IsTrue(ipcResult.Succeeded, ipcResult.Payload);
             XAssert.AreEqual(SizeBytes, mock.LastServerSideCopySourceSizeBytes);
@@ -135,7 +143,7 @@ namespace Test.Tool.BlobDaemon
         {
             // An unknown length must not be reported as 0, which would look like a tiny file and silently
             // route an arbitrarily large blob down the size-limited synchronous path.
-            var (mock, _, ipcResult) = RunSingleOutputFileUpload(serverSideCopySucceeds: true);
+            var (mock, _, ipcResult, _) = RunSingleOutputFileUpload(serverSideCopySucceeds: true);
 
             XAssert.IsTrue(ipcResult.Succeeded, ipcResult.Payload);
             XAssert.IsTrue(
@@ -175,6 +183,25 @@ namespace Test.Tool.BlobDaemon
             XAssert.AreEqual(IpcResultStatus.InvalidInput, result.ExitCode);
         }
 
+        [Theory]
+        [InlineData(false, "#uri#https://[invalid?sig=supersecretsastoken#")]
+        [InlineData(true, "#uri#https://[invalid?sig=supersecretsastoken#")]
+        [InlineData(false, "#container#https://[invalid?sig=supersecretsastoken#target#file.txt#")]
+        [InlineData(true, "#container#https://[invalid?sig=supersecretsastoken#target#prefix#")]
+        public void InvalidUploadUriReturnsInvalidInput(bool uploadDirectory, string uploadTarget)
+        {
+            var hash = FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.EmptyHash).Render();
+            string args = uploadDirectory
+                ? $"--directory output --directoryId 1:1:1 --directoryTarget {uploadTarget} --directoryFilter .* --directoryFilterUseRelativePath true --directoryRelativePathReplace ## --directoryAuthVar {TestAuthEnvVarName}"
+                : $"--file file.txt --fileId 12345:1 --hash {hash} --fileTarget {uploadTarget} --fileAuthVar {TestAuthEnvVarName}";
+            var result = RunUploadArtifacts(args);
+
+            XAssert.IsFalse(result.Succeeded);
+            XAssert.AreEqual(IpcResultStatus.InvalidInput, result.ExitCode);
+            XAssert.Contains(result.Payload, "Invalid");
+            XAssert.ContainsNot(result.Payload, "supersecretsastoken");
+        }
+
         [Fact]
         public void NothingToUploadReturnsSuccess()
         {
@@ -211,7 +238,11 @@ namespace Test.Tool.BlobDaemon
             }
         }
 
-        private (MockBlobUploadClient mock, int materializeCallCount, IIpcResult ipcResult) RunSingleOutputFileUpload(bool serverSideCopySucceeds, long? knownLengthBytes = null)
+        private (MockBlobUploadClient mock, int materializeCallCount, IIpcResult ipcResult, Uri destination) RunSingleOutputFileUpload(
+            bool serverSideCopySucceeds,
+            long? knownLengthBytes = null,
+            string uploadTarget = "#uri#https://targetaccount.blob.core.windows.net/target/file.txt#",
+            bool uploadDirectory = false)
         {
             // The daemon validates that the named auth env var is set before uploading, so provide a dummy value.
             Environment.SetEnvironmentVariable(TestAuthEnvVarName, "dummy-token");
@@ -221,11 +252,14 @@ namespace Test.Tool.BlobDaemon
                 var sourceUri = new Uri("https://cacheaccount.blob.core.windows.net/cache/content");
                 // A non-absent content hash so the file is treated as present; rewrite count 1 (see fileId below) makes it an output file.
                 // A non-zero length is only valid alongside a non-empty hash, hence the random hash in that case.
-                var hash = (knownLengthBytes.HasValue
+                var contentInfo = knownLengthBytes.HasValue
                     ? new FileContentInfo(ContentHashingUtilities.CreateRandom(), knownLengthBytes.Value)
-                    : FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.EmptyHash)).Render();
+                    : FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.EmptyHash);
+                var hash = contentInfo.Render();
+                string directoryPath = Path.GetFullPath("output");
                 int materializeCallCount = 0;
                 IIpcResult ipcResult = null;
+                Uri destination = null;
 
                 var ipcProvider = IpcFactory.GetProvider();
 
@@ -240,6 +274,14 @@ namespace Test.Tool.BlobDaemon
                         case MaterializeFileCommand materializeFile:
                             Interlocked.Increment(ref materializeCallCount);
                             return IpcResult.Success(materializeFile.RenderResult(true));
+                        case GetSealedDirectoryContentCommand directoryContent:
+                            return IpcResult.Success(directoryContent.RenderResult(new List<SealedDirectoryFile>
+                            {
+                                new SealedDirectoryFile(
+                                    Path.Combine(directoryPath, "nested", "file.txt"),
+                                    new FileArtifact(new AbsolutePath(12345), 1),
+                                    contentInfo),
+                            }));
                         default:
                             return new IpcResult(IpcResultStatus.ExecutionError, $"Unexpected command: {apiCommand.GetType().Name}");
                     }
@@ -257,15 +299,18 @@ namespace Test.Tool.BlobDaemon
                             bxlApiClient,
                             daemon =>
                             {
-                                var uploadTarget = "#uri#https://targetaccount.blob.core.windows.net/target/file.txt#";
+                                string args = uploadDirectory
+                                    ? $"--directory \"{directoryPath}\" --directoryId 1:1:1 --directoryTarget {uploadTarget} --directoryFilter .* --directoryFilterUseRelativePath true --directoryRelativePathReplace ## --directoryAuthVar {TestAuthEnvVarName}"
+                                    : $"--file file.txt --fileId 12345:1 --hash {hash} --fileTarget {uploadTarget} --fileAuthVar {TestAuthEnvVarName}";
                                 var uploadArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgsForIPCCall(
-                                    $"uploadArtifacts --ipcServerMoniker {moniker.Id} --file file.txt --fileId 12345:1 --hash {hash} --fileTarget {uploadTarget} --fileAuthVar {TestAuthEnvVarName}",
+                                    $"uploadArtifacts --ipcServerMoniker {moniker.Id} {args}",
                                     new UnixParser());
                                 ipcResult = uploadArtifactsCommand.Command.ServerAction(uploadArtifactsCommand, daemon).GetAwaiter().GetResult();
+                                destination = daemon.LastBlobUri;
                             });
                     });
 
-                return (mock, materializeCallCount, ipcResult);
+                return (mock, materializeCallCount, ipcResult, destination);
             }
             finally
             {
@@ -293,6 +338,8 @@ namespace Test.Tool.BlobDaemon
             /// <summary>The content type passed to the most recent <see cref="CreateBlobUploadClient"/> call.</summary>
             public string LastContentType { get; private set; }
 
+            public Uri LastBlobUri { get; private set; }
+
             public TestableBlobDaemon(IParser parser, DaemonConfig daemonConfig, BlobDaemonConfig blobDaemonConfig, IBlobUploadClient mockUploadClient, Client client, ContentTypeResolver contentTypeResolver = null)
                 : base(parser, daemonConfig, blobDaemonConfig, contentTypeResolver: contentTypeResolver, bxlClient: client)
             {
@@ -302,6 +349,7 @@ namespace Test.Tool.BlobDaemon
             protected override IBlobUploadClient CreateBlobUploadClient(BlobClient blobClient, string logContext, string contentType)
             {
                 LastContentType = contentType;
+                LastBlobUri = blobClient.Uri;
                 return m_mockUploadClient;
             }
         }

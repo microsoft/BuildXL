@@ -14,9 +14,10 @@ namespace Test.Tool.BlobDaemon
 
         [Theory]
         [InlineData("#uri#https://example.com/upload#", true, "UriBased", "https://example.com/upload", null, null, null)]
+        [InlineData("#uri#https://example.com/container/prefix%2Fsegment#", true, "UriBased", "https://example.com/container/prefix%2Fsegment", null, null, null)]
         [InlineData("#uri#file:///local/path#", true, "UriBased", "file:///local/path", null, null, null)]
-        [InlineData("#container#myaccount#mycontainer#path/to/file.txt#", true, "ContainerBased", null, "myaccount", "mycontainer", "path/to/file.txt")]
-        [InlineData("#container#account123#container456#folder/subfolder/file.bin#", true, "ContainerBased", null, "account123", "container456", "folder/subfolder/file.bin")]
+        [InlineData("#container#https://myaccount.blob.core.windows.net#mycontainer#path/to/file.txt#", true, "ContainerBased", null, "https://myaccount.blob.core.windows.net", "mycontainer", "path/to/file.txt")]
+        [InlineData("#container#https://account123.blob.core.windows.net#container456#folder/subfolder/file.bin#", true, "ContainerBased", null, "https://account123.blob.core.windows.net", "container456", "folder/subfolder/file.bin")]
         public void TryParseValidInputsShouldSucceed(string input, bool expectedSuccess, string expectedKindString, string expectedUri, string expectedAccount, string expectedContainer, string expectedRelativePath)
         {
             var result = UploadLocation.TryParse(input);
@@ -28,8 +29,8 @@ namespace Test.Tool.BlobDaemon
             {
                 var uploadLocation = result.Result;
                 XAssert.AreEqual(expectedKind, uploadLocation.LocationKind);
-                XAssert.AreEqual(expectedUri, uploadLocation.Uri);
-                XAssert.AreEqual(expectedAccount, uploadLocation.Account);
+                XAssert.AreEqual(expectedUri, uploadLocation.Uri?.OriginalString);
+                XAssert.AreEqual(expectedAccount, uploadLocation.Account?.OriginalString);
                 XAssert.AreEqual(expectedContainer, uploadLocation.Container);
                 XAssert.AreEqual(expectedRelativePath, uploadLocation.RelativePath);
             }
@@ -51,7 +52,10 @@ namespace Test.Tool.BlobDaemon
         [InlineData("#unknown#value#")]
         [InlineData("#invalid#format#test#")]
         [InlineData("#uri#https://example.com#extra#")]
+        [InlineData("#uri#not-a-uri#")]
         [InlineData("#container#account#container#path#extra#")]
+        [InlineData("#container#account#container#path#")]
+        [InlineData("#container#https://[invalid#container#path#")]
         [InlineData("#uri#https://example.com/upload?sig=abc#")]
         [InlineData("#uri#https://example.com/path?a=1&b=2#")]
         public void TryParseInvalidInputsShouldFail(string input)
@@ -61,11 +65,16 @@ namespace Test.Tool.BlobDaemon
             XAssert.IsFalse(result.Succeeded);
         }
 
-        [Fact]
-        public void TryParseUriWithQueryDoesNotLeakSecretInErrorMessage()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void TryParseUriErrorDoesNotLeakSecretInErrorMessage(bool isContainerBased)
         {
             const string secret = "supersecretsastoken";
-            var result = UploadLocation.TryParse($"#uri#https://example.com/upload?sig={secret}#");
+            string input = isContainerBased
+                ? $"#container#https://[invalid?sig={secret}#container#path#"
+                : $"#uri#https://example.com/upload?sig={secret}#";
+            var result = UploadLocation.TryParse(input);
 
             XAssert.IsFalse(result.Succeeded);
             XAssert.IsFalse(result.Failure.Describe().Contains(secret), "The error message must not contain the URI query string (which may be a SAS token).");
@@ -80,7 +89,7 @@ namespace Test.Tool.BlobDaemon
             XAssert.IsTrue(result.Succeeded);
             var location = result.Result;
             XAssert.AreEqual(UploadLocationKind.UriBased, location.LocationKind);
-            XAssert.AreEqual("https://myaccount.blob.core.windows.net/container/path", location.Uri);
+            XAssert.AreEqual("https://myaccount.blob.core.windows.net/container/path", location.Uri.OriginalString);
             XAssert.IsNull(location.Account);
             XAssert.IsNull(location.Container);
             XAssert.IsNull(location.RelativePath);
@@ -89,14 +98,14 @@ namespace Test.Tool.BlobDaemon
         [Fact]
         public void TryParseContainerBasedLocationShouldCreateCorrectObject()
         {
-            var input = "#container#storageaccount#blobcontainer#uploads/file.txt#";
+            var input = "#container#https://storageaccount.blob.core.windows.net#blobcontainer#uploads/file.txt#";
             var result = UploadLocation.TryParse(input);
 
             XAssert.IsTrue(result.Succeeded);
             var location = result.Result;
             XAssert.AreEqual(UploadLocationKind.ContainerBased, location.LocationKind);
             XAssert.IsNull(location.Uri);
-            XAssert.AreEqual("storageaccount", location.Account);
+            XAssert.AreEqual("https://storageaccount.blob.core.windows.net", location.Account.OriginalString);
             XAssert.AreEqual("blobcontainer", location.Container);
             XAssert.AreEqual("uploads/file.txt", location.RelativePath);
         }

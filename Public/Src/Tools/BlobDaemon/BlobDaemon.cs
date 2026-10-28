@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -59,6 +59,15 @@ namespace Tool.BlobDaemon
         private readonly ThrottleObserverPolicy m_throttleObserver;
         private readonly BlobClientOptions m_blobClientOptions;
 
+        private readonly ConcurrentDictionary<TargetContainer, byte> m_targetContainers = new();
+        private volatile bool m_targetContainersTruncated;
+        private const int MaxRecordedTargetContainers = 25;
+
+        /// <summary>
+        /// A blob container the build uploads to.
+        /// </summary>
+        internal readonly record struct TargetContainer(string Kind, string Account, string Container, string Host);
+
         #region Options and commands
 
         internal static readonly List<Option> ConfigOptions = new List<Option>();
@@ -71,6 +80,14 @@ namespace Tool.BlobDaemon
             HelpText = "Maximum number of files to upload concurrently",
             IsRequired = true,
             DefaultValue = BlobDaemonConfig.DefaultMaxDegreeOfParallelism,
+        });
+
+        internal static readonly BoolOption ReportTelemetry = RegisterBlobConfigOption(new BoolOption("reportTelemetry")
+        {
+            ShortName = "rt",
+            HelpText = "Whether to report the daemon's counters and configuration to BuildXL as a DaemonTelemetry event",
+            IsRequired = false,
+            DefaultValue = BlobDaemonConfig.DefaultReportTelemetry,
         });
 
         internal static readonly StrOption DirectoryContentFilter = new StrOption("directoryFilter")
@@ -133,7 +150,8 @@ namespace Tool.BlobDaemon
         {
             return new BlobDaemonConfig(
                 maxDegreeOfParallelism: conf.Get(MaxDegreeOfParallelism),
-                logDir: conf.Get(LogDir));
+                logDir: conf.Get(LogDir),
+                reportTelemetry: conf.Get(ReportTelemetry));
         }
 
         internal static ContentTypeResolver CreateContentTypeResolver(ConfiguredCommand conf)
@@ -165,7 +183,7 @@ namespace Tool.BlobDaemon
         internal static readonly Command StartCmd = RegisterCommand(
             name: "start",
             description: "Starts the server process.",
-            options: new Option[] { IpcServerMonikerOptional, MaxDegreeOfParallelism, ContentTypeMapping },
+            options: new Option[] { IpcServerMonikerOptional, MaxDegreeOfParallelism, ContentTypeMapping, ReportTelemetry },
             needsIpcClient: false,
             clientAction: (conf, _) =>
             {
@@ -364,6 +382,9 @@ namespace Tool.BlobDaemon
                 return new IpcResult(IpcResultStatus.InvalidInput, possibleDirectoryUploadLocations.Failure.Describe());
             }
 
+            RecordTargetContainers(possibleFileUploadLocations.Result);
+            RecordTargetContainers(possibleDirectoryUploadLocations.Result);
+
             var possibleFilters = InitializeFilters(directoryFilters, RegexOptions.NonBacktracking);
             if (!possibleFilters.Succeeded)
             {
@@ -553,7 +574,7 @@ namespace Tool.BlobDaemon
             if (uploadLocation.LocationKind == UploadLocationKind.UriBased)
             {
                 // If it's URI based, just use the URI. We cannot reliably determine the account and container from the URI.
-                BlobClient blobClient = new BlobClient(new Uri(uploadLocation.Uri), new StaticTokenCredential(Environment.GetEnvironmentVariable(accessTokenVar)), m_blobClientOptions);
+                BlobClient blobClient = new BlobClient(uploadLocation.Uri, new StaticTokenCredential(Environment.GetEnvironmentVariable(accessTokenVar)), m_blobClientOptions);
                 return blobClient;
             }
             else if (uploadLocation.LocationKind == UploadLocationKind.ContainerBased)
@@ -563,7 +584,7 @@ namespace Tool.BlobDaemon
                 // consistent across platforms (the URI-based path above is already normalized by System.Uri).
                 var blobName = uploadLocation.RelativePath.Replace('\\', '/');
 
-                var key = $"{uploadLocation.Account}/{uploadLocation.Container}";
+                var key = $"{uploadLocation.Account.OriginalString}/{uploadLocation.Container}";
                 if (m_containerClients.TryGetValue(key, out var containerClient))
                 {
                     // If we already have a client for this account/container, use it.
@@ -579,7 +600,7 @@ namespace Tool.BlobDaemon
                     }
 
                     var credential = new StaticTokenCredential(Environment.GetEnvironmentVariable(accessTokenVar));
-                    var serviceClient = new BlobServiceClient(new Uri(uploadLocation.Account), credential, m_blobClientOptions);
+                    var serviceClient = new BlobServiceClient(uploadLocation.Account, credential, m_blobClientOptions);
                     innerContainerClient = serviceClient.GetBlobContainerClient(uploadLocation.Container);
                     m_containerClients.TryAdd(key, innerContainerClient);
 
@@ -605,6 +626,59 @@ namespace Tool.BlobDaemon
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Records the distinct blob containers the build requested uploads to, for telemetry.
+        /// </summary>
+        private void RecordTargetContainers(UploadLocation[] uploadLocations)
+        {
+            if (m_targetContainersTruncated)
+            {
+                return;
+            }
+
+            foreach (var uploadLocation in uploadLocations)
+            {
+                var targetContainer = CreateTargetContainer(uploadLocation);
+                if (m_targetContainers.ContainsKey(targetContainer))
+                {
+                    continue;
+                }
+
+                // Racy count; the cap only needs to bound the payload.
+                if (m_targetContainers.Count >= MaxRecordedTargetContainers)
+                {
+                    m_targetContainersTruncated = true;
+                    break;
+                }
+
+                m_targetContainers.TryAdd(targetContainer, 0);
+            }
+        }
+
+        /// <summary>
+        /// Reduces an upload location to the account and container it writes to.
+        /// </summary>
+        internal static TargetContainer CreateTargetContainer(UploadLocation uploadLocation)
+        {
+            bool isContainerBased = uploadLocation.LocationKind == UploadLocationKind.ContainerBased;
+            var uri = isContainerBased ? uploadLocation.Account : uploadLocation.Uri;
+            string host = uri.Host;
+            int firstDot = host.IndexOf('.');
+            string account = firstDot < 0 ? host : host.Substring(0, firstDot);
+            string container = uploadLocation.Container;
+            if (!isContainerBased)
+            {
+                var segments = uri.Segments;
+                container = segments.Length > 1 ? segments[1].TrimEnd('/') : string.Empty;
+            }
+
+            return new TargetContainer(
+                isContainerBased ? nameof(UploadLocationKind.ContainerBased) : nameof(UploadLocationKind.UriBased),
+                account,
+                container,
+                host);
         }
 
         private static async Task<Possible<IEnumerable<FileToUpload>>> ProcessDirectoriesAsync(
@@ -701,7 +775,7 @@ namespace Tool.BlobDaemon
             {
                 // We append file's relative path to the upload location - either to URI or to the relative path.
                 var uploadPath = uploadLocation.LocationKind == UploadLocationKind.UriBased
-                    ? uploadLocation.Uri
+                    ? uploadLocation.Uri.OriginalString
                     : uploadLocation.RelativePath;
                 // The uploadPath can be an empty relative path (i.e. '.') which means we are uploading to the root of the container,
                 // so we need to resolve it to an empty string.
@@ -709,9 +783,20 @@ namespace Tool.BlobDaemon
                 var remoteFileName = I($"{resolvedUploadPath}{GetRelativePath(directoryPath, file.FileName, relativePathReplacementArguments)}");
                 var fileId = BuildXL.Ipc.ExternalApi.FileId.ToString(file.Artifact);
 
-                var updatedUploadLocation = uploadLocation.LocationKind == UploadLocationKind.UriBased
-                    ? UploadLocation.CreateUriBased(remoteFileName)
-                    : UploadLocation.CreateContainerBased(uploadLocation.Account, uploadLocation.Container, remoteFileName);
+                UploadLocation updatedUploadLocation;
+                if (uploadLocation.LocationKind == UploadLocationKind.UriBased)
+                {
+                    if (!Uri.TryCreate(remoteFileName, UriKind.Absolute, out var fileUri))
+                    {
+                        return new Failure<string>($"Invalid URI '{UploadLocation.RedactQueryForLogging(remoteFileName)}' in upload location");
+                    }
+
+                    updatedUploadLocation = UploadLocation.CreateUriBased(fileUri);
+                }
+                else
+                {
+                    updatedUploadLocation = UploadLocation.CreateContainerBased(uploadLocation.Account, uploadLocation.Container, remoteFileName);
+                }
 
                 result.Add(new FileToUpload(
                     daemon.ApiClient,
@@ -748,6 +833,50 @@ namespace Tool.BlobDaemon
                     var errorDescription = possiblyReported.Succeeded ? string.Empty : possiblyReported.Failure.Describe();
                     m_logger.Warning("Reporting stats to BuildXL failed. " + errorDescription);
                 }
+
+                await ReportDaemonTelemetryAsync(stats);
+            }
+        }
+
+        private async Task ReportDaemonTelemetryAsync(IDictionary<string, long> stats)
+        {
+            if (!m_config.ReportTelemetry)
+            {
+                return;
+            }
+
+            try
+            {
+                var info = new Dictionary<string, object>
+                {
+                    { "BlobDaemon.MaxDegreeOfParallelism", m_config.MaxDegreeOfParallelism },
+                    { "BlobDaemon.Targets", m_targetContainers.Keys.OrderBy(t => t.Account, StringComparer.Ordinal).ThenBy(t => t.Container, StringComparer.Ordinal).ToArray() },
+                };
+
+                if (m_targetContainersTruncated)
+                {
+                    info.Add("BlobDaemon.TargetsTruncated", true);
+                }
+
+                var serializedStats = JsonSerializer.Serialize(stats);
+                var serializedInfo = JsonSerializer.Serialize(info);
+
+                m_logger.Info($"Reporting daemon telemetry to BuildXL. Info:{Environment.NewLine}{JsonSerializer.Serialize(info, new JsonSerializerOptions { WriteIndented = true })}");
+
+                var possiblyReported = await ApiClient.ReportDaemonTelemetry(nameof(BlobDaemon), serializedStats, serializedInfo);
+                if (possiblyReported.Succeeded && possiblyReported.Result)
+                {
+                    m_logger.Info("Daemon telemetry successfully reported to BuildXL.");
+                }
+                else
+                {
+                    var errorDescription = possiblyReported.Succeeded ? string.Empty : possiblyReported.Failure.Describe();
+                    m_logger.Warning("Reporting daemon telemetry to BuildXL failed. " + errorDescription);
+                }
+            }
+            catch (Exception e) when (e is JsonException || e is NotSupportedException)
+            {
+                m_logger.Warning("Reporting daemon telemetry to BuildXL failed. " + e);
             }
         }
 

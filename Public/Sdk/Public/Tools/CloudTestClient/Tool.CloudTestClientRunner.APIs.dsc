@@ -95,6 +95,8 @@ namespace APIs {
     export interface CreateSessionArguments extends CloudTestBaseArguments {
         /** Optional drop creation arguments. If provided, a drop will be created before the session is created. */
         drop: DropToCreate | Drop.DropCreateResult; 
+        /** Finalize the session drop after uploading session artifacts, before creating a per-job-drop session. Default: false. */
+        usePerJobDrops?: boolean;
         /** Path to the JSON file containing the session request body. */
         bodyFile: File;
         /**
@@ -153,14 +155,14 @@ namespace APIs {
     }
 
     /**
-     * The result of submitting a job, updating a dynamic job, or cancelling a session, containing console output, log output, and the execute result.
+     * The result of submitting a job, updating a dynamic job, cancelling a session, or waiting for completion.
      */
     @@public
     export interface CloudTestResult {
+        /** Completion dependencies */
+        outputs: DerivedFile[];
         /** Console output of the tool. */
         console: DerivedFile;
-        /** The underlying execute result. */
-        executeResult: Transformer.ExecuteResult;
     }
 
     /**
@@ -197,9 +199,15 @@ namespace APIs {
         // Optionally upload artifacts to the drop before creating the session. The session-creation pip takes a
         // dependency on the upload outputs so the artifacts are guaranteed to be in the drop before submission.
         // (These artifacts are also expected to participate in the session hash computation in the future.)
-        const addArtifactsResultOutputs = (args.dropArtifacts !== undefined && args.dropArtifacts.length > 0)
-            ? Drop.runner.addArtifactsToDrop(createDropResult, {}, args.dropArtifacts).outputs
-            : [];
+        const addArtifactsResult = (args.dropArtifacts !== undefined && args.dropArtifacts.length > 0)
+            ? Drop.runner.addArtifactsToDrop(createDropResult, {}, args.dropArtifacts)
+            : undefined;
+
+        // When we use per-job drops, we can finalize the session-level drop right before submitting the session creation, since
+        // afterwards, each job will have its own drop.
+        const dropReadyOutputs = args.usePerJobDrops
+            ? Drop.runner.finalizeDrop(createDropResult, {}, addArtifactsResult ? [addArtifactsResult] : []).outputs
+            : addArtifactsResult ? addArtifactsResult.outputs : [];
 
         const outDir = Context.getNewOutputDirectory("cloudtest");
         const sessionIdFile = p`${outDir}/session-id.txt`;
@@ -247,7 +255,7 @@ namespace APIs {
             dependencies: [
                 ...(args.dependencies || []), 
                 ...(createDropResult ? createDropResult.outputs : []), 
-                ...addArtifactsResultOutputs],
+                ...dropReadyOutputs],
             environmentVariables: args.environmentVariables || [],
             tags: [...(args.tags || []), "cloudtest"],
             description: args.description || "CloudTest: Create Session",
@@ -364,7 +372,7 @@ namespace APIs {
 
         return {
             console: result.getOutputFile(consolePath),
-            executeResult: result,
+            outputs: result.getOutputFiles(),
         };
     }
 

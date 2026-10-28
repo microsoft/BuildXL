@@ -193,7 +193,8 @@ namespace Tool.CloudTestClient
                 JobTimeout: arguments.JobTimeout,
                 TestCaseTimeout: arguments.TestCaseTimeout,
                 TestDependencyHash: BuildAggregateTestDependencyHash(arguments, normalizedJobExecutable),
-                Priority: arguments.Priority);
+                Priority: arguments.Priority,
+                BuildDropLocation: arguments.BuildDropLocation);
 
             var options = new JsonSerializerOptions
             {
@@ -514,7 +515,8 @@ namespace Tool.CloudTestClient
             string JobTimeout,
             string TestCaseTimeout,
             string TestDependencyHash,
-            int? Priority);
+            int? Priority,
+            string BuildDropLocation);
 
         /// <summary>
         /// Builds the aggregated test dependency hash for a job from all of its job level caching-fingerprint inputs:

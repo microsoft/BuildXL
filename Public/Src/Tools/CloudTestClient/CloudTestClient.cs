@@ -969,6 +969,14 @@ USAGE: CloudTestClient /mode:<mode> [options]
   /sku               Required only with /jobId. VM SKU (e.g. Standard_D4s_v3);
                      used to compute the groupId when referencing a job by ID.
   /testFolder        Required. Relative path within the drop for test files.
+  /buildDropLocation Optional. Per-job input drop URL, emitted as buildDropLocation
+                     in the job payload. Required by CloudTest when the session
+                     property UsePerJobDrops=true; otherwise omit it to use the
+                     session drop. The provided drop MUST be finalized.
+                     CloudTest will not download its inputs until finalization
+                     completes, and the job fails if the finalization wait times out.
+                     Upload all inputs before submitting the job. Finalization
+                     may run concurrently with submission.
   /jobExecutable     Required. Path to executable on the worker VM.
   /testExecutionType Required. One of: MsTest, Exe, TAEF, NUnit, XUnit, BoostTest.
   /jobArguments      Optional. Arguments passed to the executable.

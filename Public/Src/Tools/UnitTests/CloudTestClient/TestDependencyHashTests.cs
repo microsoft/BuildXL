@@ -17,6 +17,21 @@ namespace Test.Tool.CloudTestClient
         #region AggregateHashes
 
         [Fact]
+        public void DropLocationDoesNotChangeContentFingerprint()
+        {
+            using var temp = new TempDirectory();
+            string sessionIdFile = temp.WriteFile("session-id.txt", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+
+            string sessionDropHash = AggregateHashFor(temp, sessionIdFile, "session-drop.json",
+                "/testDependencyHash:abc123", "/testDependencyPath:SharedJob/run.cmd");
+            string jobDropHash = AggregateHashFor(temp, sessionIdFile, "job-drop.json",
+                "/testDependencyHash:abc123", "/testDependencyPath:SharedJob/run.cmd",
+                "/buildDropLocation:https://artifacts.example/_apis/drop/drops/session/jobs/job");
+
+            Assert.Equal(sessionDropHash, jobDropHash);
+        }
+
+        [Fact]
         public void HashAggregationIsDeterministicForIdenticalInputs()
         {
             using var temp = new TempDirectory();

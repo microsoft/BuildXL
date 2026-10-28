@@ -4,6 +4,7 @@
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 import * as Drop from "Sdk.Drop";
 import * as Json from "Sdk.Json";
+import {Hashing} from "Sdk.Hashing";
 
 namespace Helpers {
     /** A job definition with an explicit ID and name. */
@@ -221,7 +222,9 @@ namespace Helpers {
         tenant: string;
         /**  Build drop name (e.g. 'my-drop') and service (e.g. 'https://my-drop-service.azure.com') if a new drop should be created, or a DropCreateResult if using an existing drop.  */
         drop: APIs.DropToCreate | Drop.DropCreateResult; 
-        /** The dynamic groups that make up the session. At least one group must be provided. Job names must be unique across all groups in the session. */
+        /** Use separate, finalized input drops for jobs. Default: false. */
+        usePerJobDrops?: boolean;
+        /** The dynamic groups that make up the session. At least one group must be provided. Job names must be unique within each group. */
         groups: Group[];
         /** Session display name. */
         displayName?: string;
@@ -284,6 +287,8 @@ namespace Helpers {
         jobReference: JobReference;
         /** Relative path within the drop containing this job's test files. */
         testFolder: RelativePath;
+        /** Per-job input drop URL. Omitted when jobs use the session drop. */
+        buildDropLocation?: string;
         /** Path to executable on the worker VM. */
         jobExecutable: Path | RelativePath;
         /** Test framework: MsTest, Exe, TAEF, NUnit, XUnit, BoostTest. */
@@ -413,7 +418,9 @@ namespace Helpers {
             stamp: args.stamp,
             // A Map<string,string> is serialized by Json.write as an array of {key,value} objects, which the C# side
             // renders back to CloudTest's semicolon-separated "key=value" string.
-            properties: args.properties,
+            properties: args.usePerJobDrops
+                ? (args.properties || Map.empty<string, string>()).add("UsePerJobDrops", "true")
+                : args.properties,
             featureExceptions: args.featureExceptions,
             // Only emit ADO context when running on Azure DevOps. The access token itself is not embedded; the tool
             // reads it at runtime from the named environment variable (passed through below).
@@ -483,6 +490,7 @@ namespace Helpers {
             description: args.description,
             bodyFile: configResult.configFile,
             drop: args.drop,
+            usePerJobDrops: args.usePerJobDrops,
             dropArtifacts: args.dropArtifacts,
             debug: args.debug,
             historicRuntimes: args.historicRuntimes,
@@ -522,6 +530,7 @@ namespace Helpers {
                     Cmd.option("/sku:", (<JobIdReference>args.jobReference).sku),
                   ]),
             Cmd.option("/testFolder:", args.testFolder),
+            Cmd.option("/buildDropLocation:", args.buildDropLocation),
             Cmd.option("/jobExecutable:", args.jobExecutable),
             Cmd.option("/testExecutionType:", args.testExecutionType),
             Cmd.option("/configOutputFile:", Artifact.output(configFile)),
@@ -632,9 +641,31 @@ namespace Helpers {
 
     /**
      * Submits a job to an existing session. This is a helper that combines the steps of adding job artifacts to the drop, generating an UpdateDynamicJob config file, and calling the UpdateDynamicJob API.
+     * In per-job-drop mode, creates a dedicated one-day drop. After upload, submission and finalization can run concurrently. The returned outputs include both.
      */
     @@public 
     export function submitJob(args: SubmitJobArguments): APIs.CloudTestResult {
+        const sessionArguments = args.configAndSessionResult.configArguments;
+        const resolvedGroupName = resolveGroupName(sessionArguments.groups, args.jobName, args.groupName);
+        const sessionDrop = args.configAndSessionResult.sessionResult.createDropResult;
+        const usePerJobDrops = sessionArguments.usePerJobDrops || false;
+
+        // We are after a unique job drop name within the session drop (when needed).
+        // Length prefixes preserve the boundary even when names contain separators.
+        const jobDropName = usePerJobDrops
+            ? `${sessionDrop.dropConfig.name}/jobs/${Hashing.sha256(`${resolvedGroupName.length}:${resolvedGroupName}${args.jobName.length}:${args.jobName}`)}`
+            : undefined;
+        const jobDrop = usePerJobDrops
+            ? Drop.runner.createDropUnderService(
+                sessionDrop.serviceStartInfo,
+                sessionDrop.dropConfig.override<Drop.DropCreateArguments>({
+                    name: jobDropName,
+                    retentionDays: 1,
+                    // A caller-specified session console path cannot be shared by job operations. This will
+                    // just make the drop daemon pick a unique console for this job.
+                    consoleOutput: undefined,
+                }))
+            : sessionDrop;
         const sanitizedJobNameAtom = PathAtom.createSanitized(args.jobName);
 
         const jobInputsLocation = args.jobInputsDropLocation !== undefined 
@@ -677,7 +708,7 @@ namespace Helpers {
         });
 
         let addArtifactsResult = Drop.runner.addArtifactsToDrop(
-            args.configAndSessionResult.sessionResult.createDropResult,
+            jobDrop,
             // Just use the defaults
             {},
             artifactInfos
@@ -697,8 +728,6 @@ namespace Helpers {
         // NOTE: Observe that any artifact uploaded to the drop outside of the session creation process will not be included in the caching fingerprint. This also
         // applies for a drop created outside of the build. The true solution is to move the hash computation to the CloudTest service. Observe as well that the 
         // lack of sandboxing on CloudTest side also means that it is very easy to have overbuilds, as the true inputs of a test job are unknown.
-        const sessionArguments = args.configAndSessionResult.configArguments;
-
         const dropArtifactInfos = sessionArguments.dropArtifacts || [];
         const dropArtifactInputs : (File | OpaqueDirectory)[] = dropArtifactInfos.map(info =>
             info.kind === "file"
@@ -709,14 +738,13 @@ namespace Helpers {
         const dropArtifactPaths : RelativePath[] = dropArtifactInfos.map(info => info.dropPath);
         const jobInputPaths : RelativePath[] = artifactInfos.map(info => info.dropPath);
 
-        // Resolve the group this job belongs to once, and use the same value both to build the historic runtime file
-        // name and to tell the C# config generator which group to look the job up in.
-        const resolvedGroupName = resolveGroupName(sessionArguments.groups, args.jobName, args.groupName);
-
         const dynamicJobConfigArguments : DynamicJobConfigArguments = {
             sessionId: args.configAndSessionResult.sessionResult.sessionIdFile,
             jobReference: {jobName: args.jobName, sessionConfigFile: args.configAndSessionResult.configResult.configFile, groupName: resolvedGroupName}, 
             testFolder: r`${jobInputsLocation}`,
+            buildDropLocation: usePerJobDrops
+                ? `${jobDrop.dropConfig.service}/_apis/drop/drops/${jobDropName}`
+                : undefined,
             jobExecutable: args.jobExecutable,
             testExecutionType: args.testExecutionType,
             jobArguments: args.jobArguments,
@@ -763,7 +791,19 @@ namespace Helpers {
 
         const updateResult = APIs.updateDynamicJob(updateDynamicJob);
 
-        return updateResult;
+        if (!usePerJobDrops) {
+            return updateResult;
+        }
+
+        // Wait for all files to be uploaded, but not for job submission: finalization can race with submission because CloudTest waits for the finalized drop.
+        const finalizeResult = Drop.runner.finalizeDrop(jobDrop, {}, [addArtifactsResult]);
+        
+        // Make both the job submission and the finalization artifacts available as outputs. A consumer waiting
+        // for all the outputs of a submitJob call should wait for both.
+        return {
+            console: updateResult.console,
+            outputs: [...updateResult.outputs, ...finalizeResult.outputs],
+        };
     }
 
     /**
@@ -775,7 +815,7 @@ namespace Helpers {
         configAndSessionResult: Helpers.ConfigAndSessionResult;
         /** 
          * The jobs that have been submitted and are being waited on. 
-         * These are optional. By passing them, the pip that polls for the session completion will only start after all the provided jobs are submitted. 
+         * These are optional. By passing them, the pip that polls for session completion starts only after the provided jobs are submitted and their per-job drops, if any, are finalized.
          * */
         submittedJobs?: APIs.CloudTestResult[];
         /** The maximum amount of time, in minutes, to wait for the session to complete. */
@@ -800,7 +840,7 @@ namespace Helpers {
             timeoutMinutes: args.timeoutMinutes,
             tags: args.tags,
             description: args.description,
-            dependencies: args.submittedJobs && args.submittedJobs.mapMany(job => job.executeResult.getOutputFiles()) || [],
+            dependencies: args.submittedJobs && args.submittedJobs.mapMany(job => job.outputs) || [],
             environment: args.configAndSessionResult.configArguments.environment,
             debug: args.configAndSessionResult.configArguments.debug
         };

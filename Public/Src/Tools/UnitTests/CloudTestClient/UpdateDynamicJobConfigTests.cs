@@ -16,6 +16,43 @@ namespace Test.Tool.CloudTestClient
     {
         #region GenerateUpdateDynamicJobConfig
 
+        [Theory]
+        [InlineData(null)]
+        [InlineData("https://artifacts.example/_apis/drop/drops/session/jobs/0123456789abcdef")]
+        public void PerJobDropLocationIsOptionalAndPreserved(string buildDropLocation)
+        {
+            using var temp = new TempDirectory();
+            string configPath = temp.GetPath("update-config.json");
+            var commandLine = new List<string>
+            {
+                "/mode:generateUpdateDynamicJobConfig",
+                "/image:ubuntu22.04",
+                "/sku:Standard_D4s_v3",
+                "/sessionId:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                "/jobId:11111111-2222-3333-4444-555555555555",
+                "/testFolder:SharedJob",
+                "/jobExecutable:SharedJob/run.sh",
+                "/testExecutionType:Exe",
+                "/configOutputFile:" + configPath,
+            };
+            if (buildDropLocation != null)
+            {
+                commandLine.Add("/buildDropLocation:" + buildDropLocation);
+            }
+
+            var args = new CloudTestClientArgs(commandLine.ToArray());
+            Assert.Equal(buildDropLocation, args.BuildDropLocation);
+            ConfigGeneratorHelper.GenerateUpdateDynamicJobConfig(args);
+
+            using var doc = JsonDocument.Parse(File.ReadAllText(configPath));
+            bool hasDropLocation = doc.RootElement.TryGetProperty("buildDropLocation", out var dropLocation);
+            Assert.Equal(buildDropLocation != null, hasDropLocation);
+            if (hasDropLocation)
+            {
+                Assert.Equal(buildDropLocation, dropLocation.GetString());
+            }
+        }
+
         [Fact]
         public void GroupIdIsResolvedFromSessionConfigByJobName()
         {

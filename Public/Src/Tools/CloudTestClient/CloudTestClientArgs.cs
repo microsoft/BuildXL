@@ -146,6 +146,14 @@ namespace Tool.CloudTestClient
         /// <summary>Relative path within the drop containing this job's test files.</summary>
         public string TestFolder { get; }
 
+        /// <summary>Optional per-job input drop URL. Omitted when using the session drop.</summary>
+        /// <remarks>
+        /// The provided drop MUST be finalized. CloudTest will not download its inputs until finalization completes,
+        /// and the job fails if the finalization wait times out. Upload all inputs before submitting the job;
+        /// finalization may run concurrently with submission.
+        /// </remarks>
+        public string BuildDropLocation { get; }
+
         /// <summary>Path to executable on the worker VM. Supports [WorkingDirectory] macro.</summary>
         public string JobExecutable { get; }
 
@@ -285,6 +293,9 @@ namespace Tool.CloudTestClient
                         break;
                     case "TESTFOLDER":
                         TestFolder = opt.Value;
+                        break;
+                    case "BUILDDROPLOCATION":
+                        BuildDropLocation = opt.Value;
                         break;
                     case "JOBEXECUTABLE":
                         JobExecutable = opt.Value;

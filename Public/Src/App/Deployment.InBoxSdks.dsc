@@ -45,6 +45,10 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                         contents: glob(d`${sdkRoot}/Managed/Tools/BinarySigner`, "*.dsc")
                     },
                     {
+                        subfolder: "Sdk.Hashing",
+                        contents: glob(d`${sdkRoot}/Hashing`, "*.dsc")
+                    },
+                    {
                         subfolder: "Sdk.Json",
                         contents: [ 
                             importFrom("Sdk.Json").deployment

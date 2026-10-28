@@ -82,6 +82,7 @@ This page lists flags that can be used to configure BuildXL.
 | Filter | Specifies a filter expression (short form: /f). See verbose help (/help:verbose) for details about constructing filter expressions. |
 | FilteringInfo | You can choose to build only a subset of available pips by using filtering. |
 | FingerprintSalt | Salts fingerprints used for caching. May be specified multiple times and values concatenate with delimiter. Empty value clears previous values. '*' is unique each run. |
+| FingerprintStoreDrainTimeoutMinutes | Minutes to drain the fingerprint store queue before dropping pending events. Active events finish. Default: 10; 0 means unlimited. |
 | FlushPageCacheToFileSystemOnStoringOutputsToCache | Flush page cache to file system on storing outputs to cache. Defaults to off. |
 | ForceAddExecutionPermission | When set to true, it enables the execution permission for the root process of process pips in Linux builds. Defaults to true. |
 | ForwardWorkerLog | Configure additional verbose event IDs that workers will forward to the orchestrator, in addition to warnings and errors (which are always forwarded).  |

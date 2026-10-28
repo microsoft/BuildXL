@@ -118,6 +118,11 @@ namespace BuildXL.Utilities.Configuration
         bool FingerprintStoreBulkLoad { get; }
 
         /// <summary>
+        /// Time to drain fingerprint store events before dropping pending events. Null means unlimited.
+        /// </summary>
+        TimeSpan? FingerprintStoreDrainTimeout { get; }
+
+        /// <summary>
         /// Specifies the path to the fingerprints log directory which contains FingerprintStores.
         /// </summary>
         AbsolutePath FingerprintsLogDirectory { get; }

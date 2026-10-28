@@ -487,6 +487,13 @@ namespace BuildXL
                             "fingerprintStoreBulkLoad",
                             sign => loggingConfiguration.FingerprintStoreBulkLoad = sign),
                         OptionHandlerFactory.CreateOption(
+                            "fingerprintStoreDrainTimeoutMinutes",
+                            opt =>
+                            {
+                                int timeoutMinutes = CommandLineUtilities.ParseInt32Option(opt, 0, (int)TimeSpan.FromMilliseconds(int.MaxValue).TotalMinutes);
+                                loggingConfiguration.FingerprintStoreDrainTimeout = timeoutMinutes == 0 ? null : TimeSpan.FromMinutes(timeoutMinutes);
+                            }),
+                        OptionHandlerFactory.CreateOption(
                             "fingerprintStoreMaxEntryAgeMinutes",
                             opt => loggingConfiguration.FingerprintStoreMaxEntryAgeMinutes = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateBoolOption(

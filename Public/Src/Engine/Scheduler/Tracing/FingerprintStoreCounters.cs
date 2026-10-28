@@ -417,5 +417,10 @@ namespace BuildXL.Scheduler.Tracing
         /// The number of mapping store puts that return successfully, excluding disabled or failed writes.
         /// </summary>
         NumPipUniqueOutputHashStorePuts,
+
+        /// <summary>
+        /// The number of pending fingerprint store events dropped after the drain timeout.
+        /// </summary>
+        NumFingerprintStoreEventsDropped,
     }
 }

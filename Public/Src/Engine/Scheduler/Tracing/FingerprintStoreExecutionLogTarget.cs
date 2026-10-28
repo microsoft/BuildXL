@@ -18,6 +18,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tracing;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -921,10 +922,18 @@ namespace BuildXL.Scheduler.Tracing
                 }
 
                 // Complete and drain all work from the processing queue
+                var drainStopwatch = StopwatchSlim.Start();
+                int droppedEvents;
                 using (Counters.StartStopwatch(FingerprintStoreCounters.FingerprintStoreAwaitingEventProcessorTime))
                 {
-                    m_fingerprintStoreEventProcessor.Complete();
+                    droppedEvents = m_fingerprintStoreEventProcessor.Complete(m_configuration.Logging.FingerprintStoreDrainTimeout);
                 }
+
+                Counters.AddToCounter(FingerprintStoreCounters.NumFingerprintStoreEventsDropped, droppedEvents);
+
+                Logger.Log.GettingFingerprintStoreTrace(
+                    LoggingContext,
+                    $"Fingerprint store queue drain completed in {drainStopwatch.Elapsed.TotalMilliseconds:F0} ms. Dropped {droppedEvents} pending events.");
 
                 // We should first dispose the fingerprintStore in the RunCacheMissAnalyzer
                 // because that might be the snapshot version of FingerprintStore
@@ -1009,7 +1018,7 @@ namespace BuildXL.Scheduler.Tracing
                 m_actionBlocks[Math.Abs(pipId.Value % m_actionBlocks.Length)].Post(action);
             }
 
-            public void Complete()
+            public int Complete(TimeSpan? timeout)
             {
                 lock (m_actionBlocks)
                 {
@@ -1019,10 +1028,19 @@ namespace BuildXL.Scheduler.Tracing
                         m_actionBlocks[i].Complete();
                     }
 
-                    for (int i = 0; i < m_actionBlocks.Length; ++i)
+                    var completion = Task.WhenAll(m_actionBlocks.Select(actionBlock => actionBlock.Completion));
+                    if (timeout.HasValue && !completion.Wait(timeout.Value))
                     {
-                        m_actionBlocks[i].Completion.Wait();
+                        foreach (var actionBlock in m_actionBlocks)
+                        {
+                            actionBlock.Complete(cancelPending: true);
+                        }
                     }
+
+                    completion.Wait();
+
+                    // Count after active callbacks finish to exclude events dequeued concurrently with cancellation.
+                    return m_actionBlocks.Sum(actionBlock => actionBlock.PendingWorkItems);
                 }
             }
         }

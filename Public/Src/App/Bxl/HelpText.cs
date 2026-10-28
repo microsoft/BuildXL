@@ -314,6 +314,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/fingerprintStoreDrainTimeoutMinutes:<minutes>",
+                Strings.HelpText_DisplayHelp_FingerprintStoreDrainTimeoutMinutes,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/substSource:[path]",
                 Strings.HelpText_DisplayHelp_SubstSource,
                 HelpLevel.Verbose);

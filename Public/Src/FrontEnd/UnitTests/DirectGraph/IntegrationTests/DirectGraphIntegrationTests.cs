@@ -102,6 +102,152 @@ namespace Test.BuildXL.FrontEnd.DirectGraph
         }
 
         [Fact]
+        public void DScriptConsumesCompletedExportMapsWithDirectoryKindsAndContents()
+        {
+            string[] command = OperatingSystemHelper.IsWindowsOS
+                ? new[] { CmdHelper.CmdX64, "/d", "/c", @"type out\partial\input.txt > out\opaque\result.txt" }
+                : new[] { CmdHelper.Bash, "-c", "cat out/partial/input.txt > out/opaque/result.txt" };
+
+            var config = Build()
+                .Configuration($$"""
+                    config({
+                        resolvers: [
+                            {
+                                kind: "DirectGraph",
+                                moduleNames: [a`producer`, a`other`, a`empty`],
+                                workingDirectory: d`.`,
+                                tool: f`{{PathToEmitter.Replace('\\', '/')}}`,
+                                arguments: ["graph.json"],
+                            },
+                            {
+                                kind: "DScript",
+                                modules: [{ moduleName: "consumer", projects: [f`consumer.dsc`] }],
+                            },
+                        ],
+                        mounts: [{ name: a`out`, path: p`out`, trackSourceFileChanges: true, isReadable: true, isWritable: true }],
+                        qualifiers: { defaultQualifier: { configuration: "debug" } },
+                    });
+                    """)
+                .AddFile("graph.json", $$"""
+                    { "modules": [ { "name": "producer", "operations": [
+                        { "name": "write", "kind": "writeFile", "destination": "out/partial/input.txt", "content": "exported" },
+                        { "name": "writeFull", "kind": "writeFile", "destination": "out/full/input.txt", "content": "full" },
+                        { "name": "run", "kind": "process", "executable": {{JsonSerializer.Serialize(command[0])}}, "workingDirectory": ".",
+                          "arguments": {{JsonSerializer.Serialize(command[1..])}}, "options": [ "dependsOnCurrentOs" ],
+                          "inputFiles": [ { "producedBy": "write", "path": "out/partial/input.txt" } ], "producesDirectories": [ "out/opaque" ] },
+                        { "name": "partial", "kind": "sealDirectory", "directoryRoot": "out/partial", "sealKind": "partial",
+                          "contents": [ { "producedBy": "write", "path": "out/partial/input.txt" } ] },
+                        { "name": "full", "kind": "sealDirectory", "directoryRoot": "out/full", "sealKind": "full",
+                          "contents": [ { "producedBy": "writeFull", "path": "out/full/input.txt" } ] },
+                        { "name": "sourceAll", "kind": "sealDirectory", "directoryRoot": "sourceAll", "sealKind": "sourceAllDirectories" },
+                        { "name": "sourceTop", "kind": "sealDirectory", "directoryRoot": "sourceTop", "sealKind": "sourceTopDirectoryOnly" },
+                        { "name": "barrier", "kind": "composeSharedOpaque", "directoryRoot": "out", "contents": [ { "producedBy": "run" } ] },
+                        { "name": "exports", "kind": "export",
+                          "files": [ { "producedBy": "write", "path": "out/partial/input.txt" } ],
+                          "directories": [
+                            { "producedBy": "run" }, { "producedBy": "partial" }, { "producedBy": "full" },
+                            { "producedBy": "sourceAll" }, { "producedBy": "sourceTop" }, { "producedBy": "barrier" } ] }
+                    ] }, { "name": "other", "operations": [
+                        { "name": "exportAgain", "kind": "export", "files": [ { "producedBy": "write", "path": "out/partial/input.txt" } ] }
+                    ] } ] }
+                    """)
+                .AddFile("sourceAll/input.txt", "source")
+                .AddFile("sourceTop/input.txt", "top")
+                .AddSpec("consumer.dsc", """
+                    import { files, directories } from "producer";
+                    import { files as otherFiles, directories as otherDirectories } from "other";
+                    import { files as emptyFiles, directories as emptyDirectories } from "empty";
+
+                    const file = files.get(p`out/partial/input.txt`);
+                    const exportedFileExists = Contract.assert(file !== undefined, "The required DirectGraph file was not exported");
+                    const onlySelectedArtifacts = Contract.assert(files.count() === 1 && files.get(p`out/full/input.txt`) === undefined);
+                    const missingKeys = Contract.assert(files.get(p`missing`) === undefined && directories.get(p`missing`) === undefined);
+                    const independentModules = Contract.assert(otherFiles.get(file.path).path === file.path && otherDirectories.count() === 0);
+                    const emptyMaps = Contract.assert(emptyFiles.count() === 0 && emptyDirectories.count() === 0);
+
+                    const partial = directories.get(p`out/partial`);
+                    const full = directories.get(p`out/full`);
+                    const opaque = directories.get(p`out/opaque`);
+                    const kinds = Contract.assert(
+                        partial.kind === "partial" && full.kind === "full" && opaque.kind === "shared"
+                        && directories.get(p`sourceAll`).kind === "sourceAllDirectories"
+                        && directories.get(p`sourceTop`).kind === "sourceTopDirectories"
+                        && directories.get(p`out`).kind === "shared");
+                    const contents = Contract.assert(
+                        directories.count() === 6 && partial.contents.length === 1 && full.contents.length === 1
+                        && partial.getFile(r`input.txt`).path === file.path && opaque.contents.length === 0);
+
+                    export const fromFile = _PreludeAmbientHack_Transformer.copyFile(file, p`out/from-file.txt`);
+                    export const fromSeal = _PreludeAmbientHack_Transformer.copyFile(full.getFile(r`input.txt`), p`out/from-seal.txt`);
+                    export const fromOpaque = _PreludeAmbientHack_Transformer.copyFile(opaque.assertExistence(r`result.txt`), p`out/from-opaque.txt`);
+                    """)
+                .PersistSpecsAndGetConfiguration();
+
+            var mutableConfig = (CommandLineConfiguration)config;
+            mutableConfig.Engine.Phase = EnginePhases.Execute;
+            mutableConfig.Sandbox.FileSystemMode = FileSystemMode.RealAndMinimalPipGraph;
+            mutableConfig.DisableInBoxSdkSourceResolver = true;
+            mutableConfig.Filter = "module='consumer'";
+
+            using var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TestOutputDirectory);
+            var result = CreateAndRunEngine(config, CreateAppDeployment(tempFiles), testRootDirectory: null, rememberAllChangedTrackedInputs: true, engine: out _);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal("exported", File.ReadAllText(Path.Combine(TestRoot, "out", "from-file.txt")));
+            Assert.Equal("full", File.ReadAllText(Path.Combine(TestRoot, "out", "from-seal.txt")));
+            Assert.Equal("exported", File.ReadAllText(Path.Combine(TestRoot, "out", "from-opaque.txt")));
+        }
+
+        [Theory]
+        [InlineData(false, false, true)]
+        [InlineData(true, true, true)]
+        [InlineData(false, true, true)]
+        [InlineData(true, false, false)]
+        public void DuplicateExportPathsFailTheBuild(bool firstIsDirectory, bool secondIsDirectory, bool sameMessage)
+        {
+            string exportOperation(string name, params bool[] directoryKinds) => JsonSerializer.Serialize(new
+            {
+                name,
+                kind = "export",
+                files = directoryKinds.Where(directory => !directory).Select(_ => new { sourcePath = "out/key" }).ToArray(),
+                directories = directoryKinds.Where(directory => directory).Select(_ => new { producedBy = "seal", path = "out/key" }).ToArray(),
+            });
+
+            string exports = sameMessage
+                ? exportOperation("batch", firstIsDirectory, secondIsDirectory)
+                : exportOperation("first", firstIsDirectory) + "," + exportOperation("second", secondIsDirectory);
+
+            var config = Build()
+                .Configuration($$"""
+                    config({
+                        resolvers: [{{Resolver("producer", "graph.json")}}],
+                        mounts: [{ name: a`out`, path: p`out`, trackSourceFileChanges: true, isReadable: true, isWritable: true }],
+                    });
+                    """)
+                .AddFile("graph.json", $$"""
+                    { "modules": [ { "name": "producer", "operations": [
+                        { "name": "seal", "kind": "sealDirectory", "directoryRoot": "out/key", "sealKind": "partial" },
+                        {{exports}}
+                    ] } ] }
+                    """)
+                .PersistSpecsAndGetConfiguration();
+
+            var mutableConfig = (CommandLineConfiguration)config;
+            mutableConfig.Engine.Phase = EnginePhases.Execute;
+            mutableConfig.Sandbox.FileSystemMode = FileSystemMode.RealAndMinimalPipGraph;
+            mutableConfig.DisableInBoxSdkSourceResolver = true;
+
+            using var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TestOutputDirectory);
+            var result = CreateAndRunEngine(config, CreateAppDeployment(tempFiles), testRootDirectory: null, rememberAllChangedTrackedInputs: true, engine: out _);
+
+            Assert.False(result.IsSuccess);
+            AssertErrorEventLogged(global::BuildXL.Engine.DirectGraph.Tracing.LogEventId.GraphOperationRejected);
+            Assert.Contains(
+                EventListener.GetLogMessagesForEventId((int)global::BuildXL.Engine.DirectGraph.Tracing.LogEventId.GraphOperationRejected),
+                message => message.Contains("already exports"));
+        }
+
+        [Fact]
         public void TwoResolversEmitTheirOwnPips()
         {
             var result = RunWithTwoResolvers("first", "second");

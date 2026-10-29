@@ -112,6 +112,15 @@
           "inputDirectories": [ { "producedBy": "barrier" } ],
           "outputFiles": [ "out\\fromBarrier.txt" ],
           "description": "Reads through the composed shared opaque directory"
+        },
+        {
+          "name": "exports",
+          "kind": "export",
+          "files": [ { "producedBy": "copyOutput", "path": "out\\copied.txt" } ],
+          "directories": [
+            { "producedBy": "sealOut" },
+            { "producedBy": "barrier" }
+          ]
         }
       ]
     }

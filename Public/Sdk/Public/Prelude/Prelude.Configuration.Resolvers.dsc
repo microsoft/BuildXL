@@ -1011,6 +1011,9 @@ interface NinjaResolver extends ResolverBase, UntrackingSettings {
 
 /**
  * Resolver that lets an external tool contribute pips directly to the BuildXL graph.
+ * Each module exports files: Map<Path, File> and directories: Map<Path, StaticDirectory>.
+ * The tool explicitly exports artifacts at their own paths, unique across both maps within a module.
+ * Reading either map waits for successful tool completion. Map.get returns undefined for a path that was not exported.
  */
 interface DirectGraphResolver extends ResolverBase {
     kind: "DirectGraph";

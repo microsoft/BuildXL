@@ -13,6 +13,10 @@ config(
         arguments: ["run", "--project", "GraphEmitter", "graph.json"],
         enableProjectGraphVerboseLogging: true,
       },
+      {
+        kind: "DScript",
+        modules: [{ moduleName: "consumer", projects: [f`consumer.dsc`] }],
+      },
     ],
     mounts: [
       {

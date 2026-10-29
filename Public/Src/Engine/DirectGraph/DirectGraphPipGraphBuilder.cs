@@ -30,6 +30,11 @@ namespace BuildXL.Engine.DirectGraph
     public delegate bool PipConstructionHelperResolver(string moduleName, string symbol, out PipConstructionHelper pipConstructionHelper, out string error);
 
     /// <summary>
+    /// Publishes an artifact at its own path in a module, or returns false with the reason it cannot be exported.
+    /// </summary>
+    public delegate bool TryRegisterExport(string moduleName, FileOrDirectoryArtifact artifact, out string error);
+
+    /// <summary>
     /// Translates DirectGraph protocol operations into BuildXL pip construction calls.
     /// </summary>
     /// <remarks>
@@ -47,6 +52,7 @@ namespace BuildXL.Engine.DirectGraph
         private readonly ISandboxConfiguration m_sandboxConfiguration;
         private readonly Func<ProcessBuilder> m_processBuilderFactory;
         private readonly PipConstructionHelperResolver m_pipConstructionHelperResolver;
+        private readonly TryRegisterExport m_registerExport;
         private readonly LoggingContext m_loggingContext;
         private readonly bool m_traceOperation;
         private readonly CounterCollection<DirectGraphCounter> m_counters;
@@ -70,6 +76,7 @@ namespace BuildXL.Engine.DirectGraph
             ISandboxConfiguration sandboxConfiguration,
             Func<ProcessBuilder> processBuilderFactory,
             PipConstructionHelperResolver pipConstructionHelperResolver,
+            TryRegisterExport registerExport,
             LoggingContext loggingContext,
             bool traceOperation,
             CounterCollection<DirectGraphCounter> counters = null)
@@ -79,6 +86,7 @@ namespace BuildXL.Engine.DirectGraph
             Contract.Requires(sandboxConfiguration != null);
             Contract.Requires(processBuilderFactory != null);
             Contract.Requires(pipConstructionHelperResolver != null);
+            Contract.Requires(registerExport != null);
             Contract.Requires(loggingContext != null);
 
             m_pathTable = pathTable;
@@ -86,6 +94,7 @@ namespace BuildXL.Engine.DirectGraph
             m_sandboxConfiguration = sandboxConfiguration;
             m_processBuilderFactory = processBuilderFactory;
             m_pipConstructionHelperResolver = pipConstructionHelperResolver;
+            m_registerExport = registerExport;
             m_loggingContext = loggingContext;
             m_traceOperation = traceOperation;
             m_counters = counters ?? new CounterCollection<DirectGraphCounter>();
@@ -185,6 +194,9 @@ namespace BuildXL.Engine.DirectGraph
                 case GraphOperation.OperationOneofCase.AddCompositeSharedOpaqueDirectory:
                     (count, duration) = (DirectGraphCounter.AddCompositeSharedOpaqueDirectoryCount, DirectGraphCounter.AddCompositeSharedOpaqueDirectoryDuration);
                     return true;
+                case GraphOperation.OperationOneofCase.AddExport:
+                    (count, duration) = (DirectGraphCounter.AddExportCount, DirectGraphCounter.AddExportDuration);
+                    return true;
                 case GraphOperation.OperationOneofCase.Complete:
                     (count, duration) = (DirectGraphCounter.CompleteCount, DirectGraphCounter.CompleteDuration);
                     return true;
@@ -210,6 +222,7 @@ namespace BuildXL.Engine.DirectGraph
                     GraphOperation.OperationOneofCase.AddCopyFile => AddCopyFile(operationId, operation.AddCopyFile),
                     GraphOperation.OperationOneofCase.AddSealDirectory => AddSealDirectory(operationId, operation.AddSealDirectory),
                     GraphOperation.OperationOneofCase.AddCompositeSharedOpaqueDirectory => AddCompositeSharedOpaqueDirectory(operationId, operation.AddCompositeSharedOpaqueDirectory),
+                    GraphOperation.OperationOneofCase.AddExport => AddExport(operationId, operation.AddExport),
                     GraphOperation.OperationOneofCase.Complete => Complete(operationId),
                     _ => Failure(operationId, GraphOperationResponseStatus.InvalidRequest, "The graph operation is not specified."),
                 };
@@ -542,6 +555,34 @@ namespace BuildXL.Engine.DirectGraph
 
             m_producedArtifacts[operationId] = new ProducedArtifacts(Array.Empty<FileArtifact>(), new[] { sealedDirectory });
             return Success(operationId, sealDirectoryPip.SemiStableHash);
+        }
+
+        private GraphOperationResponse AddExport(ulong operationId, AddExportRequest request)
+        {
+            if (request.Files.Count == 0 && request.Directories.Count == 0)
+            {
+                return Failure(operationId, GraphOperationResponseStatus.InvalidRequest, "The export operation does not specify any files or directories.");
+            }
+
+            foreach (var file in request.Files)
+            {
+                if (!m_registerExport(request.Module, FileOrDirectoryArtifact.Create(ResolveFile(file, "files")), out string error))
+                {
+                    return Failure(operationId, GraphOperationResponseStatus.InvalidRequest, error);
+                }
+            }
+
+            foreach (var directory in request.Directories)
+            {
+                if (!m_registerExport(request.Module, FileOrDirectoryArtifact.Create(ResolveDirectory(directory, "directories")), out string error))
+                {
+                    return Failure(operationId, GraphOperationResponseStatus.InvalidRequest, error);
+                }
+            }
+
+            // Claim the id so it cannot be reused; exports produce no artifacts.
+            m_producedArtifacts[operationId] = new ProducedArtifacts(Array.Empty<FileArtifact>(), Array.Empty<DirectoryArtifact>());
+            return Success(operationId);
         }
 
         private GraphOperationResponse AddCompositeSharedOpaqueDirectory(ulong operationId, AddCompositeSharedOpaqueDirectoryRequest request)

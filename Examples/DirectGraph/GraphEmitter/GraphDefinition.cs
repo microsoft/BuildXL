@@ -139,6 +139,15 @@ namespace GraphEmitter
         public string Description { get; set; }
     }
 
+    internal sealed class ExportOperationDefinition : OperationDefinition
+    {
+        [JsonProperty("files")]
+        public IReadOnlyList<FileReferenceDefinition> Files { get; set; }
+
+        [JsonProperty("directories")]
+        public IReadOnlyList<DirectoryReferenceDefinition> Directories { get; set; }
+    }
+
     /// <summary>
     /// A reference to a directory produced by an earlier operation.
     /// </summary>

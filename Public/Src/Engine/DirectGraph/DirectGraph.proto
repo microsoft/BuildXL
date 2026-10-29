@@ -40,9 +40,9 @@ service DirectGraphService {
 }
 
 message GraphOperation {
-    // Assigned by the emitter; non-zero and unique within the stream, Complete included. Later operations name this
-    // operation to depend on what it produces; Complete produces nothing to depend on. Ids need not be consecutive
-    // or increasing.
+    // Assigned by the emitter; non-zero and unique within the stream, exports and Complete included. Later operations
+    // name this operation to depend on what it produces; exports and Complete produce nothing to depend on.
+    // Ids need not be consecutive or increasing.
     uint64 operation_id = 1;
 
     // Version of this protocol that the emitter was built against. The authoritative version is
@@ -68,6 +68,7 @@ message GraphOperation {
         AddSealDirectoryRequest add_seal_directory = 8;
         AddCompositeSharedOpaqueDirectoryRequest add_composite_shared_opaque_directory = 9;
         CompleteRequest complete = 10;
+        AddExportRequest add_export = 11;
     }
 }
 
@@ -395,6 +396,19 @@ message AddCompositeSharedOpaqueDirectoryRequest {
     ContentFilter content_filter = 6;
     repeated uint32 tags = 7;  // string ids
     optional uint32 description = 8;  // string id; may be omitted
+}
+
+// Publishes artifacts in the module's files: Map<Path, File> and directories: Map<Path, StaticDirectory>.
+// At least one file or directory is required. Any rejected entry fails graph construction.
+// The key is the artifact's own path. A path can be exported only once within a module, across both maps,
+// even if another export names the same artifact. Different modules have independent maps.
+// The maps become available to DScript only after the emitter successfully finishes constructing the graph.
+// A key that was not exported has the normal Map.get result, undefined.
+message AddExportRequest {
+    // See AddProcessRequest.module.
+    string module = 1;
+    repeated FileArtifactReference files = 2;
+    repeated DirectoryArtifactReference directories = 3;
 }
 
 message AddWriteFileRequest {

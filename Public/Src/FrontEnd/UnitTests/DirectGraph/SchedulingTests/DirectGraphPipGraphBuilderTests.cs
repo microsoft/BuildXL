@@ -58,13 +58,18 @@ namespace Test.BuildXL.FrontEnd.DirectGraph
         /// A builder refuses every operation after the first one it rejects, so a test that exercises several
         /// distinct rejections needs a fresh builder for each.
         /// </summary>
-        private DirectGraphPipGraphBuilder CreateBuilder() =>
+        private DirectGraphPipGraphBuilder CreateBuilder(TryRegisterExport registerExport = null) =>
             new DirectGraphPipGraphBuilder(
                 m_context.PathTable,
                 m_pipGraph,
                 m_sandboxConfiguration,
                 () => ProcessBuilder.CreateForTesting(m_context.PathTable, new NoOpCredentialScanner(), new LoggingContext("Test")),
                 TryGetPipConstructionHelper,
+                registerExport ?? ((string moduleName, FileOrDirectoryArtifact artifact, out string error) =>
+                {
+                    error = null;
+                    return true;
+                }),
                 new LoggingContext("Test"),
                 traceOperation: false,
                 counters: m_counters);
@@ -708,6 +713,119 @@ namespace Test.BuildXL.FrontEnd.DirectGraph
             var rejected = Send(new GraphOperation { OperationId = 6, AddCompositeSharedOpaqueDirectory = badCompose });
             XAssert.AreEqual(GraphOperationResponseStatus.InvalidRequest, rejected.Status);
             XAssert.Contains(rejected.Error, "not a shared opaque");
+        }
+
+        [Fact]
+        public void ExportsResolveTheirReferencesAndPropagateRegistrationFailures()
+        {
+            var exports = new List<FileOrDirectoryArtifact>();
+            bool registerExport(string moduleName, FileOrDirectoryArtifact artifact, out string error)
+            {
+                if (moduleName != TestModule)
+                {
+                    error = $"The module '{moduleName}' is not owned by this resolver.";
+                    return false;
+                }
+
+                exports.Add(artifact);
+                error = null;
+                return true;
+            }
+
+            var builder = CreateBuilder(registerExport);
+            var producer = Send(builder, new GraphOperation { OperationId = 1, AddProcess = NewProcess("producer", "rewritten.txt") });
+            XAssert.AreEqual(GraphOperationResponseStatus.Success, producer.Status, producer.Error);
+
+            var rewriter = NewProcess("rewriter", "other.txt");
+            rewriter.OutputFiles.Add(new OutputFile
+            {
+                Rewrites = new ProducedFileReference { ProducerOperationId = 1, Path = Path("rewritten.txt") },
+                Existence = FileExistenceKind.Required,
+            });
+            var rewritten = Send(builder, new GraphOperation { OperationId = 2, AddProcess = rewriter });
+            XAssert.AreEqual(GraphOperationResponseStatus.Success, rewritten.Status, rewritten.Error);
+
+            var seal = Send(builder, new GraphOperation
+            {
+                OperationId = 3,
+                AddSealDirectory = new AddSealDirectoryRequest
+                {
+                    Module = TestModule,
+                    Symbol = "seal",
+                    DirectoryRoot = Path("sealed"),
+                    Kind = global::BuildXL.Engine.DirectGraph.SealDirectoryKind.Partial,
+                },
+            });
+            var batch = Send(builder, new GraphOperation
+            {
+                OperationId = 4,
+                AddExport = new AddExportRequest
+                {
+                    Module = TestModule,
+                    Files = { ProducedFile(2, "rewritten.txt"), new FileArtifactReference { SourcePath = Path("source.txt") } },
+                    Directories = { ProducedDirectory(3, "sealed") },
+                },
+            });
+
+            foreach (var response in new[] { seal, batch })
+            {
+                XAssert.AreEqual(GraphOperationResponseStatus.Success, response.Status, response.Error);
+            }
+
+            XAssert.AreEqual(3, exports.Count);
+            XAssert.AreEqual(2, exports[0].FileArtifact.RewriteCount);
+            XAssert.AreEqual(m_root.Combine(m_context.PathTable, "rewritten.txt"), exports[0].Path);
+            XAssert.IsFalse(exports[1].FileArtifact.IsOutputFile);
+            XAssert.AreEqual(m_root.Combine(m_context.PathTable, "sealed"), exports[2].DirectoryArtifact.Path);
+            XAssert.AreEqual(0L, batch.SemiStableHash, "exporting artifacts adds no pip");
+            XAssert.AreEqual(1, m_counters.GetCounterValue(DirectGraphCounter.AddExportCount));
+
+            // An export's id is claimed, but it produces nothing a later operation can reference.
+            var reused = Send(builder, new GraphOperation
+            {
+                OperationId = 4,
+                AddExport = new AddExportRequest { Module = TestModule, Files = { ProducedFile(2, "rewritten.txt") } },
+            });
+            XAssert.AreEqual(GraphOperationResponseStatus.InvalidRequest, reused.Status);
+            XAssert.Contains(reused.Error, "already been used");
+
+            foreach (var reference in new[]
+            {
+                new AddExportRequest { Module = TestModule, Files = { ProducedFile(1, "source.txt") } },
+                new AddExportRequest { Module = TestModule, Directories = { ProducedDirectory(1, "source.txt") } },
+            })
+            {
+                var referencingExport = CreateBuilder();
+                var exported = Send(referencingExport, new GraphOperation
+                {
+                    OperationId = 1,
+                    AddExport = new AddExportRequest { Module = TestModule, Files = { new FileArtifactReference { SourcePath = Path("source.txt") } } },
+                });
+                XAssert.AreEqual(GraphOperationResponseStatus.Success, exported.Status, exported.Error);
+
+                var rejected = Send(referencingExport, new GraphOperation { OperationId = 2, AddExport = reference });
+                XAssert.AreEqual(GraphOperationResponseStatus.InvalidRequest, rejected.Status);
+                XAssert.Contains(rejected.Error, "produced no such");
+            }
+
+            foreach (var (request, expectedError) in new[]
+            {
+                (new AddExportRequest { Module = TestModule }, "does not specify any files or directories"),
+                (new AddExportRequest { Module = TestModule, Files = { ProducedFile(42, "rewritten.txt") } }, "has not received"),
+                (new AddExportRequest { Module = TestModule, Directories = { ProducedDirectory(42, "sealed") } }, "has not received"),
+                (new AddExportRequest { Module = TestModule, Files = { new FileArtifactReference { SourcePath = Path("source.txt") }, ProducedFile(42, "rewritten.txt") } }, "has not received"),
+                (new AddExportRequest { Module = "notOwned", Files = { new FileArtifactReference { SourcePath = Path("source.txt") } } }, "notOwned"),
+            })
+            {
+                var rejectingBuilder = CreateBuilder(registerExport);
+                var rejected = Send(rejectingBuilder, new GraphOperation { OperationId = 1, AddExport = request });
+                XAssert.AreEqual(GraphOperationResponseStatus.InvalidRequest, rejected.Status);
+                XAssert.Contains(rejected.Error, expectedError);
+
+                var complete = Send(rejectingBuilder, new GraphOperation { OperationId = 2, Complete = new CompleteRequest() });
+                XAssert.AreEqual(GraphOperationResponseStatus.PreviousOperationRejected, complete.Status);
+                XAssert.IsFalse(rejectingBuilder.IsComplete);
+            }
         }
 
         private AddProcessRequest NewProcess(string symbol, string output, FileArtifactReference input = null, string outputDirectory = null)

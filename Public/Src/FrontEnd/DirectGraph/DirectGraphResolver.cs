@@ -17,10 +17,14 @@ using BuildXL.Pips.Builders;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.Workspaces;
+using BuildXL.FrontEnd.Script.Ambients.Map;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Pips.Graph;
+using BuildXL.Pips.Operations;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
 
@@ -44,6 +48,7 @@ namespace BuildXL.FrontEnd.DirectGraph
         private readonly Lazy<Task<bool>> m_graphConstruction;
         private readonly CounterCollection<DirectGraphCounter> m_counters;
         private readonly ConcurrentDictionary<(string moduleName, FullSymbol symbol), PipConstructionHelper> m_pipConstructionHelpers = new();
+        private readonly Dictionary<string, (OrderedMap Files, OrderedMap Directories)> m_exports = new(StringComparer.Ordinal);
         private DirectGraphWorkspaceResolver m_workspaceResolver;
         private IDirectGraphResolverSettings m_resolverSettings;
 
@@ -83,6 +88,11 @@ namespace BuildXL.FrontEnd.DirectGraph
             Contract.Assert(m_resolverSettings != null);
             Contract.Assert(m_workspaceResolver != null);
 
+            foreach (var module in m_workspaceResolver.ModuleDefinitions.Keys)
+            {
+                m_exports.Add(module.Name, (OrderedMap.Empty, OrderedMap.Empty));
+            }
+
             return Task.FromResult(true);
         }
 
@@ -100,7 +110,88 @@ namespace BuildXL.FrontEnd.DirectGraph
                 return Task.FromResult<bool?>(null);
             }
 
+            ConvertExports(moduleRegistry, module);
             return Task.FromResult<bool?>(true);
+        }
+
+        private void ConvertExports(IModuleRegistry moduleRegistry, ParsedModule module)
+        {
+            var specPath = module.Definition.Specs.Single();
+            var fileModule = ModuleLiteral.CreateFileModule(
+                specPath,
+                moduleRegistry,
+                FrontEndUtilities.CreatePackage(module.Definition, m_context.StringTable),
+                module.Specs[specPath].LineMap);
+
+            int pos = 1;
+            foreach (string name in new[] { DirectGraphWorkspaceResolver.FilesExportName, DirectGraphWorkspaceResolver.DirectoriesExportName })
+            {
+                FrontEndUtilities.AddEvaluationCallbackToFileModule(
+                    fileModule,
+                    (context, moduleLiteral, evaluationStackFrame) => ResolveExportAsync(module.Descriptor.Name, name),
+                    FullSymbol.Create(m_context.SymbolTable, name),
+                    pos);
+                pos += 2;
+            }
+
+            moduleRegistry.AddUninstantiatedModuleInfo(
+                new global::BuildXL.FrontEnd.Script.UninstantiatedModuleInfo(
+                    new global::BuildXL.FrontEnd.Script.SourceFile(specPath, Array.Empty<global::BuildXL.FrontEnd.Script.Declarations.Declaration>()),
+                    fileModule,
+                    m_context.QualifierTable.EmptyQualifierSpaceId));
+        }
+
+        private async Task<EvaluationResult> ResolveExportAsync(string moduleName, string name)
+        {
+            // An importing module can reach this before this resolver's own modules are evaluated.
+            if (!await m_graphConstruction.Value)
+            {
+                return EvaluationResult.Error;
+            }
+
+            var exports = m_exports[moduleName];
+            return EvaluationResult.Create(name == DirectGraphWorkspaceResolver.FilesExportName ? exports.Files : exports.Directories);
+        }
+
+        private bool TryRegisterExport(string moduleName, FileOrDirectoryArtifact artifact, out string error)
+        {
+            if (!m_exports.TryGetValue(moduleName, out var exports))
+            {
+                error = $"The module '{moduleName}' is not owned by resolver '{Name}'. Owned modules: {m_workspaceResolver.DescribeExtent()}.";
+                return false;
+            }
+
+            var key = EvaluationResult.Create(artifact.Path);
+            if (exports.Files.ContainsKey(key) || exports.Directories.ContainsKey(key))
+            {
+                error = $"Module '{moduleName}' already exports '{artifact.Path.ToString(m_context.PathTable)}'. A path can be exported only once, across both files and directories.";
+                return false;
+            }
+
+            if (artifact.IsFile)
+            {
+                exports.Files = exports.Files.Add(key, EvaluationResult.Create(artifact.FileArtifact));
+            }
+            else
+            {
+                var directory = artifact.DirectoryArtifact;
+                if (!m_host.PipGraph.TryGetSealDirectoryKind(directory, out var kind))
+                {
+                    error = $"The exported directory '{directory.Path.ToString(m_context.PathTable)}' has not been added to the graph.";
+                    return false;
+                }
+
+                var contents = kind.IsDynamicKind()
+                    ? PipConstructionHelper.EmptyStaticDirContents
+                    : SortedReadOnlyArray<FileArtifact, OrdinalPathOnlyFileArtifactComparer>.SortUnsafe(
+                        m_host.PipGraph.ListSealedDirectoryContents(directory).ToArray(),
+                        OrdinalPathOnlyFileArtifactComparer.Instance);
+                exports.Directories = exports.Directories.Add(key, EvaluationResult.Create(new StaticDirectory(directory, kind, contents)));
+            }
+
+            m_exports[moduleName] = exports;
+            error = null;
+            return true;
         }
 
         /// <inheritdoc />
@@ -140,6 +231,7 @@ namespace BuildXL.FrontEnd.DirectGraph
                     m_context.CredentialScanner,
                     m_context.LoggingContext),
                 TryGetPipConstructionHelper,
+                TryRegisterExport,
                 m_context.LoggingContext,
                 // Tracing runs the protobuf text formatter over every request and every response and logs the result,
                 // so it cannot be on unconditionally.

@@ -26,6 +26,9 @@ namespace BuildXL.FrontEnd.DirectGraph
     /// </summary>
     public sealed class DirectGraphWorkspaceResolver : IWorkspaceModuleResolver
     {
+        internal const string FilesExportName = "files";
+        internal const string DirectoriesExportName = "directories";
+
         private FrontEndContext m_context;
         private FrontEndHost m_host;
         private IDirectGraphResolverSettings m_resolverSettings;
@@ -265,8 +268,37 @@ namespace BuildXL.FrontEnd.DirectGraph
             var sourceFile = SourceFile.Create(pathToParse.ToString(m_context.PathTable));
             sourceFile.OverrideIsScriptFile = true;
             sourceFile.ExternalModuleIndicator = sourceFile;
+            PopulateExports(sourceFile);
 
             return Task.FromResult(Possible.Create<ISourceFile>(sourceFile));
+        }
+
+        private static void PopulateExports(SourceFile sourceFile)
+        {
+            sourceFile.AddDefaultQualifierDeclaration();
+
+            // These positions must match the evaluation callbacks in DirectGraphResolver.
+            int pos = 1;
+            foreach (var (name, valueTypeName) in new[] { (FilesExportName, "File"), (DirectoriesExportName, "StaticDirectory") })
+            {
+                var keyType = new TypeReferenceNode("Path");
+                keyType.TypeName.Pos = pos;
+                keyType.TypeName.End = pos + 1;
+
+                var valueType = new TypeReferenceNode(valueTypeName);
+                valueType.TypeName.Pos = pos;
+                valueType.TypeName.End = pos + 1;
+
+                var mapType = new TypeReferenceNode("Map");
+                mapType.TypeName.Pos = pos;
+                mapType.TypeName.End = pos + 1;
+                mapType.TypeArguments = NodeArray.Create<ITypeNode>(keyType, valueType);
+
+                FrontEndUtilities.AddExportToSourceFile(sourceFile, name, mapType, pos, pos + 1);
+                pos += 2;
+            }
+
+            sourceFile.SetLineMap(new[] { 0, pos - 2 });
         }
 
         /// <inheritdoc/>

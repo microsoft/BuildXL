@@ -35,6 +35,11 @@ namespace BuildXL.Engine.DirectGraph
         [CounterType(CounterType.Stopwatch)]
         AddCompositeSharedOpaqueDirectoryDuration,
 
+        AddExportCount,
+
+        [CounterType(CounterType.Stopwatch)]
+        AddExportDuration,
+
         CompleteCount,
 
         [CounterType(CounterType.Stopwatch)]

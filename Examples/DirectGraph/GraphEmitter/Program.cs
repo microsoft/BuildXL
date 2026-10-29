@@ -152,8 +152,34 @@ namespace GraphEmitter
                 "copyFile" => CreateCopyFileOperation(operationJson.ToObject<CopyFileOperationDefinition>(), moduleName, operationId, state),
                 "sealDirectory" => CreateSealDirectoryOperation(operationJson.ToObject<SealDirectoryOperationDefinition>(), moduleName, operationId, state, producedDirectories),
                 "composeSharedOpaque" => CreateComposeSharedOpaqueOperation(operationJson.ToObject<ComposeSharedOpaqueOperationDefinition>(), moduleName, operationId, state, producedDirectories),
+                "export" => CreateExportOperation(operationJson.ToObject<ExportOperationDefinition>(), moduleName, operationId, state),
                 _ => throw new InvalidDataException($"Operation '{operationName}' has unsupported kind '{header.Kind}'."),
             };
+        }
+
+        private static GraphOperation CreateExportOperation(
+            ExportOperationDefinition definition,
+            string moduleName,
+            ulong operationId,
+            EmitterState state)
+        {
+            if ((definition.Files?.Count ?? 0) == 0 && (definition.Directories?.Count ?? 0) == 0)
+            {
+                throw new InvalidDataException("An export must specify at least one file or directory.");
+            }
+
+            var request = new AddExportRequest { Module = moduleName };
+            foreach (var file in definition.Files ?? Array.Empty<FileReferenceDefinition>())
+            {
+                request.Files.Add(CreateFileReference(file, state));
+            }
+
+            foreach (var directory in definition.Directories ?? Array.Empty<DirectoryReferenceDefinition>())
+            {
+                request.Directories.Add(ResolveDirectoryReference(directory, state));
+            }
+
+            return new GraphOperation { OperationId = operationId, AddExport = request };
         }
 
         private static DirectoryArtifactReference ResolveDirectoryReference(DirectoryReferenceDefinition definition, EmitterState state)

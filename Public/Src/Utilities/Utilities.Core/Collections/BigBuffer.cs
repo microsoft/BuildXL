@@ -179,6 +179,7 @@ namespace BuildXL.Utilities.Collections
         /// <param name="initializer">Optional initializer for new buffers</param>
         /// <param name="initializeSequentially">Whether the initializer needs to run sequentially</param>
         /// <returns>Actual new capacity</returns>
+        /// <exception cref="OverflowException">The page-aligned minimum capacity cannot be represented by an <see cref="int"/>.</exception>
         public int Initialize(int minimumCapacity, BufferInitializer? initializer = null, bool initializeSequentially = false)
         {
             if (m_capacity < minimumCapacity)
@@ -194,12 +195,14 @@ namespace BuildXL.Utilities.Collections
                 lock (m_syncRoot)
                 {
                     var currentCapacity = m_capacity;
-                    var newCapacity = checked(minimumCapacity + m_entriesPerBuffer - 1) & ~m_entriesPerBufferMask;
+                    var newCapacity = checked((int)(((long)minimumCapacity + m_entriesPerBuffer - 1) & ~(long)m_entriesPerBufferMask));
                     if (currentCapacity < newCapacity)
                     {
                         // No more entry buffers. We need to allocate more.
-                        // At least twice as many, but maybe more depending on requested capacity
-                        newCapacity = Math.Max(m_entryBuffers.Length * m_entriesPerBuffer * 2, newCapacity);
+                        // Double where possible, without exceeding the largest representable page-aligned capacity.
+                        var maximumCapacity = int.MaxValue & ~m_entriesPerBufferMask;
+                        var doubledCapacity = (long)m_entryBuffers.Length * m_entriesPerBuffer * 2;
+                        newCapacity = (int)Math.Max(Math.Min(doubledCapacity, maximumCapacity), newCapacity);
                         InternalInitializeToNewCapacity(newCapacity, initializer, initializeSequentially);
                     }
                 }

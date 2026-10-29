@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using BuildXL.Native.IO;
@@ -48,6 +49,55 @@ namespace Test.BuildXL.Utilities
             Assert.True(arraySize < LargeObjectHeapLimit, $"arraySize: {arraySize}, LargeObjectHeapLimit: {LargeObjectHeapLimit}");
 
             Assert.True(buffer.EntriesPerBuffer > BigBuffer<KeyValuePair<FileIdAndVolumeId, Entry>>.DefaultEntriesPerBuffer);
+        }
+
+        [Theory]
+        [InlineData(20)]
+        [InlineData(24)]
+        public void InitializeBeyondHalfOfIntRange(int entriesPerBufferBitWidth)
+        {
+            // Doubling 2^30 produces 2^31, exceeding int.MaxValue and overflowing checked int arithmetic.
+            const int doublingOverflowThreshold = 1 << 30;
+
+            // Only lazy page descriptors are allocated, not the billion-entry backing storage.
+            var buffer = new BigBuffer<int>(entriesPerBufferBitWidth);
+            Assert.Equal(doublingOverflowThreshold, buffer.Initialize(doublingOverflowThreshold));
+
+            var maximumCapacity = int.MaxValue & ~(buffer.EntriesPerBuffer - 1);
+            Assert.Equal(maximumCapacity, buffer.Initialize(doublingOverflowThreshold + 1));
+            Assert.Equal(maximumCapacity, buffer.Capacity);
+            Assert.Equal(maximumCapacity / buffer.EntriesPerBuffer, buffer.NumberOfBuffers);
+        }
+
+        [Theory]
+        [InlineData(20)]
+        [InlineData(24)]
+        [InlineData(30)]
+        public void InitializeMaximumAlignedCapacity(int entriesPerBufferBitWidth)
+        {
+            var buffer = new BigBuffer<int>(entriesPerBufferBitWidth);
+            var maximumCapacity = int.MaxValue & ~(buffer.EntriesPerBuffer - 1);
+            Assert.Equal(maximumCapacity, buffer.Initialize(maximumCapacity));
+
+            Assert.Throws<OverflowException>(() => buffer.Initialize(maximumCapacity + 1));
+            Assert.Equal(maximumCapacity, buffer.Capacity);
+        }
+
+        [Fact]
+        public void InitializePreservesEntriesAcrossGrowth()
+        {
+            var buffer = new BigBuffer<int>(entriesPerBufferBitWidth: 4);
+            var originalCapacity = buffer.Initialize(1);
+            buffer[0] = 42;
+
+            Assert.Equal(originalCapacity * 2, buffer.Initialize(originalCapacity + 1));
+            Assert.Equal(42, buffer[0]);
+            Assert.Equal(0, buffer[originalCapacity]);
+
+            buffer[originalCapacity] = 123;
+            Assert.Equal(originalCapacity * 2, buffer.Initialize(1));
+            Assert.Equal(42, buffer[0]);
+            Assert.Equal(123, buffer[originalCapacity]);
         }
     }
 }

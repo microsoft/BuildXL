@@ -113,6 +113,7 @@ function signFiles(
     const exeArgs : Transformer.ExecuteArguments = {
             tool: {
                 exe: f`${esrpSignConfiguration.signToolPath}`,
+                timeoutInMilliseconds: 30 * 60 * 1000,
                 untrackedDirectoryScopes: [
                         ...(Context.getCurrentHost().os === "win" ? [
                             d`${Context.getMount("ProgramData").path}`,

@@ -69,15 +69,21 @@ namespace Test.BuildXL.FrontEnd.Nuget
 
 
                 IReadOnlyList<Pip> processes = new List<Pip>(engineResult.EngineState.PipGraph.RetrievePipsOfType(PipType.Process));
-                // All binaries from the package should be signed by one process.
-                Assert.Equal(2, processes.Count);
-                Assert.Single(processes.Cast<Process>().Where(process =>
+                var downloadProcess = Assert.Single(processes.Cast<Process>().Where(process =>
                     process.GetToolName(FrontEndContext.PathTable).ToString(FrontEndContext.StringTable) == "NugetDownloader.exe"));
-                var signingProcess = Assert.Single(processes.Cast<Process>().Where(process =>
-                    process.GetToolName(FrontEndContext.PathTable).ToString(FrontEndContext.StringTable) == "invalid"));
+                var signingProcesses = processes.Cast<Process>().Where(process =>
+                    process.GetToolName(FrontEndContext.PathTable).ToString(FrontEndContext.StringTable) == "invalid").ToList();
+                int binaryCount = downloadProcess.FileOutputs.Count(output =>
+                    output.Path.GetExtension(FrontEndContext.PathTable).ToString(FrontEndContext.StringTable) is ".dll" or ".exe");
 
-                Assert.True(signingProcess.FileOutputs.Count(output =>
-                    output.Path.ToString(FrontEndContext.PathTable).Contains("Microsoft.Net.Compilers.4.0.1.signed")) > 1);
+                Assert.True(binaryCount > 1);
+                Assert.Equal((binaryCount + 49) / 50, signingProcesses.Count);
+                Assert.Equal(1 + signingProcesses.Count, processes.Count);
+                Assert.All(signingProcesses, process => Assert.Equal(TimeSpan.FromMinutes(20), process.Timeout));
+                var batchSizes = signingProcesses.Select(process => process.FileOutputs.Count(output =>
+                    output.Path.ToString(FrontEndContext.PathTable).Contains("Microsoft.Net.Compilers.4.0.1.signed"))).ToList();
+                Assert.All(batchSizes, count => Assert.InRange(count, 1, 50));
+                Assert.Equal(binaryCount, batchSizes.Sum());
             }
         }
 
@@ -124,7 +130,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
 
         private string NugetResolverConfigurationWithEsrpSign()
         {
-            // This package contains multiple signable binaries, so the test proves they share one signing process.
+            // This package contains multiple signable binaries to exercise package signing.
             return $@"
 config({{
     resolvers: [

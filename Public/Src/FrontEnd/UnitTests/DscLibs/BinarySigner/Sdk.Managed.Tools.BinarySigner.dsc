@@ -23,7 +23,7 @@ interface ESRPSignRequest {
 }
 
 /**
- * Signs all dll and exe files from one coherently produced sealed directory in a single ESRP invocation,
+ * Signs dll and exe files from one coherently produced sealed directory in batches of at most 50 files,
  * and copies the remaining files into the signed directory without combining files from unrelated producers.
  */
 @@public
@@ -62,14 +62,17 @@ export function signDirectory(esrpSignConfiguration: EsrpSignConfiguration, seal
             const relativePath = sealedDirPath.getRelative(file.path);
             return Transformer.copyFile(sealedDir.getFile(file.path), p`${signedDir.path}/${relativePath}`);
         });
-    const signedFiles = signRequests.length === 0
-        ? []
-        : signFiles(
+    const batchSize = 50;
+    let signedFiles: File[] = [];
+    for (let offset = 0; offset < signRequests.length; offset += batchSize) {
+        const batch = signRequests.slice(offset, offset + batchSize);
+        signedFiles = signedFiles.concat(signFiles(
             esrpSignConfiguration,
-            signRequests,
+            batch,
             sealedDir.path,
             signedDir.path,
-            `ESRP Signing ${signRequests.length} files to ${signedDir.path}`);
+            `ESRP Signing ${batch.length} files to ${signedDir.path} (batch ${Math.div(offset, batchSize) + 1})`));
+    }
 
     return [...signedFiles, ...copiedFiles];
 }
@@ -113,6 +116,7 @@ function signFiles(
     const exeArgs : Transformer.ExecuteArguments = {
             tool: {
                 exe: f`${esrpSignConfiguration.signToolPath}`,
+                timeoutInMilliseconds: 20 * 60 * 1000,
                 untrackedDirectoryScopes: [
                         ...(Context.getCurrentHost().os === "win" ? [
                             d`${Context.getMount("ProgramData").path}`,

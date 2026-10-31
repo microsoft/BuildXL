@@ -250,7 +250,7 @@ This page lists flags that can be used to configure BuildXL.
 | VerifyJournalForEngineVolumes | Verifies that change journal is available for engine volumes (source/object/cache directories). Defaults to on. |
 | VfsCasRoot | Specifies the root of the virtualized CAS directory. This should be the same as the root passed to bvfs.exe. |
 | VmConcurrencyLimit | Max number of processes executed in VM. Value 0 means unbounded. Defaults to 0. |
-| VS | Generates a VS solution file and MSBuild files for C# and C++ projects. Defaults to off. |
+| VS | Generates a VS solution file and MSBuild files for C# and C++ projects. /vsnew is a compatibility alias. Defaults to off. |
 | VsOutputSrc | MSBuild project files are written under the source tree. Defaults to off. |
 | WarnAsError | Treat all warnings as errors. |
 | WarnAsErrorWithList | Report specific warnings as errors. |

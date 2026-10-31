@@ -7,7 +7,6 @@ import * as Deployment from "Sdk.Deployment";
 import * as Transformers from "Sdk.Transformers";
 import * as DetoursServices from "BuildXL.Sandbox.Windows";
 import * as Branding from "BuildXL.Branding";
-import * as VSIntegration from "BuildXL.Ide.VsIntegration";
 import { Node } from "Sdk.NodeJs";
 import * as BuildXLSdk from "Sdk.BuildXL";
 
@@ -76,7 +75,7 @@ namespace LanguageService.Vsix {
         });
 
         // Zip and return
-        const vsix = VSIntegration.CreateZipPackage.zip({
+        const vsix = CreateZipPackage.zip({
             outputFileName: `BuildXL.vscode.${qualifier.targetRuntime}.vsix`,
             inputDirectory: vsixDeployment.contents,
             useUriEncoding: true,

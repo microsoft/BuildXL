@@ -61,9 +61,11 @@ BUILDXL_BIN=/path/to/deployment ./bxl.sh --minimal
 This bypasses the default LKG bootstrap download.
 
 ### Browsing source code in Visual Studio
-Because we don't have deep [Visual Studio](https://visualstudio.microsoft.com/vs/) integration for BuildXL at this time, you should use BuildXL's solution generation feature to generate  MSBuild `.proj` files and a `.sln`. Prior to opening this solution you will need to [install the Visual Studio plugin](Installation.md).
+Because we don't have deep [Visual Studio](https://visualstudio.microsoft.com/vs/) integration for BuildXL at this time, you should use BuildXL's solution generation feature to generate MSBuild `.proj` files and a `.sln`. No Visual Studio plugin is required.
 
-Once installed you can run the solution generation. The result will be placed in `out\vs\BuildXL\` with a base filename matching the top-level directory of your enlistment. So for example if your enlistment directory is `c:\enlist\BuildXL`, the generated solution file will be `out\vs\BuildXL\BuildXL.sln`.
+Both `/vs` and its compatibility alias `/vsnew` use the SDK-style project generator.
+
+The result will be placed in `out\vs\<enlistment-name>\`. So for example if your enlistment directory is `c:\enlist\BuildXL`, the generated solution file will be `out\vs\BuildXL\BuildXL.sln`. Use `/solutionName` to override the base filename and solution subdirectory.
  
  There are two modes for what to generate
  1. `bxl -vs` Generates most projects

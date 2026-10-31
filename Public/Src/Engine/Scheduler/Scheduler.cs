@@ -136,18 +136,6 @@ namespace BuildXL.Scheduler
         };
 
         /// <summary>
-        /// Prefix used by the IDE integration for the name of EventHandles marking a value's successful completion
-        /// </summary>
-        /// CODESYNC: BuildXL.IDE.BuildXLTask.BuildXLTask (inlined to avoid Scheduler dependency from net472 MSBuild task)
-        public const string IdeSuccessPrefix = "Success";
-
-        /// <summary>
-        /// Prefix used by the IDE integration for the name of EventHandles marking a value's failed completion
-        /// </summary>
-        /// CODESYNC: BuildXL.IDE.BuildXLTask.BuildXLTask (inlined to avoid Scheduler dependency from net472 MSBuild task)
-        public const string IdeFailurePrefix = "Failure";
-
-        /// <summary>
         /// The CPU utilization that gets logged when performance data isn't available
         /// </summary>
         public const long UtilizationWhenCountersNotAvailable = -1;

@@ -754,11 +754,6 @@ namespace BuildXL
 
                             WriteToConsole(Strings.App_Vs_SolutionFile);
                             WritePathLineAsLinkToConsole(IdeGenerator.GetSolutionPath(m_configuration.Ide, m_pathTable).ToString(m_pathTable), translator);
-                            var vsVersions = IdeGenerator.GetVersionsNotHavingLatestPlugin();
-                            if (vsVersions != null)
-                            {
-                                WriteWarningLineToConsole(Strings.App_Vs_InstallPlugin, vsVersions, IdeGenerator.LatestPluginVersion);
-                            }
                         }
 
                         return AppResult.Create(ExitKind.BuildSucceeded, newEngineState, 

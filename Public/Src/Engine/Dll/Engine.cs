@@ -1968,24 +1968,12 @@ namespace BuildXL.Engine
                                     // runs against the closure-time graph rather than the scheduler's live graph.
                                     var finalizedPipGraph = engineSchedule.FinalizedPipGraph;
 
-                                    if (Configuration.Ide.IsNewEnabled)
-                                    {
-                                        IdeGenerator.Generate(
-                                            engineSchedule.Context,
-                                            finalizedPipGraph,
-                                            engineSchedule.Scheduler.ScheduledGraph,
-                                            m_initialCommandLineConfiguration.Startup.ConfigFile,
-                                            Configuration.Ide);
-                                    }
-                                    else
-                                    {
-                                        BuildXL.Ide.Generator.Old.IdeGenerator.Generate(
-                                            engineSchedule.Context,
-                                            finalizedPipGraph,
-                                            engineSchedule.Scheduler.ScheduledGraph,
-                                            m_initialCommandLineConfiguration.Startup.ConfigFile,
-                                            Configuration.Ide);
-                                    }
+                                    IdeGenerator.Generate(
+                                        engineSchedule.Context,
+                                        finalizedPipGraph,
+                                        engineSchedule.Scheduler.ScheduledGraph,
+                                        m_initialCommandLineConfiguration.Startup.ConfigFile,
+                                        Configuration.Ide);
                                 }
 
                                 // Front end is no longer needed and can be clean-up before moving to a next phase.

@@ -82,10 +82,6 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Sbom.Contracts", version: "4.1.13" },
     { id: "Microsoft.Sbom.Extensions", version: "4.1.13" },
 
-    // Part of VSSDK used by IDE/VsIntegration
-    { id: "Microsoft.Internal.VisualStudio.Interop", version: "17.2.32405.191" },
-    { id: "Microsoft.VisualStudio.ProjectSystem", version: "17.3.74-pre" },
-
     // RoslynAnalyzers internal analyzers
     { id: "Microsoft.Internal.Analyzers", version: "2.6.11"},
 
@@ -117,8 +113,6 @@ export const resolver = {
         f`Private/InternalSdk/CB.QTest/module.config.dsc`,
         f`Private/InternalSdk/Drop/module.config.dsc`,
         f`Private/InternalSdk/BuildXL.Tracing.AriaTenantToken/module.config.dsc`,
-        f`Private/InternalSdk/Microsoft.Internal.VisualStudio.Interop/module.config.dsc`,
-        f`Private/InternalSdk/Microsoft.VisualStudio.ProjectSystem/module.config.dsc`,
         f`Private/InternalSdk/DeduplicationSigned/module.config.dsc`,
     ]
 };

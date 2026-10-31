@@ -10,14 +10,6 @@ namespace Ide {
     const deployment : Deployment.Definition = {
         contents: [
             ...addIfLazy(Context.getCurrentHost().os === "win", () => [
-                ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [{
-                    file: importFrom("BuildXL.Ide.VsIntegration").withQualifier({
-                        targetFramework: "net472",
-                        targetRuntime: "win-x64"}
-                        ).BuildXLVsPackage.vsix,
-                    targetFileName: a`BuildXL.vs.vsix`,
-                    }
-                ]),
                 {
                     file: importFrom("BuildXL.Ide").withQualifier({
                         targetFramework: BuildXLSdk.TargetFrameworks.DefaultTargetFramework,

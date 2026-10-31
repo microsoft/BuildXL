@@ -126,7 +126,6 @@ function parseArgs() {
         --vs)
             arg_Positional+=(
                 "/vs"
-                "/vsNew"
                 "/vsTargetFramework:net8.0"
                 "/vsTargetFramework:net9.0"
                 "/vsTargetFramework:netstandard2.0"

@@ -112,7 +112,6 @@ namespace Test.BuildXL.EngineTests
         {
             // Relatively simple test to ensure the /VS generation feature doesn't crash
             Configuration.Ide.IsEnabled = true;
-            Configuration.Ide.IsNewEnabled = true;
             SetupHelloWorld();
             RunEngine();
 
@@ -120,8 +119,11 @@ namespace Test.BuildXL.EngineTests
             XAssert.IsTrue(File.Exists(Path.Combine(
                 outputDirectoryPath,
                 "vs",
-                Configuration.Ide.IsNewEnabled ? "srcNew" : "src",
-                Configuration.Ide.IsNewEnabled ? "srcNew.sln" : "src.sln")));
+                "src",
+                "src.sln")));
+
+            var projectFile = Assert.Single(Directory.GetFiles(Path.Combine(outputDirectoryPath, "vs"), "*.csproj", SearchOption.AllDirectories));
+            Assert.Contains("<Project Sdk=\"Microsoft.NET.Sdk\">", File.ReadAllText(projectFile));
         }
 
         [Fact]

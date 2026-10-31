@@ -4,7 +4,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
@@ -23,8 +22,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Tracing;
-using Microsoft.Win32;
-using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Ide.Generator
@@ -34,16 +31,6 @@ namespace BuildXL.Ide.Generator
     /// </summary>
     public sealed class IdeGenerator
     {
-        /// <summary>
-        /// BuildXL VS plugin GUID
-        /// </summary>
-        public const string PluginGuid = "76439c3a-9faf-4f38-9f54-f127e9be9171";
-
-        /// <summary>
-        /// Latest version of BuildXL VS plugin
-        /// </summary>
-        public const string LatestPluginVersion = "2.9";
-
         private readonly Context m_context;
 
         /// <summary>
@@ -83,12 +70,6 @@ namespace BuildXL.Ide.Generator
                 if (string.IsNullOrWhiteSpace(solutionNameCandidate))
                 {
                     solutionNameCandidate = "ideGenerated";
-                }
-
-                // If a new solution generator is used, change the solution name so users can distinguish between the old and new one.
-                if (ideConfiguration.IsNewEnabled)
-                {
-                    solutionNameCandidate += "New";
                 }
 
                 ideConfiguration.SolutionName = PathAtom.Create(pathTable.StringTable, solutionNameCandidate);
@@ -281,7 +262,7 @@ namespace BuildXL.Ide.Generator
                 binRoot = translator.Translate(binRoot);
             }
 
-            string substedCommandLine = I($@"""{binRoot}\RunInSubst.exe"" B={enlistmentRoot} {commandLine} /server+ @%~dp0\build.cmd.rsp @%~dp0\domino.cmd.rsp %*"); // Also add the legacy response file domino.rsp for old plugins
+            string substedCommandLine = I($@"""{binRoot}\RunInSubst.exe"" B={enlistmentRoot} {commandLine} /server+ @%~dp0\build.cmd.rsp %*");
             builder.AppendLine(substedCommandLine);
             builder.AppendLine("set RETURN_CODE=%ERRORLEVEL%");
 
@@ -296,10 +277,6 @@ namespace BuildXL.Ide.Generator
             var solutionDirPath = GetSolutionPath(config, pathTable).GetParent(pathTable).ToString(pathTable);
             File.WriteAllText(Path.Combine(solutionDirPath, "build.cmd.rsp"), string.Empty);
             File.WriteAllText(Path.Combine(solutionDirPath, "build.cmd"), builder.ToString());
-            
-            // Legacy file to support old plugins
-            File.WriteAllText(Path.Combine(solutionDirPath, "domino.cmd"), "@call %~dp0build.cmd %*");
-            File.WriteAllText(Path.Combine(solutionDirPath, "domino.cmd.rsp"), string.Empty); // Legacy response file for old plugin
         }
 
         /// <summary>
@@ -322,9 +299,12 @@ namespace BuildXL.Ide.Generator
             {
                 if (string.Equals(option.Name, "vs", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(option.Name, "vs+", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(option.Name, "vs-", StringComparison.OrdinalIgnoreCase))
+                    string.Equals(option.Name, "vs-", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(option.Name, "vsNew", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(option.Name, "vsNew+", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(option.Name, "vsNew-", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Remove /vs from the BuildXL arguments since we want this script to build the product, not
+                    // Build the product rather than regenerate the solution.
                     continue;
                 }
 
@@ -394,118 +374,5 @@ namespace BuildXL.Ide.Generator
             return configuration.SolutionRoot.Combine(pathTable, solutionName, solutionNameWithExt);
         }
 
-        /// <summary>
-        /// Checks the registry whether the system has the latest BuildXL VS plugin
-        /// </summary>
-        public static string GetVersionsNotHavingLatestPlugin()
-        {
-#if !DISABLE_FEATURE_VSEXTENSION_INSTALL_CHECK
-            InstallationStatus vs2015Status = InstallationStatus.VsNotInstalled;
-            InstallationStatus vs2017Status = InstallationStatus.VsNotInstalled;
-
-            try
-            {
-                var visualStudioAppDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\VisualStudio");
-                foreach (var dir in Directory.GetDirectories(visualStudioAppDataDir))
-                {
-                    string name = Path.GetFileName(dir);
-                    if (name.StartsWith("14.", StringComparison.OrdinalIgnoreCase))
-                    {
-                        vs2015Status = IsPluginInstalledIn2015(name);
-                    }
-                    else if (name.StartsWith("15.", StringComparison.OrdinalIgnoreCase))
-                    {
-                        vs2017Status = IsPluginInstalledIn2017(name) ? InstallationStatus.BothInstalled : InstallationStatus.PluginNotInstalled;
-                    }
-                }
-            }
-#pragma warning disable ERP022 // Unobserved exception in generic exception handler
-            catch
-            {
-                // If there are problems to find the VS directories under the AppData folder, just check with the VS 2015's default version (14.0).
-                vs2015Status = IsPluginInstalledIn2015("14.0");
-            }
-#pragma warning restore ERP022 // Unobserved exception in generic exception handler
-
-            if (vs2015Status == InstallationStatus.PluginNotInstalled)
-            {
-                return vs2017Status == InstallationStatus.PluginNotInstalled ? "VS2015 and VS2017" : "VS2015";
-            }
-            else if (vs2017Status == InstallationStatus.PluginNotInstalled)
-            {
-                return "VS2017";
-            }
-#endif
-
-            return null;
-        }
-
-#if !DISABLE_FEATURE_VSEXTENSION_INSTALL_CHECK
-        private static InstallationStatus IsPluginInstalledIn2015(string version)
-        {
-            object defaultValue = new object();
-            var returnValue = Registry.GetValue(I($@"HKEY_CURRENT_USER\SOFTWARE\Microsoft\VisualStudio\{version}\ExtensionManager\EnabledExtensions"), I($"{PluginGuid},{LatestPluginVersion}"), defaultValue);
-            if (returnValue == null)
-            {
-                return InstallationStatus.VsNotInstalled;
-            }
-            else if (returnValue == defaultValue)
-            {
-                return InstallationStatus.PluginNotInstalled;
-            }
-
-            return InstallationStatus.BothInstalled;
-        }
-
-        private static bool IsPluginInstalledIn2017(string version)
-        {
-            var existingKeyPath = I($@"Software\Microsoft\VisualStudio\{version}\ExtensionManager\EnabledExtensions");
-
-            var privateRegistryPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), I($@"Microsoft\VisualStudio\{version}\privateregistry.bin"));
-
-            var hKey = RegistryNativeMethods.RegLoadAppKey(privateRegistryPath);
-            using (var safeRegistryHandle = new SafeRegistryHandle(new IntPtr(hKey), true))
-            using (var appKey = RegistryKey.FromHandle(safeRegistryHandle))
-            using (var currentVersionKey = appKey.OpenSubKey(existingKeyPath))
-            {
-                var isPluginInstalled = currentVersionKey.GetValue(I($"{PluginGuid},{LatestPluginVersion}"));
-                return isPluginInstalled != null;
-            }
-        }
-#endif
-
-        private enum InstallationStatus
-        {
-            VsNotInstalled,
-            PluginNotInstalled,
-            BothInstalled,
-        }
-
-        internal static class RegistryNativeMethods
-        {
-            [Flags]
-            public enum RegSAM
-            {
-                KEY_READ = 0x20019,
-            }
-
-            [SuppressMessage("Microsoft.Globalization", "CA2101:SpecifyMarshalingForPInvokeStringArguments")]
-            [DllImport("advapi32.dll", SetLastError = true)]
-            private static extern int RegLoadAppKey(string hiveFile, out int hKey, RegSAM samDesired, int options, int reserved);
-
-            [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly")]
-            public static int RegLoadAppKey(string hiveFile)
-            {
-                int hKey;
-                int rc = RegLoadAppKey(hiveFile, out hKey, RegSAM.KEY_READ, 0, 0);
-
-                if (rc != 0)
-                {
-                    throw new Win32Exception(rc, "Failed during RegLoadAppKey of file " + hiveFile);
-                }
-
-                return hKey;
-            }
-        }
     }
 }

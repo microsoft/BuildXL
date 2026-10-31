@@ -127,7 +127,6 @@ namespace BuildXL.Ide.Generator
             Contract.Requires(ideConfig.SolutionRoot.IsValid);
             Contract.Requires(ideConfig.SolutionName.IsValid);
             Contract.Requires(ideConfig.IsEnabled);
-            Contract.Requires(ideConfig.IsNewEnabled);
 
             PipGraph = pipGraph;
             ScheduledGraph = scheduledGraph;

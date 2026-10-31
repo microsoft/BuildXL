@@ -607,9 +607,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_FileSystemMode" xml:space="preserve">
     <value>Specifies the type of filesystem rules to use when the sandbox computes input assertions. Allowed values are: 'RealAndMinimalPipGraph' ({ShortScriptName} default) - uses the real filesystem for read only mounts and a minimal pip graph based view for writeable mounts, 'RealAndPipGraph' (XML default) - same as RealAndMinimalPipGraph except a full pip graph is used, 'AlwaysMinimalGraph' - always uses the pip graph.</value>
   </data>
-  <data name="App_Vs_InstallPlugin" xml:space="preserve">
-    <value>{0} does not have the latest {ShortProductName} plugin installed. Before opening VS, please install the latest version ({1}) per the {ShortProductName} wiki</value>
-  </data>
   <data name="HelpText_DisplayHelp_NormalizeReadTimestamps" xml:space="preserve">
     <value>When enabled, all file reads seen by processes will have normalized timestamps across builds. When disabled, the actual timestamps will be allowed to flow through to processes, so long as they are newer than the static timestamp used to enforce rewrite ordering (2002). Defaults to on.</value>
   </data>
@@ -629,7 +626,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>Treats directory as absent file on hashing the content of input</value>
   </data>
   <data name="HelpText_DisplayHelp_VS" xml:space="preserve">
-    <value>Generates a VS solution file and MSBuild files for C# and C++ projects. Defaults to off.</value>
+    <value>Generates a VS solution file and MSBuild files for C# and C++ projects. /vsnew is a compatibility alias. Defaults to off.</value>
   </data>
   <data name="HelpText_DisplayHelp_SolutionName" xml:space="preserve">
     <value>Specifies the name of the solution which will be generated via /vs.</value>

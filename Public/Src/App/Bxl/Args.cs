@@ -1352,12 +1352,10 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "vmConcurrencyLimit",
                             opt => sandboxConfiguration.VmConcurrencyLimit = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
-                        OptionHandlerFactory.CreateBoolOption(
+                        OptionHandlerFactory.CreateBoolOption2(
                             "vs",
+                            "vsNew",
                             sign => ideConfiguration.IsEnabled = sign),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "vsNew", // temporary undocumented option for enabling new VS solution generation
-                            sign => ideConfiguration.IsNewEnabled = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "vsOutputSrc",
                             sign => ideConfiguration.CanWriteToSrc = sign),
@@ -1516,7 +1514,7 @@ namespace BuildXL
                     engineConfiguration.ReuseEngineState = false;
                 }
 
-                if (ideConfiguration.IsEnabled || ideConfiguration.IsNewEnabled)
+                if (ideConfiguration.IsEnabled)
                 {
                     // Disable incrementalScheduling if the /vs is passed. IDE generator needs to catch all scheduled nodes and should not ignore the skipped ones due to the incremental scheduling
                     schedulingConfiguration.IncrementalScheduling = false;

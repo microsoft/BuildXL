@@ -224,7 +224,7 @@ namespace BuildXL.Ide.Generator
                 var additionalProjectTypeGuidString = m_projectTypeGuids.Count != 0 ?
                     string.Join(";", m_projectTypeGuids.OrderBy(s => s)) + ";" :
                     string.Empty;
-                project.SetProperty("ProjectTypeGuids", additionalProjectTypeGuidString + "{DABA23A1-650F-4EAB-AC72-A2AF90E10E37};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}");
+                project.SetProperty("ProjectTypeGuids", additionalProjectTypeGuidString + "{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}");
 
                 if (m_isTestProject)
                 {

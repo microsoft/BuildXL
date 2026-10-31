@@ -756,7 +756,6 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 
                 ...addIf(isDotNetCoreOrStandard,
                     "FEATURE_SAFE_PROCESS_HANDLE",
-                    "DISABLE_FEATURE_VSEXTENSION_INSTALL_CHECK",
                     "DISABLE_FEATURE_EXTENDED_ENCODING"
                 ),
                 ...addIf(Flags.isMicrosoftInternal,

@@ -308,7 +308,7 @@ if ($TestClass -ne "") {
 }
 
 if ($Vs -or $VsAll) {
-    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /vs /vsnew";
+    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /vs";
     if ($VsAll) {
         # -vsAll builds both .NET Core and Net472 and doesn't specify any /vsTargetFramework filters 
         $AdditionalBuildXLArguments += "/q:Debug /q:DebugNet472";

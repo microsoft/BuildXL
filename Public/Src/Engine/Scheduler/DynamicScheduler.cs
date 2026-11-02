@@ -3691,18 +3691,11 @@ namespace BuildXL.Scheduler
                 resourceManager.TryManageResources(desiredRamMbToUse, ManageMemoryMode.Resume);
             }
 
-            if (resourceManager.NumActive == 0 && resourceManager.NumSuspended > 0)
+            if (resourceManager.ShouldCancelSuspendedPipForProgress())
             {
-                // Maybe something changed with our previous actions (we refreshed this number before potentially resuming some processes).
-                // Before taking drastic action, refresh the counters.
-                resourceManager.RefreshMemoryCounters();
-
-                if (resourceManager.NumActive == 0 && resourceManager.NumSuspended > 0)
-                {
-                    // There are no active process pips running, cancel one pip to check whether the scheduler will move forward.
-                    PipExecutionCounters.IncrementCounter(PipExecutorCounter.CancelSuspendedPipDueToNoRunningProcess);
-                    resourceManager.TryManageResources(1, ManageMemoryMode.CancellationRam);
-                }
+                // There are no active process pips running, cancel one pip to check whether the scheduler will move forward.
+                PipExecutionCounters.IncrementCounter(PipExecutorCounter.CancelSuspendedPipDueToNoRunningProcess);
+                resourceManager.TryManageResources(1, ManageMemoryMode.CancellationRam);
             }
 
             // Log an internal warning if the number of open file descriptors (by the BuildXL process) is greater than 10k

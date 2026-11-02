@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Pips;
@@ -87,7 +86,9 @@ namespace BuildXL.Scheduler
         /// <nodoc />
         public int NumSuspended { get; set; }
 
-        /// <nodoc />
+        /// <summary>
+        /// Number of active processes other than long-lived service processes.
+        /// </summary>
         public int NumActive { get; set; }
 
         /// <nodoc />
@@ -100,17 +101,24 @@ namespace BuildXL.Scheduler
         private bool m_cancelLargestRamUseFirst = EngineEnvironmentSettings.CancelLargestRamUseFirst.Value;
 
         /// <summary>
-        /// Updates the ram usage indicators for all cancelable resource scopes
+        /// Updates the ram usage indicators for all resource scopes.
         /// </summary>
         public void RefreshMemoryCounters()
         {
             long totalWorkingSet = 0;
             long totalPeakWorkingSet = 0;
             long totalRamNeededForResume = 0;
+            int numSuspended = 0;
+            int numServices = 0;
             lock (m_syncLock)
             {
                 foreach (var scope in m_pipResourceScopes.Values)
                 {
+                    if (scope.IsService)
+                    {
+                        numServices++;
+                    }
+
                     if (!scope.IsSuspended)
                     {
                         // If we refresh memorycounters for suspended processes, 
@@ -119,6 +127,7 @@ namespace BuildXL.Scheduler
                     }
                     else
                     {
+                        numSuspended++;
                         totalRamNeededForResume += scope.RamMbNeededForResume;
                     }
                    
@@ -129,9 +138,27 @@ namespace BuildXL.Scheduler
                 TotalUsedWorkingSet = totalWorkingSet;
                 TotalUsedPeakWorkingSet = totalPeakWorkingSet;
                 TotalRamMbNeededForResume = totalRamNeededForResume;
-                NumSuspended = m_pipResourceScopes.Count(a => a.Value.IsSuspended);
-                NumActive = m_pipResourceScopes.Count - NumSuspended;
+                NumSuspended = numSuspended;
+                NumActive = m_pipResourceScopes.Count - numSuspended - numServices;
             }
+        }
+
+        /// <summary>
+        /// Checks whether suspended work needs cancellation when no non-service process is active.
+        /// </summary>
+        /// <returns>Whether cancellation should be attempted.</returns>
+        internal bool ShouldCancelSuspendedPipForProgress()
+        {
+            if (NumActive == 0 && NumSuspended > 0)
+            {
+                // Maybe something changed with our previous actions (we refreshed this number before potentially resuming some processes).
+                // Before taking drastic action, refresh the counters.
+                RefreshMemoryCounters();
+
+                return NumActive == 0 && NumSuspended > 0;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -415,6 +442,9 @@ namespace BuildXL.Scheduler
             public readonly string PipSemiStableHash;
 
             /// <nodoc />
+            public readonly bool IsService;
+
+            /// <nodoc />
             public readonly ProcessMemoryCounters ExpectedMemoryCounters;
 
             /// <nodoc />
@@ -489,6 +519,7 @@ namespace BuildXL.Scheduler
                 m_resourceManager = resourceManager;
                 PipId = processPip.PipId;
                 PipSemiStableHash = processPip.FormattedSemiStableHash;
+                IsService = processPip.IsService;
                 ScopeId = scopeId;
                 ExpectedMemoryCounters = expectedMemoryCounters;
                 m_allowCancellation = allowCancellation;

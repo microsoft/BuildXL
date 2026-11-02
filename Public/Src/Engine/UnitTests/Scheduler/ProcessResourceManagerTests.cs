@@ -2,11 +2,15 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Pips;
+using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -93,20 +97,98 @@ namespace Test.BuildXL.Scheduler
             workItem4.Verify(expectedCancellationCount: 1, expectedExecutionCount: 1, expectedCompleted: false);
         }
 
+        [Theory]
+        [InlineData(1, ServicePipKind.None)]
+        [InlineData(3, ServicePipKind.ServiceClient)]
+        [InlineData(1, ServicePipKind.ServiceShutdown)]
+        [InlineData(1, ServicePipKind.ServiceFinalization)]
+        public async Task TestSuspendedProcessRecoveryIgnoresServices(int suspendedCount, ServicePipKind activeKind)
+        {
+            var resourceManager = new ProcessResourceManager(LoggingContext);
+            var service = CreateWorkItem(resourceManager, allowCancellation: false, serviceKind: ServicePipKind.Service);
+            var active = CreateWorkItem(
+                resourceManager,
+                allowCancellation: false,
+                serviceKind: activeKind,
+                servicePipDependency: service.Scope.PipId);
+            var suspended = new List<ResourceManagerWorkItemTracker>();
+
+            try
+            {
+                for (int i = 0; i < suspendedCount; i++)
+                {
+                    var workItem = CreateWorkItem(resourceManager, reportedRamUsage: 10);
+                    workItem.Scope.RefreshMemoryCounters();
+                    workItem.Scope.IsSuspended = true;
+                    suspended.Add(workItem);
+                }
+
+                resourceManager.RefreshMemoryCounters();
+                XAssert.AreEqual(1, resourceManager.NumActive);
+                XAssert.IsFalse(resourceManager.ShouldCancelSuspendedPipForProgress());
+
+                active.ExecutionCompletionSource.TrySetResult(0);
+                await active.ExecutionTask;
+
+                resourceManager.RefreshMemoryCounters();
+                XAssert.AreEqual(0, resourceManager.NumActive);
+                var cancellations = suspended.Select(item => item.WaitForCancellation(timeoutMs: 10000)).ToArray();
+
+                XAssert.IsTrue(resourceManager.ShouldCancelSuspendedPipForProgress());
+                resourceManager.TryManageResources(1, ManageMemoryMode.CancellationRam);
+                var cancellation = await Task.WhenAny(cancellations);
+                XAssert.IsTrue(await cancellation);
+                XAssert.AreEqual(1, suspended.Sum(item => item.CancellationCount));
+                service.Verify(expectedCancellationCount: 0);
+                active.Verify(expectedCancellationCount: 0, expectedCompleted: true);
+
+                resourceManager.RefreshMemoryCounters();
+                XAssert.AreEqual(suspendedCount - 1, resourceManager.NumSuspended);
+            }
+            finally
+            {
+                var workItems = suspended.Concat(new[] { active, service }).ToArray();
+                foreach (var workItem in workItems)
+                {
+                    workItem.ExecutionCompletionSource.TrySetResult(0);
+                }
+
+                foreach (var workItem in workItems)
+                {
+                    try
+                    {
+                        await workItem.ExecutionTask;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Recovery cancels one of these tasks.
+                    }
+                }
+            }
+        }
+
         private void RunResourceManager(ProcessResourceManager resourceManager, int requiredSizeMb, ManageMemoryMode mode)
         {
             resourceManager.RefreshMemoryCounters();
             resourceManager.TryManageResources(requiredSizeMb, mode);
         }
 
-        private ResourceManagerWorkItemTracker CreateWorkItem(ProcessResourceManager resourceManager, int estimatedRamUsage = 0, bool allowCancellation = true, int reportedRamUsage = 1)
+        private ResourceManagerWorkItemTracker CreateWorkItem(
+            ProcessResourceManager resourceManager,
+            int estimatedRamUsage = 0,
+            bool allowCancellation = true,
+            int reportedRamUsage = 1,
+            ServicePipKind serviceKind = ServicePipKind.None,
+            PipId servicePipDependency = default)
         {
             return new ResourceManagerWorkItemTracker(
                 LoggingContext, 
                 resourceManager, 
                 (uint)Interlocked.Increment(ref m_nextId), 
                 estimatedRamUsage, 
-                allowCancellation)
+                allowCancellation,
+                serviceKind,
+                servicePipDependency)
             { 
                 RamUsage = ProcessMemoryCountersSnapshot.CreateFromMB(reportedRamUsage, reportedRamUsage, reportedRamUsage)
             };
@@ -122,22 +204,46 @@ namespace Test.BuildXL.Scheduler
             private TaskSourceSlim<Unit> m_cancellationCompletionSource;
             private readonly SemaphoreSlim m_startSemaphore = new SemaphoreSlim(0, 1);
             public Task<int> ExecutionTask { get; private set; }
+            public ProcessResourceManager.ResourceScope Scope { get; private set; }
             private readonly Func<Task<int>> m_execute;
 
             public ProcessMemoryCountersSnapshot RamUsage = ProcessMemoryCountersSnapshot.CreateFromMB(1, 1, 1);
 
-            public ResourceManagerWorkItemTracker(LoggingContext loggingContext, ProcessResourceManager resourceManager, uint id, int estimatedRamUsage, bool allowCancellation)
+            public ResourceManagerWorkItemTracker(
+                LoggingContext loggingContext,
+                ProcessResourceManager resourceManager,
+                uint id,
+                int estimatedRamUsage,
+                bool allowCancellation,
+                ServicePipKind serviceKind,
+                PipId servicePipDependency)
             {
                 ExecutionCompletionSource = TaskSourceSlim.Create<int>();
                 m_cancellationCompletionSource = TaskSourceSlim.Create<Unit>();
                 var context = BuildXLContext.CreateInstanceForTesting();
+                var process = SchedulerTest.CreateDummyProcess(context, new PipId(id));
+                if (serviceKind != ServicePipKind.None)
+                {
+                    process = process.Override(serviceInfo: new ServiceInfo(
+                        serviceKind,
+                        servicePipDependencies: serviceKind == ServicePipKind.ServiceClient
+                            ? ReadOnlyArray<PipId>.From(new[] { servicePipDependency })
+                            : ReadOnlyArray<PipId>.Empty,
+                        shutdownProcessPipId: serviceKind == ServicePipKind.Service ? new PipId(id + 1) : PipId.Invalid,
+                        monikerId: serviceKind == ServicePipKind.Service
+                            ? StringId.Create(context.StringTable, "service")
+                            : StringId.Invalid));
+                    process.PipId = new PipId(id);
+                }
+
                 m_execute = () => ExecutionTask = resourceManager.ExecuteWithResourcesAsync(
                     OperationContext.CreateUntracked(loggingContext),
-                    SchedulerTest.CreateDummyProcess(context, new PipId(id)),
+                    process,
                     ProcessMemoryCounters.CreateFromMb(estimatedRamUsage, estimatedRamUsage),
                     allowCancellation,
                     async (resourceScope) =>
                 {
+                    Scope = resourceScope;
                     m_startSemaphore.Release();
                     resourceScope.RegisterQueryRamUsageMb(() => RamUsage);
 

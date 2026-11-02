@@ -166,6 +166,37 @@ namespace Test.Tool.DropDaemon
             XAssert.IsTrue(result.Failure.Describe().Contains("is empty"));
         }
 
+        [Theory]
+        [InlineData(false, false)]
+        [InlineData(false, true)]
+        [InlineData(true, true)]
+        public async Task ComponentGovernanceFailuresIncludeOptionalHelperLogLink(bool initiallyRunning, bool includeHelperLogLink)
+        {
+            using var temp = new ComponentGovernanceTempFiles();
+            const string helperLogUrl = "https://cloudbuild.microsoft.com/stamp/stamp-1/getfile?path=%5C%5Cbuilder-1%5CD%24%5Clogs%5CComponentDetectionHelper.log&buildId=build-1";
+            string failedStatus = includeHelperLogLink ? $"Failed\r\nSee Component Detection log: {helperLogUrl}" : "Failed";
+            await PublishComponentGovernanceStatusAsync(temp, initiallyRunning ? "Running" : failedStatus);
+            int polls = 0;
+
+            var result = await global::Tool.DropDaemon.DropDaemon.WaitForComponentGovernanceOutputAsync(
+                temp.OutputFilePath,
+                timeout: TimeSpan.MaxValue,
+                pollInterval: TimeSpan.Zero,
+                delayAsync: async _ =>
+                {
+                    polls++;
+                    XAssert.AreEqual(1, polls);
+                    await PublishComponentGovernanceStatusAsync(temp, failedStatus);
+                });
+
+            XAssert.AreEqual(initiallyRunning ? 1 : 0, polls);
+            XAssert.IsFalse(result.Succeeded);
+            string expected = includeHelperLogLink
+                ? $"ComponentDetection failed. See Component Detection log: {helperLogUrl}"
+                : $"ComponentDetection failed. See status file '{temp.StatusFilePath}'.";
+            XAssert.AreEqual(expected, result.Failure.Describe());
+        }
+
         public static IEnumerable<object[]> ComponentGovernanceStatusSequences => new[]
         {
             // First observed status is already terminal (never goes through Running).

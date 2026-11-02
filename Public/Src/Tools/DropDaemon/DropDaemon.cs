@@ -1275,7 +1275,11 @@ namespace Tool.DropDaemon
         /// CODESYNC: BuildXLComponentGovernanceHelper.GetComponentGovernanceStatusFilePath in
         /// https://dev.azure.com/mseng/Domino/_git/CloudBuild?path=/private/Tools/GenericBuildRunner/shared/BuildXLComponentGovernanceHelper.cs&amp;version=GBmain
         /// The status file is <paramref name="outputFilePath"/> plus <see cref="ComponentGovernanceStatusFileSuffix"/>. CloudBuild
-        /// atomically publishes Running before detection, then Succeeded or Failed. If the output exists without a status file,
+        /// atomically publishes Running before detection, then Succeeded or Failed on the first line (UTF-8).
+        /// Failed may have an optional helper-log link on the second line.
+        /// The link is included on the failure message's first line so CloudBuild's error summary retains it.
+        /// Single-word statuses remain supported, and older consumers ignore the second line, allowing independent deployment.
+        /// If the output exists without a status file,
         /// it came from an older synchronous runner and is accepted as the legacy producer contract.
         /// </remarks>
         /// <param name="outputFilePath">The path to the ComponentDetection output file.</param>
@@ -1301,13 +1305,13 @@ namespace Tool.DropDaemon
             var stopwatch = Stopwatch.StartNew();
             logMessage?.Invoke($"Waiting for ComponentDetection completion status in '{statusFilePath}'.");
 
-            Possible<ComponentGovernanceStatus> readResult = ReadComponentGovernanceStatus(statusFilePath);
+            var readResult = ReadComponentGovernanceStatus(statusFilePath);
             if (!readResult.Succeeded)
             {
                 return readResult.Failure;
             }
 
-            ComponentGovernanceStatus status = readResult.Result;
+            ComponentGovernanceStatus status = readResult.Result.Status;
             while (status == ComponentGovernanceStatus.NotPublished || status == ComponentGovernanceStatus.Running)
             {
                 if (status == ComponentGovernanceStatus.NotPublished && System.IO.File.Exists(outputFilePath))
@@ -1338,12 +1342,15 @@ namespace Tool.DropDaemon
                     return readResult.Failure;
                 }
 
-                status = readResult.Result;
+                status = readResult.Result.Status;
             }
 
             if (status == ComponentGovernanceStatus.Failed)
             {
-                return new Failure<string>($"ComponentDetection failed. See status file '{statusFilePath}'.");
+                string details = readResult.Result.FailureDetails;
+                return new Failure<string>(string.IsNullOrWhiteSpace(details)
+                    ? $"ComponentDetection failed. See status file '{statusFilePath}'."
+                    : $"ComponentDetection failed. {details.Trim()}");
             }
 
             if (!System.IO.File.Exists(outputFilePath))
@@ -1363,11 +1370,11 @@ namespace Tool.DropDaemon
                 : s_componentGovernanceCompletionTimeoutFallback;
         }
 
-        private static Possible<ComponentGovernanceStatus> ReadComponentGovernanceStatus(string statusFilePath)
+        private static Possible<(ComponentGovernanceStatus Status, string FailureDetails)> ReadComponentGovernanceStatus(string statusFilePath)
         {
             if (!System.IO.File.Exists(statusFilePath))
             {
-                return ComponentGovernanceStatus.NotPublished;
+                return Possible.Create((ComponentGovernanceStatus.NotPublished, string.Empty));
             }
 
             try
@@ -1387,7 +1394,11 @@ namespace Tool.DropDaemon
                     return new Failure<string>($"ComponentDetection published unknown status '{statusValue}' in '{statusFilePath}'.");
                 }
 
-                return status;
+                string details = status == ComponentGovernanceStatus.Failed && statusLines.Length > 1
+                    ? statusLines[1]
+                    : string.Empty;
+
+                return Possible.Create((status, details));
             }
             catch (IOException exception)
             {

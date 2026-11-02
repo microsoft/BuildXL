@@ -6,9 +6,9 @@ import * as CT1JSSdk from "cloudtest-1js-sdk";
 // This is a Map<JavaScriptProjectIdentifier, TransformerExecuteResult> with the execute result produced by each project+verb.
 import { ctverbs } from "test-build";
 
-// The drop service and a unique drop name (based on buildid/retry attempt).
+// Include the example name so stages in the same build do not share a drop.
 const dropService = "https://mseng.artifacts.visualstudio.com/DefaultCollection";
-const dropName = `BuildXL/Build/${Environment.getStringValue("BUILD_BUILDID")}/${Environment.getStringValue("SYSTEM_JOBATTEMPT")}/ctest-drop`;
+const dropName = `BuildXL/Build/${Environment.getStringValue("BUILD_BUILDID")}/${Environment.getStringValue("SYSTEM_JOBATTEMPT")}/ctest-1js-drop`;
 
 // We create a drop upfront because we want to populate it with some artifacts before creating the session.
 // This drop could be created outside of the build, but we'd need to add BuildXL support to make BuildXL ack the existence of an already created (unfinalized) drop.
@@ -41,6 +41,8 @@ const sessionArgs : CloudTestClient.Helpers.GenerateSessionConfigAndCreateSessio
     environment: "ppe",
     // Send all JSON payloads to the console
     debug: true,
+    // Caching is opt-in so validation runs execute jobs even when the example inputs have not changed.
+    cacheEnabled: Environment.getFlag("CTCacheEnabled"),
     properties: Map.empty<string, string>()
         // We always want to see the logs
         .add("VstsTestResultAttachmentUploadBehavior", "Always")
@@ -96,7 +98,7 @@ const sessionArgs : CloudTestClient.Helpers.GenerateSessionConfigAndCreateSessio
             }
         }
     ],
-    displayName: "My Test Session",
+    displayName: "1JS-like Test Session",
     // The test.sh script is consumed by the b-package-group's dynamicGroupSetup. Uploading it through dropArtifacts
     // (instead of a manual addArtifactsToDrop) ensures it participates in the CloudTest caching fingerprint.
     dropArtifacts: [ {kind: "file", file: testScript, dropPath: r`test.sh`} ],
@@ -106,3 +108,11 @@ const sessionCreateResult = CloudTestClient.Helpers.generateConfigAndCreateSessi
 
 // Submit all the jobs
 const jobs = CT1JSSdk.submitCloudTestJobs(scopeJson, ctverbs, sessionCreateResult);
+
+// Without a pipeline monitoring task, the build must wait for the session and report its result.
+const waitForSessionCompletion = Environment.getFlag("useMonitoringTask") ? undefined : CloudTestClient.Helpers.waitForCompletion({
+    configAndSessionResult: sessionCreateResult,
+    submittedJobs: jobs,
+    // Include worker provisioning and result publication, not just test execution.
+    timeoutMinutes: 10,
+});

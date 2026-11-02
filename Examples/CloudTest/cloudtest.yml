@@ -1,22 +1,20 @@
-# Agent-based CloudTest task example
+# Agent-based CloudTest examples: BasicExample runs in production, and 1JS runs in PPE.
+# The 1JS example uses scopes.json to schedule jobs for the test:e2e and test:component verbs,
+# with inputs derived from the transitive closure of each corresponding pip's inputs.
 # Docs: https://eng.ms/docs/more/developer-guides/cloudtest-user-guide/cloudtest/how-tos/setup-cloudtest-azuredevops-tasks
 # Fileless TestMap: https://eng.ms/docs/cloud-ai-platform/developer-services/one-engineering-system-1es/cloudtest-user-guide/cloudtest/features/fileless-testmap
 
 trigger: none
 
 parameters:
-  - name: ServiceConnection
-    type: string
-    default: 'mseng-Domino-BuildXL-Pipelines' # Service connection used by most BuildXL pipelines that need an authentication token
-  - name: Resource
-    type: string
-    default: '499b84ac-1321-427f-aa17-267ca6975798' # Azure DevOps resource UUID
-  - name: CloudTestResource
-    type: string
-    default: '77c466d9-b133-4a83-a8f5-c94133051e06' # CloudTest API resource ID
-  - name: CloudTestServiceConnection
-    type: string
-    default: CloudTest-BuildXL-Prod
+  - name: useLocalBxl
+    type: boolean
+    default: false
+    displayName: 'Build and use a locally-built BXL instead of the released version'
+  - name: CTCacheEnabled
+    type: boolean
+    default: false
+    displayName: 'Enable CloudTest session caching'
 
 resources:
   repositories:
@@ -37,53 +35,36 @@ extends:
         name: Windows-SDL-Agents
         os: windows
     stages:
-    - stage: BuildXL
+    - stage: CloudTest
       dependsOn: []
-      displayName: BuildXL-CloudTest
+      displayName: (PROD) Simple validation
       jobs:
-      - job: build
-        displayName: Build JS repo + Run CloudTest
-        templateContext:
-          workflow: BuildXL   
-          preBuildSteps:
-          - task: microsoft-1es-production.entra-authenticate.entra-authenticate.EntraAuthenticate@0
-            displayName: '🪙 Acquire access token for ${{ parameters.ServiceConnection }}'
-            inputs:
-              azureSubscription: ${{ parameters.ServiceConnection }}
-              resource: ${{ parameters.Resource }}
-              secretVariable: GeneratedAccessToken
-          - task: microsoft-1es-production.entra-authenticate.entra-authenticate.EntraAuthenticate@0
-            displayName: '🪙 Acquire CloudTest bearer token'
-            inputs:
-              azureSubscription: ${{ parameters.ServiceConnection }}
-              resource: ${{ parameters.CloudTestResource }}
-              secretVariable: CloudTestAccessToken
-          - task: NodeTool@0
-            inputs:
-              versionSpec: '22.18.0'
-            displayName: 'Install Node'
-          - script: |
-              npm config set registry https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/
-              npm config set //cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/:_authToken=$FEED_TOKEN
-              npm install -g yarn
-            displayName: 'Install Yarn'
-            env:
-              FEED_TOKEN: $(GeneratedAccessToken)
-          - script: yarn install
-            displayName: 'Yarn Install'
-            workingDirectory: $(Build.SourcesDirectory)/Examples/CloudTest
-          buildXL:
-            installerOptions:
-              version: $(BuildXLPackageVersion)
-            # 861f8f3b-77a2-497a-a955-fbd921dc48de is the service connection ID for mseng-Domino-BuildXL-Pipelines
-            arguments: >-
-              /c:config.dsc
-              /logOutput:FullOutputAlways
-              /p:CloudTestTokenVariableName=CloudTestAccessToken
-              /p:ServiceConnectionId=861f8f3b-77a2-497a-a955-fbd921dc48de
-            workingDirectory: $(Build.SourcesDirectory)/Examples/CloudTest
-            env:
-              CloudTestAccessToken: $(CloudTestAccessToken)
-            cloudTestMonitoring:
-              connectedServiceName: ${{ parameters.CloudTestServiceConnection }}
-              cloudTestTenant: "cloudtest-sample"
+      - template: /Examples/CloudTest/cloudtest-job.yml@self
+        parameters:
+          displayName: Simple validation
+          exampleDirectory: Examples/CloudTest/BasicExample
+          ServiceConnection: mseng-Domino-BuildXL-Pipelines # BuildXL identity used to acquire access tokens
+          ServiceConnectionId: '861f8f3b-77a2-497a-a955-fbd921dc48de' # ID of mseng-Domino-BuildXL-Pipelines
+          Resource: '499b84ac-1321-427f-aa17-267ca6975798' # Azure DevOps resource ID (feed and drop access)
+          CloudTestResource: '77c466d9-b133-4a83-a8f5-c94133051e06' # CloudTest production API resource ID
+          CloudTestServiceConnection: CloudTest-BuildXL-Prod # Monitors production sessions using BuildXL-owned resources
+          cloudTestTenant: cloudtest-sample # BuildXL-owned production tenant
+          useMonitoringTask: false # Wait for session completion inside the BuildXL graph. The monitoring is not working in PROD.
+          CTCacheEnabled: ${{ parameters.CTCacheEnabled }}
+          useLocalBxl: ${{ parameters.useLocalBxl }}
+    - stage: CloudTest1JS
+      dependsOn: []
+      displayName: (PPE) 1JS-like validation
+      jobs:
+      - template: /Examples/CloudTest/cloudtest-job.yml@self
+        parameters:
+          displayName: 1JS-like validation
+          exampleDirectory: Examples/CloudTest/1JS
+          ServiceConnection: mseng-Domino-BuildXL-Pipelines # BuildXL identity used to acquire access tokens
+          ServiceConnectionId: '861f8f3b-77a2-497a-a955-fbd921dc48de' # ID of mseng-Domino-BuildXL-Pipelines
+          Resource: '499b84ac-1321-427f-aa17-267ca6975798' # Azure DevOps resource ID (feed and drop access)
+          CloudTestResource: '7f37d4dd-3b7a-4344-b1ea-7e0c025e6924' # CloudTest PPE API resource ID
+          CloudTestServiceConnection: CloudTest-INT # Monitors sessions in CloudTest's internal PPE environment
+          cloudTestTenant: cloudtest # CloudTest internal tenant; ctest.dsc selects the PPE environment
+          CTCacheEnabled: ${{ parameters.CTCacheEnabled }}
+          useLocalBxl: ${{ parameters.useLocalBxl }}

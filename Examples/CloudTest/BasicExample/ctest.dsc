@@ -27,9 +27,8 @@ const sessionArgs : CloudTestClient.Helpers.GenerateSessionConfigAndCreateSessio
     timeoutMinutes: 1,
     // Send all JSON payloads to the console
     debug: true,
-    // Force CT jobs to run. This pipeline is used as a release validation as well, so without this we will
-    // hit the cache for the most part, since the inputs are not really churning organically.
-    cacheEnabled: false,
+    // Caching is opt-in so validation runs execute jobs even when the example inputs have not changed.
+    cacheEnabled: Environment.getFlag("CTCacheEnabled"),
     properties: Map.empty<string, string>()
         // We always want to see the logs
         .add("VstsTestResultAttachmentUploadBehavior", "Always")
@@ -45,7 +44,7 @@ const sessionArgs : CloudTestClient.Helpers.GenerateSessionConfigAndCreateSessio
             jobs: buildContent.keys().map(project => getTestJobName(project)),
         }
     ],
-    displayName: "My Test Session",
+    displayName: "Basic Example Session",
     // Any artifact that is uploaded to the drop at session creation time (e.g. consumed later by test jobs) must be
     // provided through dropArtifacts so it participates in the CloudTest caching fingerprint.
     dropArtifacts: [ {kind: "file", file: testScript, dropPath: r`setup/test.sh`} ],
@@ -72,6 +71,14 @@ const jobs = buildContent.toArray().map((kvp) => {
     };
 
     return CloudTestClient.Helpers.submitJob(submitJobArgs);
+});
+
+// Without a pipeline monitoring task, the build must wait for the session and report its result.
+const waitForSessionCompletion = Environment.getFlag("useMonitoringTask") ? undefined : CloudTestClient.Helpers.waitForCompletion({
+    configAndSessionResult: sessionCreateResult,
+    submittedJobs: jobs,
+    // Include worker provisioning and result publication, not just test execution.
+    timeoutMinutes: 10,
 });
 
 // We need to give a name to each test job. Use the package name + verb for that

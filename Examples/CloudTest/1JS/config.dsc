@@ -11,12 +11,12 @@ config(
         kind: "Lage",
         moduleName: "test-build",
         root: d`.`,
-        nodeExeLocation: f`/opt/hostedtoolcache/node/22.18.0/x64/bin/node`,
+        nodeExeLocation: f`/opt/hostedtoolcache/node/24.22.2/x64/bin/node`,
         lageLocation: f`node_modules/.bin/lage`,
         execute: ["build", "lint", "test:e2e", "test:component"],
         environment: Map.empty<string, EnvironmentData | Unit>()
           .add("PATH", {contents: [
-            d`/opt/hostedtoolcache/node/22.18.0/x64/bin`,
+            d`/opt/hostedtoolcache/node/24.22.2/x64/bin`,
             d`/usr/local/bin`, 
             d`/usr/bin`,
             d`/usr/bin/bash`]})

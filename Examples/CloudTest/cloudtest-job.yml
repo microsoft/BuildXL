@@ -1,0 +1,97 @@
+# Shared BuildXL job for CloudTest examples. useLocalBxl builds and runs the current checkout.
+parameters:
+  - name: displayName
+    type: string
+  - name: exampleDirectory
+    type: string
+  - name: ServiceConnection
+    type: string
+  # ID of ServiceConnection, passed to BuildXL for historic runtime authentication.
+  - name: ServiceConnectionId
+    type: string
+  - name: Resource
+    type: string
+  - name: CloudTestResource
+    type: string
+  - name: CloudTestServiceConnection
+    type: string
+  - name: cloudTestTenant
+    type: string
+  - name: useMonitoringTask
+    type: boolean
+    default: true
+  # Disabled by default so validation runs execute CloudTest jobs instead of reusing cached results.
+  - name: CTCacheEnabled
+    type: boolean
+  - name: useLocalBxl
+    type: boolean
+    default: false
+
+jobs:
+  - job: build
+    displayName: ${{ parameters.displayName }}
+    templateContext:
+      workflow: BuildXL
+      preBuildSteps:
+        - task: microsoft-1es-production.entra-authenticate.entra-authenticate.EntraAuthenticate@0
+          displayName: 'Acquire access token for ${{ parameters.ServiceConnection }}'
+          inputs:
+            azureSubscription: ${{ parameters.ServiceConnection }}
+            resource: ${{ parameters.Resource }}
+            secretVariable: GeneratedAccessToken
+        - task: microsoft-1es-production.entra-authenticate.entra-authenticate.EntraAuthenticate@0
+          displayName: 'Acquire CloudTest bearer token'
+          inputs:
+            azureSubscription: ${{ parameters.ServiceConnection }}
+            resource: ${{ parameters.CloudTestResource }}
+            secretVariable: CloudTestAccessToken
+        - task: UseNode@1
+          inputs:
+            version: '24.22.2'
+          displayName: 'Install Node'
+        - script: |
+            npm config set registry https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/
+            npm config set //cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/:_authToken=$FEED_TOKEN
+            npm install -g yarn
+          displayName: 'Install Yarn'
+          env:
+            FEED_TOKEN: $(GeneratedAccessToken)
+        - script: yarn install
+          displayName: 'Yarn Install'
+          workingDirectory: $(Build.SourcesDirectory)/${{ parameters.exampleDirectory }}
+        - ${{ if eq(parameters.useLocalBxl, true) }}:
+          - task: UseDotNet@2
+            displayName: 'Install .NET SDK 9.x'
+            inputs:
+              packageType: sdk
+              version: '9.x'
+          - bash: |
+              set -eu
+              bash bxl.sh --internal --minimal --deploy-dev --release
+            displayName: 'Build BXL (minimal + deploy dev)'
+            workingDirectory: $(Build.SourcesDirectory)
+            env:
+              PAT1esSharedAssets: $(GeneratedAccessToken)
+              PATCloudBuild: $(GeneratedAccessToken)
+              VSTSPERSONALACCESSTOKEN: $(System.AccessToken)
+      buildXL:
+        ${{ if eq(parameters.useLocalBxl, true) }}:
+          install: false
+          invocationPrefix: $(Build.SourcesDirectory)/Out/Selfhost/Dev/AdoBuildRunner
+        ${{ else }}:
+          installerOptions:
+            version: $(BuildXLPackageVersion)
+        arguments: >-
+          /c:config.dsc
+          /logOutput:FullOutputAlways
+          /p:CloudTestTokenVariableName=CloudTestAccessToken
+          /p:ServiceConnectionId=${{ parameters.ServiceConnectionId }}
+        workingDirectory: $(Build.SourcesDirectory)/${{ parameters.exampleDirectory }}
+        env:
+          CloudTestAccessToken: $(CloudTestAccessToken)
+          useMonitoringTask: ${{ parameters.useMonitoringTask }}
+          CTCacheEnabled: ${{ parameters.CTCacheEnabled }}
+        ${{ if eq(parameters.useMonitoringTask, true) }}:
+          cloudTestMonitoring:
+            connectedServiceName: ${{ parameters.CloudTestServiceConnection }}
+            cloudTestTenant: ${{ parameters.cloudTestTenant }}

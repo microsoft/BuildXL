@@ -484,7 +484,7 @@ namespace Helpers {
             tenant: args.tenant,
             tokenEnvVar: args.tokenEnvVar,
             timeoutMinutes: args.timeoutMinutes,
-            dependencies: [...(args.dependencies || []), configResult.configFile],
+            dependencies: args.dependencies,
             environmentVariables: args.environmentVariables,
             tags: args.tags,
             description: args.description,
@@ -544,21 +544,12 @@ namespace Helpers {
             Cmd.flag("/debug:", args.debug),
         ];
 
-        let dependencies: Transformer.InputArtifact[] = [];
-        if (APIs.isSessionIdFile(args.sessionId)) {
-            dependencies = [...dependencies, <File>args.sessionId];
-        }
-        if (isJobNameReference(args.jobReference)) {
-            dependencies = [...dependencies, (<JobNameReference>args.jobReference).sessionConfigFile];
-        }
-
         let result = Transformer.execute({
             tool: APIs.tool,
             arguments: commandLineArgs,
             consoleOutput: consolePath,
             workingDirectory: outDir,
             warningRegex: APIs.warningRegex,
-            dependencies: dependencies,
             // A job submission will naturally be uncacheable since it will have a unique session ID. But we let's make it explicit.
             disableCacheLookup: true,
             tags: [...(args.tags || []), "cloudtest"],
@@ -777,7 +768,7 @@ namespace Helpers {
         let updateDynamicJob : APIs.UpdateDynamicJobArguments = {
             sessionId: args.configAndSessionResult.sessionResult.sessionIdFile,
             bodyFile: configResult.configFile,
-            dependencies: [configResult.configFile, ...addArtifactsResult.outputs],
+            dependencies: addArtifactsResult.outputs,
             tokenEnvVar: args.configAndSessionResult.configArguments.tokenEnvVar,
             timeoutMinutes: args.timeoutMinutes,
             environmentVariables: args.environmentVariables,

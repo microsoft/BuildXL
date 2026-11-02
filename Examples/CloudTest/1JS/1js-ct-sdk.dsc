@@ -14,7 +14,7 @@ import {Transformer} from "Sdk.Transformers";
 /** Points to the root of the repository. */
 const repoRoot = d`.`;
 
-// Structures modeling scopes.json structure. See Examples\CloudTest-1JS\scopes.json
+// Structures modeling scopes.json structure. See Examples\CloudTest\1JS\scopes.json
 
 /**
  * Represents a single test command entry within a package scope.

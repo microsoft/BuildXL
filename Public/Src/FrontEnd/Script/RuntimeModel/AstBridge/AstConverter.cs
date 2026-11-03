@@ -7,6 +7,7 @@ using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Script.Declarations;
 using BuildXL.FrontEnd.Script.Expressions;
@@ -83,6 +84,8 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         private readonly V2QualifiersConverter m_conversionHelper;
         private readonly AstConversionContext m_conversionContext;
         private readonly AstConversionConfiguration m_conversionConfiguration;
+
+        private Dictionary<ISymbol, (int DeclarationCount, bool IsObsolete, string RawMessage)> m_obsoleteMetadataCache;
 
         // Can be null for expression parsing
         private readonly ISemanticModel m_semanticModel;
@@ -242,6 +245,25 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
         /// <nodoc />
         public SourceFileParseResult ConvertSourceFile()
+        {
+            var obsoleteMetadataCache = !m_conversionConfiguration.DisableIsObsoleteCheck && !m_conversionConfiguration.ConvertInParallel
+                ? new Dictionary<ISymbol, (int DeclarationCount, bool IsObsolete, string RawMessage)>(SymbolReferenceComparer.Instance)
+                : null;
+            m_obsoleteMetadataCache = obsoleteMetadataCache;
+
+            try
+            {
+                return ConvertSourceFileCore();
+            }
+            finally
+            {
+                // Symbols can retain the parsed workspace even if the converter outlives this call.
+                obsoleteMetadataCache?.Clear();
+                m_obsoleteMetadataCache = null;
+            }
+        }
+
+        private SourceFileParseResult ConvertSourceFileCore()
         {
             // Null statements represent the error nodes.
             // In a semantic name resolution mode, we need to register a top-most scope as a faked namespace.
@@ -2623,15 +2645,42 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
                 return false;
             }
 
+            var cache = m_obsoleteMetadataCache;
+            int declarationCount = cache != null ? symbol.DeclarationList.Count : 0;
+            if (cache != null && cache.TryGetValue(symbol, out var metadata) && metadata.DeclarationCount == declarationCount)
+            {
+                message = metadata.RawMessage;
+                return metadata.IsObsolete;
+            }
+
             foreach (var declaration in symbol.DeclarationList)
             {
                 if (IsObsolete(declaration, out message))
                 {
+                    if (cache != null)
+                    {
+                        cache[symbol] = (declarationCount, true, message);
+                    }
+
                     return true;
                 }
             }
 
+            if (cache != null)
+            {
+                cache[symbol] = (declarationCount, false, message);
+            }
+
             return false;
+        }
+
+        private sealed class SymbolReferenceComparer : IEqualityComparer<ISymbol>
+        {
+            public static readonly SymbolReferenceComparer Instance = new SymbolReferenceComparer();
+
+            public bool Equals(ISymbol x, ISymbol y) => ReferenceEquals(x, y);
+
+            public int GetHashCode(ISymbol symbol) => RuntimeHelpers.GetHashCode(symbol);
         }
 
         [SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic", Justification = "Instance state is used by the local function.")]

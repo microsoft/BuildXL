@@ -10,6 +10,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache;
 using BuildXL.FrontEnd.Core.Incrementality;
@@ -347,26 +348,10 @@ namespace BuildXL.FrontEnd.Core
             Contract.Requires(evaluationFilter != null);
             Contract.Requires(startupConfiguration != null);
 
-            const string MyFrontEndName = "DScript";
-
             InitializeInternal(cacheTask);
             SetState(engineAbstraction, graph, configuration);
 
-            // When evaluating the config file, we did not have engine initialized that's why we could not record the env variables and track enumerated directories. We do it now.
-            var envVariablesUsedInConfig = EnvVariablesUsedInConfig
-                .Where(kvp => kvp.Value.valueUsed) // include only those vars that were actually used
-                .Select(kvp => (kvp.Key, kvp.Value.location)) // select variable name
-                .ToList();
-            engineAbstraction.RecordConfigEvaluation(envVariablesUsedInConfig, EnumeratedDirectoriesInConfig, MyFrontEndName);
-
-            // record any files other than `PrimaryConfigFile` that may have been used to process confugratioin
-            // TODO: consider extending the interface between engine and front end so that the result of the 'ParseConfigFiles'
-            //       phase includes all processed config files, so that those files do not have to be explicitly reported here.
-            var otherConfigSpecs = GetMainConfigWorkspace()?.ConfigurationModule?.PathToSpecs.Except(new[] {PrimaryConfigFile});
-            foreach (var configSpec in otherConfigSpecs ?? CollectionUtilities.EmptyArray<AbsolutePath>())
-            {
-                engineAbstraction.RecordFrontEndFile(configSpec, MyFrontEndName);
-            }
+            RecordConfigurationInputs(engineAbstraction);
 
             // At this point the configuration is completely interpreted, so we check to see if the cycle detector needs to be disabled.
             if (FrontEndConfiguration.DisableCycleDetection())
@@ -504,6 +489,29 @@ namespace BuildXL.FrontEnd.Core
             }
 
             return true;
+        }
+
+        // Keep parsed configuration temporaries out of the frame that waits for evaluation.
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void RecordConfigurationInputs(FrontEndEngineAbstraction engineAbstraction)
+        {
+            const string MyFrontEndName = "DScript";
+
+            // When evaluating the config file, we did not have engine initialized that's why we could not record the env variables and track enumerated directories. We do it now.
+            var envVariablesUsedInConfig = EnvVariablesUsedInConfig
+                .Where(kvp => kvp.Value.valueUsed) // include only those vars that were actually used
+                .Select(kvp => (kvp.Key, kvp.Value.location)) // select variable name
+                .ToList();
+            engineAbstraction.RecordConfigEvaluation(envVariablesUsedInConfig, EnumeratedDirectoriesInConfig, MyFrontEndName);
+
+            // record any files other than `PrimaryConfigFile` that may have been used to process confugratioin
+            // TODO: consider extending the interface between engine and front end so that the result of the 'ParseConfigFiles'
+            //       phase includes all processed config files, so that those files do not have to be explicitly reported here.
+            var otherConfigSpecs = GetMainConfigWorkspace()?.ConfigurationModule?.PathToSpecs.Except(new[] {PrimaryConfigFile});
+            foreach (var configSpec in otherConfigSpecs ?? CollectionUtilities.EmptyArray<AbsolutePath>())
+            {
+                engineAbstraction.RecordFrontEndFile(configSpec, MyFrontEndName);
+            }
         }
 
         private void UpdateIncrementalStateAndApplyFilters(EvaluationFilter evaluationFilter)

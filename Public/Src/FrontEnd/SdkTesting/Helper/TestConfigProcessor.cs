@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Core;
 using BuildXL.FrontEnd.Workspaces.Core;
@@ -19,6 +21,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
     {
         private AbsolutePath m_primaryConfiguration;
         private IConfiguration m_configuration;
+        private bool m_primaryConfigurationWorkspaceReleased;
 
         /// <nodoc />
         public TestConfigProcessor(ICommandLineConfiguration configuration)
@@ -38,6 +41,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         {
             Contract.Requires(primaryConfiguration.IsValid);
 
+            m_primaryConfigurationWorkspaceReleased = false;
             return m_configuration;
         }
 
@@ -49,7 +53,25 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         }
 
         /// <inheritdoc />
-        public IWorkspace PrimaryConfigurationWorkspace => null;
+        [MaybeNull]
+        public IWorkspace PrimaryConfigurationWorkspace
+        {
+            get
+            {
+                if (m_primaryConfigurationWorkspaceReleased)
+                {
+                    throw new InvalidOperationException("The primary configuration workspace has been released.");
+                }
+
+                return null;
+            }
+        }
+
+        /// <inheritdoc />
+        public void ReleasePrimaryConfigurationWorkspace()
+        {
+            m_primaryConfigurationWorkspaceReleased = true;
+        }
 
         /// <inheritdoc />
         public IConfigurationStatistics GetConfigurationStatistics() => new LoadConfigStatistics();

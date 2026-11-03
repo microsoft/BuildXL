@@ -49,7 +49,7 @@ namespace BuildXL.Utilities.Configuration
         public const bool DefaultDisableLanguagePolicyAnalysis = false;
 
         /// <nodoc/>
-        public const bool DefaultDisableIsObsoleteCheckDuringConversion = false;
+        public const bool DefaultDisableIsObsoleteCheckDuringConversion = true;
 
         /// <nodoc/>
         public const bool DefaultPreserveFullNames = false;

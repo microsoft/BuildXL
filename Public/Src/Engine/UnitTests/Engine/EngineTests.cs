@@ -37,6 +37,29 @@ namespace Test.BuildXL.EngineTests
         }
 
         [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void ReleasesConfigurationWorkspaceBeforeEvaluation(bool disableObsoleteCheck)
+        {
+            CollectFrontEndMemory = true;
+            Configuration.FrontEnd.ReleaseWorkspaceBeforeEvaluation = true;
+            Configuration.FrontEnd.ConstructAndSaveBindingFingerprint = false;
+            Configuration.FrontEnd.DisableIsObsoleteCheckDuringConversion = disableObsoleteCheck;
+            SetConfig(@"config({ fileAccessAllowList: importFile(f`config.allowlists.dsc`).entries });");
+            AddFile("config.allowlists.dsc", @"
+export const entries = [{
+    name: ""Allowed"",
+    pathRegex: ""foo,bar"".split("","").join(""|""),
+}];");
+            AddModule("Test", ("spec.dsc", @"export const value = ""a,b"".split("","").join(""|"");"));
+
+            RunEngine();
+
+            AssertVerboseEventLogged(FrontEndEventId.FrontEndWorkspaceMemoryCollectedSuccessfully, count: 1);
+            AssertVerboseEventLogged(FrontEndEventId.FrontEndWorkspaceMemoryNotCollected, count: 0);
+        }
+
+        [Theory]
         [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
         public void TestValidateEngineState(bool success)
         {

@@ -146,6 +146,9 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// If true the check that a member is obsolete is disabled during Ast Conversion.
         /// </summary>
+        /// <remarks>
+        /// Defaults to true. Set to false to enable obsolete-member warnings.
+        /// </remarks>
         bool? DisableIsObsoleteCheckDuringConversion { get; }
 
         /// <summary>

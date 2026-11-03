@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -27,17 +28,46 @@ namespace BuildXL.FrontEnd.Script
     /// </remarks>
     public class ConfigurationProcessor : DScriptInterpreterBase, IConfigurationProcessor
     {
+        private IWorkspace m_primaryConfigurationWorkspace;
+        private bool m_primaryConfigurationWorkspaceReleased;
+
         /// <summary>
         /// Returns a workspace for the main configuration file.
         /// </summary>
         /// <remarks>
-        /// Not null if the configuration is processed successfully.
+        /// Null before configuration processing.
         /// </remarks>
-        [AllowNull]
-        public IWorkspace PrimaryConfigurationWorkspace { get; private set; }
+        /// <exception cref="InvalidOperationException">
+        /// The configuration workspace has been released.
+        /// </exception>
+        [MaybeNull]
+        public IWorkspace PrimaryConfigurationWorkspace
+        {
+            get
+            {
+                if (m_primaryConfigurationWorkspaceReleased)
+                {
+                    throw new InvalidOperationException("The primary configuration workspace has been released.");
+                }
+
+                return m_primaryConfigurationWorkspace;
+            }
+            private set
+            {
+                m_primaryConfigurationWorkspace = value;
+                m_primaryConfigurationWorkspaceReleased = false;
+            }
+        }
 
         /// <inheritdoc />
         public IConfigurationStatistics GetConfigurationStatistics() => FrontEndStatistics.LoadConfigStatistics;
+
+        /// <inheritdoc />
+        public void ReleasePrimaryConfigurationWorkspace()
+        {
+            m_primaryConfigurationWorkspace = null;
+            m_primaryConfigurationWorkspaceReleased = true;
+        }
 
         /// <nodoc />
         public ConfigurationProcessor(

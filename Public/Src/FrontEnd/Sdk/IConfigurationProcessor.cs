@@ -41,7 +41,22 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Gets a workspace computed during main configuration parsing.
         /// </summary>
+        /// <remarks>
+        /// Null before configuration processing.
+        /// </remarks>
+        /// <exception cref="System.InvalidOperationException">
+        /// The configuration workspace has been released.
+        /// </exception>
+        [MaybeNull]
         IWorkspace PrimaryConfigurationWorkspace { get; }
+
+        /// <summary>
+        /// Releases the parsed configuration workspace when it is no longer needed.
+        /// </summary>
+        /// <remarks>
+        /// Repeated calls are allowed.
+        /// </remarks>
+        void ReleasePrimaryConfigurationWorkspace();
 
         /// <summary>
         /// Gets the statistics for configuration processing stage.

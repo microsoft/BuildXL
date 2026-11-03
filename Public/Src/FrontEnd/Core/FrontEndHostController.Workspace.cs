@@ -933,6 +933,9 @@ namespace BuildXL.FrontEnd.Core
                 return;
             }
 
+            m_frontEndFactory.ConfigurationProcessor?.ReleasePrimaryConfigurationWorkspace();
+            m_buildIsCancelledWorkspace = null;
+
             // Clean up pools used by parsing/typechecking.
             TypeScript.Net.Utilities.Pools.Clear();
 

@@ -1,7 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Linq;
 using BuildXL.FrontEnd.Script.Tracing;
+using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 
@@ -9,7 +11,36 @@ namespace Test.DScript.Ast.Interpretation
 {
     public sealed class InterpretObsoleteStuff : DsTest
     {
+        private bool? m_disableIsObsoleteCheckDuringConversion = false;
+
         public InterpretObsoleteStuff(ITestOutputHelper output) : base(output) { }
+
+        protected override FrontEndConfiguration GetFrontEndConfiguration(bool isDebugged)
+        {
+            var configuration = base.GetFrontEndConfiguration(isDebugged);
+            configuration.DisableIsObsoleteCheckDuringConversion = m_disableIsObsoleteCheckDuringConversion;
+            return configuration;
+        }
+
+        [Theory]
+        [InlineData(null, 0)]
+        [InlineData(true, 0)]
+        [InlineData(false, 2)]
+        public void ObsoleteCheckingCanBeConfigured(bool? disableCheck, int expectedWarningCount)
+        {
+            m_disableIsObsoleteCheckDuringConversion = disableCheck;
+            string code = @"
+@@obsolete()
+function foo() { return 42; }
+
+export const r = foo() + foo();
+";
+            var result = EvaluateSpec(code, new[] { "r" });
+
+            Assert.Empty(result.Errors);
+            Assert.Equal(84, Assert.Single(result.Values));
+            Assert.Equal(expectedWarningCount, result.Diagnostics.Count(diagnostic => diagnostic.ErrorCode == (int)LogEventId.MemberIsObsolete));
+        }
 
         [Fact]
         public void CallObsoleteFunctionShouldFailWithWarning()
@@ -173,6 +204,32 @@ export const r = f.x;
 
             // Checking location as well.
             Assert.Contains("(7,18):", diagnostic.FullMessage);
+        }
+
+        [Theory]
+        [InlineData("@@obsolete()", "Member 'foo' is obsolete.")]
+        [InlineData("@@obsolete('use replacement')", "Member 'foo' is obsolete. use replacement.")]
+        public void RepeatedObsoleteFunctionWarnsAtDistinctUseSites(string obsoleteDecorator, string expectedMessage)
+        {
+            string code = $@"
+{obsoleteDecorator}
+function foo() {{ return 42; }}
+
+export const first = foo();
+export const other = foo();
+export const r = [first, other];
+";
+            var diagnostics = EvaluateWithAllDiagnosticId(code, LogEventId.MemberIsObsolete, "r");
+
+            foreach (var diagnostic in diagnostics)
+            {
+                Output.WriteLine(diagnostic.FullMessage);
+            }
+
+            Assert.Equal(2, diagnostics.Count);
+            Assert.All(diagnostics, diagnostic => Assert.Contains(expectedMessage, diagnostic.FullMessage));
+            Assert.Contains(diagnostics, diagnostic => diagnostic.FullMessage.Contains("(5,22):"));
+            Assert.Contains(diagnostics, diagnostic => diagnostic.FullMessage.Contains("(6,22):"));
         }
     }
 }

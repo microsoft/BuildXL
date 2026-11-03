@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -14,6 +15,7 @@ using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Sdk;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 
@@ -29,6 +31,52 @@ namespace Test.DScript.Ast.Configuration
     {
         public TestConfiguration(ITestOutputHelper output) : base(output)
         {}
+
+        [Fact]
+        public void ConfigurationWorkspaceGetterRejectsAccessAfterRelease()
+        {
+            var processor = CreateFrontEndFactoryForParsingConfig(ParseAndEvaluateLogger).ConfigurationProcessor;
+            Assert.Null(processor.PrimaryConfigurationWorkspace);
+
+            processor.ReleasePrimaryConfigurationWorkspace();
+            processor.ReleasePrimaryConfigurationWorkspace();
+
+            Assert.Throws<InvalidOperationException>(() => processor.PrimaryConfigurationWorkspace);
+        }
+
+        [Fact]
+        public void ProcessedConfigurationWorkspaceRejectsAccessAfterRelease()
+        {
+            var result = ParseConfiguration("config({});", out var processor);
+            Assert.False(result.HasError);
+            Assert.NotNull(processor.PrimaryConfigurationWorkspace);
+
+            processor.ReleasePrimaryConfigurationWorkspace();
+
+            Assert.Throws<InvalidOperationException>(() => processor.PrimaryConfigurationWorkspace);
+        }
+
+        [Fact]
+        public void ConfigurationWorkspaceCanBeRecreatedAfterRelease()
+        {
+            var result = ParseConfiguration("config({});", out var processor);
+            Assert.False(result.HasError);
+
+            processor.ReleasePrimaryConfigurationWorkspace();
+            Assert.Throws<InvalidOperationException>(() => processor.PrimaryConfigurationWorkspace);
+
+            var configFile = AbsolutePath.Create(PathTable, Path.Combine(TestRoot, Names.ConfigDsc));
+            var startupConfiguration = new CommandLineConfiguration
+            {
+                Startup =
+                {
+                    ConfigFile = configFile,
+                },
+            };
+
+            Assert.NotNull(processor.InterpretConfiguration(configFile, startupConfiguration));
+            Assert.NotNull(processor.PrimaryConfigurationWorkspace);
+        }
 
         [Theory]
         [InlineData("disableDefaultSourceResolver: true", /*originalValue*/null, /*expectedValue*/ true)]
@@ -251,6 +299,11 @@ config((() => ({}))());";
         /// </summary>
         protected TestResult<IConfiguration> ParseConfiguration(string configuration, ICommandLineConfiguration template = null)
         {
+            return ParseConfiguration(configuration, out _, template);
+        }
+
+        private TestResult<IConfiguration> ParseConfiguration(string configuration, out IConfigurationProcessor processor, ICommandLineConfiguration template = null)
+        {
             var testWriter = CreateTestWriter();
             AddPrelude(testWriter);
 
@@ -303,6 +356,7 @@ config((() => ({}))());";
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(config, pathTable, bxlExeLocation: null, inTestMode: true);
 
             var frontEndFactory = CreateFrontEndFactoryForParsingConfig(ParseAndEvaluateLogger);
+            processor = frontEndFactory.ConfigurationProcessor;
             var moduleRegistry = new ModuleRegistry(FrontEndContext.SymbolTable);
 
             CreateFrontEndHost(config, frontEndFactory, moduleRegistry, configFile, out var finalConfig, out _);

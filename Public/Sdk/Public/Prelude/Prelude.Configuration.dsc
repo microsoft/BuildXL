@@ -312,6 +312,7 @@ interface FrontEndConfiguration {
 
     /**
      * If true the check that a member is obsolete is disabled during Ast Conversion.
+     * Defaults to true. Set to false to enable obsolete-member warnings.
      */
      disableIsObsoleteCheckDuringConversion?: boolean;
 

@@ -55,6 +55,8 @@ namespace Test.BuildXL.Engine
 
         protected bool HasCacheInitializer { get; set; }
 
+        protected bool CollectFrontEndMemory { get; set; }
+
         protected BaseEngineTest(ITestOutputHelper output)
             : base(output)
         {
@@ -273,7 +275,7 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
                     new FrontEndStatistics(),
                     logger: InitializationLogger, 
                     collector: null,
-                    collectMemoryAsSoonAsPossible: false);
+                    collectMemoryAsSoonAsPossible: CollectFrontEndMemory);
             }
 
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(Configuration, Context.PathTable, bxlExeLocation: null, inTestMode: true);

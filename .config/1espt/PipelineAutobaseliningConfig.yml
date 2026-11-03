@@ -99,9 +99,9 @@ pipelines:
         credscan:
           lastModifiedDate: 2024-08-23
         binskim:
-          lastModifiedDate: 2025-05-02
+          lastModifiedDate: 2026-07-16
         spotbugs:
-          lastModifiedDate: 2024-08-23
+          lastModifiedDate: 2026-07-16
   19095:
     retail:
       source:
@@ -190,7 +190,7 @@ pipelines:
   19875:
     cloudbuild:
       binskim:
-        lastModifiedDate: 2025-06-25
+        lastModifiedDate: 2026-10-27
       credscan:
         lastModifiedDate: 2025-06-25
     retail:
@@ -275,3 +275,55 @@ pipelines:
     cloudbuild:
       binskim:
         lastModifiedDate: 2026-05-15
+  22659:
+    retail:
+      source:
+        eslint:
+          lastModifiedDate: 2026-05-20
+        armory:
+          lastModifiedDate: 2026-05-20
+        accessibilityinsights:
+          lastModifiedDate: 2026-05-20
+      binary:
+        binskim:
+          lastModifiedDate: 2026-05-20
+  22683:
+    retail:
+      source:
+        eslint:
+          lastModifiedDate: 2026-05-22
+        armory:
+          lastModifiedDate: 2026-05-22
+        accessibilityinsights:
+          lastModifiedDate: 2026-05-22
+      binary:
+        binskim:
+          lastModifiedDate: 2026-05-22
+  22883:
+    retail:
+      source:
+        eslint:
+          lastModifiedDate: 2026-07-10
+        armory:
+          lastModifiedDate: 2026-07-10
+        accessibilityinsights:
+          lastModifiedDate: 2026-07-10
+      binary:
+        binskim:
+          lastModifiedDate: 2026-07-10
+  23134:
+    retail:
+      source:
+        eslint:
+          lastModifiedDate: 2026-09-05
+        psscriptanalyzer:
+          lastModifiedDate: 2026-09-05
+        armory:
+          lastModifiedDate: 2026-09-05
+        accessibilityinsights:
+          lastModifiedDate: 2026-09-05
+      binary:
+        binskim:
+          lastModifiedDate: 2026-09-05
+        spotbugs:
+          lastModifiedDate: 2026-09-05

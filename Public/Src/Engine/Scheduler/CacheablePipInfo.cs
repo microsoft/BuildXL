@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using BuildXL.Pips;
@@ -23,14 +24,18 @@ namespace BuildXL.Scheduler
             ReadOnlyArray<FileArtifactWithAttributes> outputs,
             ReadOnlyArray<FileArtifact> dependencies,
             ReadOnlyArray<DirectoryArtifact> directoryOutputs,
-            ReadOnlyArray<DirectoryArtifact> directoryDependencies)
+            ReadOnlyArray<DirectoryArtifact> directoryDependencies,
+            ReadOnlyArray<FileArtifact> hashOnlyFileDependencies,
+            ReadOnlyArray<DirectoryArtifact> hashOnlyDirectoryDependencies)
             : base(pip, context)
         {
             CacheableStaticOutputsCount = ProcessExtensions.GetCacheableOutputsCount(outputs);
             Outputs = outputs;
-            Dependencies = dependencies;
+            RegularDependencies = dependencies;
             DirectoryOutputs = directoryOutputs;
-            DirectoryDependencies = directoryDependencies;
+            RegularDirectoryDependencies = directoryDependencies;
+            HashOnlyFileDependencies = hashOnlyFileDependencies;
+            HashOnlyDirectoryDependencies = hashOnlyDirectoryDependencies;
         }
 
         /// <summary>
@@ -51,7 +56,7 @@ namespace BuildXL.Scheduler
         public ReadOnlyArray<FileArtifactWithAttributes> Outputs { get; private set; }
 
         /// <summary>
-        /// File dependencies. Each member of the array is distinct.
+        /// Regular file inputs requiring filesystem access. Each member of the array is distinct.
         /// </summary>
         /// <remarks>
         /// <code>Dependencies</code> and
@@ -60,7 +65,7 @@ namespace BuildXL.Scheduler
         /// </remarks>
         [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         [PipCaching(FingerprintingRole = FingerprintingRole.Content)]
-        public ReadOnlyArray<FileArtifact> Dependencies { get; private set; }
+        public ReadOnlyArray<FileArtifact> RegularDependencies { get; private set; }
 
         /// <summary>
         /// Directory outputs. Each member of the array is distinct.
@@ -70,11 +75,39 @@ namespace BuildXL.Scheduler
         public ReadOnlyArray<DirectoryArtifact> DirectoryOutputs { get; private set; }
 
         /// <summary>
-        /// Directory dependencies. Each member of the array is distinct.
+        /// Regular directory inputs requiring filesystem access. Each member of the array is distinct.
         /// </summary>
         [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         [PipCaching(FingerprintingRole = FingerprintingRole.Content)]
-        public ReadOnlyArray<DirectoryArtifact> DirectoryDependencies { get; private set; }
+        public ReadOnlyArray<DirectoryArtifact> RegularDirectoryDependencies { get; private set; }
+
+        /// <summary>
+        /// File content dependencies that do not grant filesystem access.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Content)]
+        public ReadOnlyArray<FileArtifact> HashOnlyFileDependencies { get; }
+
+        /// <summary>
+        /// Directory content dependencies that do not grant filesystem access.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Content)]
+        public ReadOnlyArray<DirectoryArtifact> HashOnlyDirectoryDependencies { get; }
+
+        /// <summary>
+        /// Enumerates all file content dependencies without copying the underlying arrays.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public IEnumerable<FileArtifact> Dependencies => HashOnlyFileDependencies.Length == 0
+            ? RegularDependencies
+            : RegularDependencies.Concat(HashOnlyFileDependencies);
+
+        /// <summary>
+        /// Enumerates all directory content dependencies without copying the underlying arrays.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public IEnumerable<DirectoryArtifact> DirectoryDependencies => HashOnlyDirectoryDependencies.Length == 0
+            ? RegularDirectoryDependencies
+            : RegularDirectoryDependencies.Concat(HashOnlyDirectoryDependencies);
 
         /// <summary>
         /// Creates a cacheable pip info for an ipc pip
@@ -99,7 +132,9 @@ namespace BuildXL.Scheduler
                 outputs: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(pip.OutputFile.WithAttributes()),
                 dependencies: fileDependencies,
                 directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
-                directoryDependencies: directoryDependencies);
+                directoryDependencies: directoryDependencies,
+                hashOnlyFileDependencies: ReadOnlyArray<FileArtifact>.Empty,
+                hashOnlyDirectoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty);
         }
     }
 }

@@ -43,8 +43,8 @@ namespace BuildXL.Scheduler
             var files = new HashSet<FileArtifact>();
             var dynamicFiles = new MultiValueDictionary<FileArtifact, DirectoryArtifact>();
 
-            m_pipExecutionEnvironment.State.FileContentManager.CollectPipFilesToMaterialize(
-                isMaterializingInputs: true,
+            m_pipExecutionEnvironment.State.FileContentManager.CollectPipFiles(
+                collectInputs: true,
                 pipTable: m_pipExecutionEnvironment.PipTable,
                 pip: process,
                 files: files,

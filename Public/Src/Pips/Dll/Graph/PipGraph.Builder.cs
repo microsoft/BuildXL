@@ -1306,7 +1306,7 @@ namespace BuildXL.Pips.Graph
                 Contract.Requires(process != null, "Argument process cannot be null");
 
                 var semanticPathExpander = SemanticPathExpander.GetModuleExpander(process.Provenance.ModuleId);
-                dependenciesByPath = new Dictionary<AbsolutePath, FileArtifact>(process.Dependencies.Length);
+                dependenciesByPath = new Dictionary<AbsolutePath, FileArtifact>(process.RegularDependencies.Length + process.HashOnlyFileDependencies.Length);
                 outputsByPath = new Dictionary<AbsolutePath, FileArtifact>(process.FileOutputs.Length);
                 var outputDirectorySet = new HashSet<AbsolutePath>();
 
@@ -1333,6 +1333,15 @@ namespace BuildXL.Pips.Graph
                 if (process.DirectoryDependencies.Any(d => !IsValidInputDirectoryArtifact(pathAccessLock, d, process)))
                 {
                     return false;
+                }
+
+                foreach (var directory in process.HashOnlyDirectoryDependencies)
+                {
+                    if (!TryGetSealDirectoryKind(directory, out var kind) || !kind.IsDynamicKind())
+                    {
+                        LogEventWithPipProvenance(Logger.HashOnlyInputDirectoryMustBeOpaque, process, directory.Path);
+                        return false;
+                    }
                 }
 
                 Contract.Assert(dependenciesByPath.ContainsKey(process.Executable.Path), "Dependency set must contain the executable.");
@@ -1461,7 +1470,7 @@ namespace BuildXL.Pips.Graph
                 // Trusting statically declared accesses is not compatible with declaring opaque or source sealed directories
                 if ((process.ProcessOptions & Process.Options.TrustStaticallyDeclaredAccesses) != Process.Options.None
                     && (process.DirectoryOutputs.Length > 0
-                        || process.DirectoryDependencies.Any(directory => TryGetSealDirectoryKind(directory, out var kind) && kind.IsSourceSeal())))
+                        || process.RegularDirectoryDependencies.Any(directory => TryGetSealDirectoryKind(directory, out var kind) && kind.IsSourceSeal())))
                 {
                     LogEventWithPipProvenance(Logger.ScheduleFailAddPipDueToIncompatibleTrustStaticallyDeclaredAccessesWithOpaqueOrSourceSeal, process);
                     return false;

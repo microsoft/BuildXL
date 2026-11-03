@@ -288,7 +288,7 @@ namespace Test.BuildXL.Processes
         {
             foreach (var op in processOperations)
             {
-                pipDataBuilder.Add(op.ToCommandLine(Context.PathTable));
+                op.ToCommandLine(Context.PathTable, pipDataBuilder);
             }
         }
 
@@ -307,6 +307,17 @@ namespace Test.BuildXL.Processes
                     {
                         switch (op.OpType)
                         {
+                            case Operation.Type.EchoVsoHash:
+                                if (op.Path.IsFile)
+                                {
+                                    dao.HashOnlyFileDependencies.Add(op.Path.FileArtifact);
+                                }
+                                else
+                                {
+                                    dao.HashOnlyDirectoryDependencies.Add(op.Path.DirectoryArtifact);
+                                }
+                                break;
+
                             case Operation.Type.WriteFile:
                             case Operation.Type.WriteEnvVariableToFile:
                             case Operation.Type.WriteFileWithRetries:
@@ -377,6 +388,8 @@ namespace Test.BuildXL.Processes
         public class DependenciesAndOutputs
         {
             public HashSet<FileArtifact> Dependencies = new HashSet<FileArtifact>();
+            public HashSet<FileArtifact> HashOnlyFileDependencies = new HashSet<FileArtifact>();
+            public HashSet<DirectoryArtifact> HashOnlyDirectoryDependencies = new HashSet<DirectoryArtifact>();
             public HashSet<FileArtifact> Outputs = new HashSet<FileArtifact>();
         }
 
@@ -418,7 +431,9 @@ namespace Test.BuildXL.Processes
                 provenance: provenance,
                 additionalTempDirectories: additionalTempDirectories,
                 tempDirectory: tempDirectory,
-                tempFiles: tempFiles);
+                tempFiles: tempFiles,
+                hashOnlyFileDependencies: dao.HashOnlyFileDependencies,
+                hashOnlyDirectoryDependencies: dao.HashOnlyDirectoryDependencies);
         }
 
         /// <summary>
@@ -441,7 +456,9 @@ namespace Test.BuildXL.Processes
             PipProvenance provenance = null,
             IEnumerable<AbsolutePath> additionalTempDirectories = null,
             AbsolutePath? tempDirectory = null,
-            IEnumerable<FileArtifact> tempFiles = null)
+            IEnumerable<FileArtifact> tempFiles = null,
+            IEnumerable<FileArtifact> hashOnlyFileDependencies = null,
+            IEnumerable<DirectoryArtifact> hashOnlyDirectoryDependencies = null)
         {
             Contract.Requires(dependencies != null);
             Contract.Requires(outputs != null);
@@ -464,6 +481,7 @@ namespace Test.BuildXL.Processes
                 outputsWithAttributes = outputsWithAttributes.Concat(tempFiles.Select(tf => FileArtifactWithAttributes.FromFileArtifact(tf, FileExistence.Temporary)));
             }
 
+            var regularDependencies = ReadOnlyArray<FileArtifact>.From(new[] { executable }.Concat(dependencies));
             return new Process(
                 executable: executable,
                 workingDirectory: GetWorkingDirectory(),
@@ -479,7 +497,7 @@ namespace Test.BuildXL.Processes
                 standardDirectory: GetStandardDirectory(),
                 warningTimeout: null,
                 timeout: null,
-                dependencies: ReadOnlyArray<FileArtifact>.From((new[] { executable }).Concat(dependencies ?? CollectionUtilities.EmptyArray<FileArtifact>())),
+                dependencies: regularDependencies,
                 outputs: ReadOnlyArray<FileArtifactWithAttributes>.From(outputsWithAttributes),
                 directoryDependencies: ReadOnlyArray<DirectoryArtifact>.From(directoryDependencies ?? new DirectoryArtifact[0]),
                 directoryOutputs: ReadOnlyArray<DirectoryArtifact>.From(directoryOutputs ?? new DirectoryArtifact[0]),
@@ -492,7 +510,11 @@ namespace Test.BuildXL.Processes
                 provenance: provenance ?? CreateProvenance(),
                 toolDescription: StringId.Invalid,
                 additionalTempDirectories: ReadOnlyArray<AbsolutePath>.From(additionalTempDirectories ?? ReadOnlyArray<AbsolutePath>.Empty),
-                tempDirectory: tempDirectory ?? default(AbsolutePath));
+                tempDirectory: tempDirectory ?? default(AbsolutePath),
+                hashOnlyFileDependencies: ReadOnlyArray<FileArtifact>.From(
+                    (hashOnlyFileDependencies ?? CollectionUtilities.EmptyArray<FileArtifact>()).Except(regularDependencies)),
+                hashOnlyDirectoryDependencies: ReadOnlyArray<DirectoryArtifact>.From(
+                    (hashOnlyDirectoryDependencies ?? CollectionUtilities.EmptyArray<DirectoryArtifact>()).Except(directoryDependencies ?? CollectionUtilities.EmptyArray<DirectoryArtifact>())));
         }
 
         /// <summary>
@@ -541,6 +563,7 @@ namespace Test.BuildXL.Processes
                 }
             }
 
+            var regularDependencies = ReadOnlyArray<FileArtifact>.From(new[] { executable }.Concat(dao.Dependencies));
             return new Process(
                 executable: executable,
                 workingDirectory: ObjectRootPath,
@@ -554,7 +577,7 @@ namespace Test.BuildXL.Processes
                 standardDirectory: ObjectRootPath,
                 warningTimeout: null,
                 timeout: null,
-                dependencies: ReadOnlyArray<FileArtifact>.From(new[] { executable }.Concat(dao.Dependencies)),
+                dependencies: regularDependencies,
                 outputs: ReadOnlyArray<FileArtifactWithAttributes>.From(dao.Outputs.Select(o => o.WithAttributes())),
                 directoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty,
                 directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
@@ -566,7 +589,9 @@ namespace Test.BuildXL.Processes
                 semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
                 provenance: CreateProvenance(),
                 toolDescription: StringId.Invalid,
-                additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
+                additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
+                hashOnlyFileDependencies: ReadOnlyArray<FileArtifact>.From(dao.HashOnlyFileDependencies.Except(regularDependencies)),
+                hashOnlyDirectoryDependencies: ReadOnlyArray<DirectoryArtifact>.From(dao.HashOnlyDirectoryDependencies));
         }
 
         protected FileArtifact CreateTestProcessWithCapabilities()

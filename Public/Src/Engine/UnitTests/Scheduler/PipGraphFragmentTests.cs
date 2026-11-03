@@ -52,6 +52,48 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
+        public void HashOnlyDependenciesSurviveFragmentRemapping()
+        {
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
+            var fragment = CreatePipGraphFragmentTest(nameof(HashOnlyDependenciesSurviveFragmentRemapping));
+            var producerBuilder = fragment.GetProcessBuilder();
+            var directoryPath = fragment.CreateOutputDirectory("opaque").Path;
+            new ArgumentsBuilder(producerBuilder)
+                .AddOutputDirectoryOption("/out:", directoryPath)
+                .Finish();
+            var (_, outputs) = fragment.ScheduleProcessBuilder(producerBuilder);
+            Assert.True(outputs.TryGetOutputDirectory(directoryPath, out var directory));
+            var input = fragment.CreateSourceFile("hashInput");
+            var output = fragment.CreateOutputFile("consumer");
+            var consumerBuilder = fragment.GetProcessBuilder();
+            consumerBuilder.AddHashInputFile(input);
+            consumerBuilder.AddHashInputDirectory(directory.Root);
+            consumerBuilder.AddOutputFile(output.Path, FileExistence.Required);
+            consumerBuilder.ArgumentsBuilder.AddVsoHash(input);
+            consumerBuilder.ArgumentsBuilder.AddVsoHash(directory.Root);
+            var (consumer, _) = fragment.ScheduleProcessBuilder(consumerBuilder);
+
+            var graph = SerializeAndDeserializeFragments(fragment);
+            XAssert.IsNotNull(graph, EventListener.GetLog());
+            var remappedOutput = FileArtifact.CreateOutputFile(RemapFragmentPath(fragment, output.Path));
+            var pip = (Process)graph.PipTable.HydratePip(graph.TryGetProducer(remappedOutput), PipQueryContext.Test);
+            var remappedInput = Assert.Single(pip.HashOnlyFileDependencies);
+            var remappedDirectory = Assert.Single(pip.HashOnlyDirectoryDependencies);
+            Assert.Equal(RemapFragmentPath(fragment, input.Path), remappedInput.Path);
+            Assert.Equal(RemapFragmentPath(fragment, directory.Root.Path), remappedDirectory.Path);
+            Assert.DoesNotContain(remappedInput, pip.RegularDependencies);
+            Assert.DoesNotContain(remappedDirectory, pip.RegularDirectoryDependencies);
+            Assert.Contains(remappedInput, pip.Dependencies);
+            Assert.Contains(remappedDirectory, pip.DirectoryDependencies);
+            Assert.True(graph.TryGetProducer(remappedDirectory).IsValid);
+            Assert.Contains(pip.PipId, graph.GetConsumingPips(remappedInput.Path).Select(candidate => candidate.PipId));
+            Assert.Contains(pip.PipId.ToNodeId(), graph.DataflowGraph.GetOutgoingEdges(graph.GetSealedDirectoryNode(remappedDirectory)).Select(edge => edge.OtherNode));
+            VerifyMatchingArguments(graph, fragment, consumer);
+            Assert.Equal(pip.HashOnlyFileDependencies, pip.Override().HashOnlyFileDependencies);
+            Assert.Equal(pip.HashOnlyDirectoryDependencies, pip.Override().HashOnlyDirectoryDependencies);
+        }
+
+        [Fact]
         public void TestBasicDependencyBetweenFragments()
         {
             var fragment1 = CreatePipGraphFragmentTest(nameof(TestBasicDependencyBetweenFragments) + "1");

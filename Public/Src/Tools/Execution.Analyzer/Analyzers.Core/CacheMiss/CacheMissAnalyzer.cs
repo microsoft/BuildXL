@@ -540,7 +540,9 @@ namespace BuildXL.Execution.Analyzer
 
                         EqualCompare(newInfo.GetEnvironmentVariables(), oldInfo.GetEnvironmentVariables(), "Environment Variables", Print, ExtractChangedInputs);
                         EqualCompare(newInfo.DependencyData, oldInfo.DependencyData, "File Dependency", Print, ExtractChangedInputs);
-                        EqualCompare(newInfo.CacheablePipInfo.DirectoryDependencies.SelectList(d => d.Path), oldInfo.CacheablePipInfo.DirectoryDependencies.SelectList(d => d.Path), "Directory Dependency", Print);
+                        EqualCompare(newInfo.CacheablePipInfo.DirectoryDependencies.Select(d => d.Path).ToList(), oldInfo.CacheablePipInfo.DirectoryDependencies.Select(d => d.Path).ToList(), "Directory Dependency", Print);
+                        EqualCompare(newInfo.CacheablePipInfo.HashOnlyFileDependencies.SelectList(f => f.Path), oldInfo.CacheablePipInfo.HashOnlyFileDependencies.SelectList(f => f.Path), "Hash-Only File Dependency", Print);
+                        EqualCompare(newInfo.CacheablePipInfo.HashOnlyDirectoryDependencies.SelectList(d => d.Path), oldInfo.CacheablePipInfo.HashOnlyDirectoryDependencies.SelectList(d => d.Path), "Hash-Only Directory Dependency", Print);
                         EqualCompare(newInfo.CacheablePipInfo.Outputs, oldInfo.CacheablePipInfo.Outputs, "File Outputs", Print);
                         EqualCompare(newInfo.CacheablePipInfo.DirectoryOutputs.ToPathList(), oldInfo.CacheablePipInfo.DirectoryOutputs.ToPathList(), "Directory Outputs", Print);
                         return;

@@ -1519,7 +1519,6 @@ namespace Test.BuildXL.Processes
         {
             const string echoMessage = "test";
 
-            var echoOp = Operation.Echo(echoMessage);
             var info = GetEchoProcessInfo(echoMessage);
             info.FileAccessManifest.ReportProcessArgs = reportProcessArgs;
             info.DiagnosticsEnabled = true;
@@ -1533,8 +1532,17 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(UsingEBPFSandbox? 2 : 1, launchedProcesses.Count, 
                 $"The number of processes launched is not correct : {string.Join(",", launchedProcesses.Select(p => $"[{p.ProcessId}]{p.Path}"))}");
             var expectedReportedArgs = reportProcessArgs
-                ? TestProcessExecutable.Path.ToString(Context.PathTable) + " " + echoOp.ToCommandLine(Context.PathTable)
+                ? info.GetCommandLine()
                 : string.Empty;
+#if NETCOREAPP
+            if (reportProcessArgs && OperatingSystemHelper.IsUnixOS)
+            {
+                // Unix reports parsed argv values rather than the launch command line's quoting.
+                expectedReportedArgs = info.FileName + " " + string.Join(
+                    " ",
+                    CommandLineEscaping.SplitArguments(info.Arguments, useWindowsRules: false).Select(arg => arg.Value.ToString()));
+            }
+#endif
             XAssert.AreEqual(
                 expectedReportedArgs,
                 // For EBPF, the first process is always the injected one from the launcher. We need to look at the second one.

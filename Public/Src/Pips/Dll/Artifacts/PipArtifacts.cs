@@ -16,6 +16,12 @@ namespace BuildXL.Pips.Artifacts
     public static class PipArtifacts
     {
         /// <summary>
+        /// Processes a pip input, identifying whether it is a hash-only process dependency.
+        /// </summary>
+        /// <returns>True to continue traversal; false to stop.</returns>
+        public delegate bool PipInputAction(FileOrDirectoryArtifact input, bool isHashOnly);
+
+        /// <summary>
         /// Gets whether outputs must remain writable for the given pip
         /// </summary>
         public static bool IsOutputMustRemainWritablePip(Pip pip)
@@ -167,11 +173,32 @@ namespace BuildXL.Pips.Artifacts
         /// <summary>
         /// Gets the inputs consumed by a pip and calls an action
         /// </summary>
+        /// <remarks>
+        /// Hash-only process inputs are content dependencies independently of IPC lazy-materialization policy.
+        /// Include them for graph/content traversal, but not for filesystem access or byte materialization.
+        /// </remarks>
         public static bool ForEachInput(
             Pip pip,
             Func<FileOrDirectoryArtifact, bool> inputAction,
             bool includeLazyInputs,
-            Func<FileOrDirectoryArtifact, bool> overrideLazyInputAction = null)
+            Func<FileOrDirectoryArtifact, bool> overrideLazyInputAction = null,
+            bool includeHashOnlyInputs = true)
+        {
+            return ForEachInput(pip, (input, isHashOnly) => inputAction(input), includeLazyInputs, overrideLazyInputAction, includeHashOnlyInputs);
+        }
+
+        /// <summary>
+        /// Gets the inputs consumed by a pip and calls an action with whether each input is hash-only.
+        /// </summary>
+        /// <remarks>
+        /// Only process hash-only inputs are flagged; IPC lazy materialization is an independent policy.
+        /// </remarks>
+        public static bool ForEachInput(
+            Pip pip,
+            PipInputAction inputAction,
+            bool includeLazyInputs,
+            Func<FileOrDirectoryArtifact, bool> overrideLazyInputAction = null,
+            bool includeHashOnlyInputs = true)
         {
             // NOTE: Lazy inputs must be processed AFTER regular inputs
             // This behavior is required by FileContentManager.PopulateDepdencies
@@ -181,23 +208,45 @@ namespace BuildXL.Pips.Artifacts
             {
                 case PipType.CopyFile:
                     CopyFile copyFile = (CopyFile)pip;
-                    result = inputAction(FileOrDirectoryArtifact.Create(copyFile.Source));
+                    result = inputAction(FileOrDirectoryArtifact.Create(copyFile.Source), isHashOnly: false);
                     break;
                 case PipType.Process:
                     Process process = (Process)pip;
-                    foreach (var input in process.Dependencies)
+                    foreach (var input in process.RegularDependencies)
                     {
-                        if (!inputAction(FileOrDirectoryArtifact.Create(input)))
+                        if (!inputAction(FileOrDirectoryArtifact.Create(input), isHashOnly: false))
                         {
                             return false;
                         }
                     }
 
-                    foreach (var input in process.DirectoryDependencies)
+                    if (includeHashOnlyInputs)
                     {
-                        if (!inputAction(FileOrDirectoryArtifact.Create(input)))
+                        foreach (var input in process.HashOnlyFileDependencies)
+                        {
+                            if (!inputAction(FileOrDirectoryArtifact.Create(input), isHashOnly: true))
+                            {
+                                return false;
+                            }
+                        }
+                    }
+
+                    foreach (var input in process.RegularDirectoryDependencies)
+                    {
+                        if (!inputAction(FileOrDirectoryArtifact.Create(input), isHashOnly: false))
                         {
                             return false;
+                        }
+                    }
+
+                    if (includeHashOnlyInputs)
+                    {
+                        foreach (var input in process.HashOnlyDirectoryDependencies)
+                        {
+                            if (!inputAction(FileOrDirectoryArtifact.Create(input), isHashOnly: true))
+                            {
+                                return false;
+                            }
                         }
                     }
 
@@ -206,7 +255,7 @@ namespace BuildXL.Pips.Artifacts
                     SealDirectory sealDirectory = (SealDirectory)pip;
                     foreach (var input in sealDirectory.Contents)
                     {
-                        if (!inputAction(FileOrDirectoryArtifact.Create(input)))
+                        if (!inputAction(FileOrDirectoryArtifact.Create(input), isHashOnly: false))
                         {
                             return false;
                         }
@@ -217,7 +266,7 @@ namespace BuildXL.Pips.Artifacts
                     IpcPip ipcPip = (IpcPip)pip;
                     foreach (var input in ipcPip.FileDependencies)
                     {
-                        if (!inputAction(FileOrDirectoryArtifact.Create(input)))
+                        if (!inputAction(FileOrDirectoryArtifact.Create(input), isHashOnly: false))
                         {
                             return false;
                         }
@@ -225,7 +274,7 @@ namespace BuildXL.Pips.Artifacts
 
                     foreach (var input in ipcPip.DirectoryDependencies)
                     {
-                        if (!inputAction(FileOrDirectoryArtifact.Create(input)))
+                        if (!inputAction(FileOrDirectoryArtifact.Create(input), isHashOnly: false))
                         {
                             return false;
                         }
@@ -233,10 +282,9 @@ namespace BuildXL.Pips.Artifacts
 
                     if (includeLazyInputs)
                     {
-                        overrideLazyInputAction = overrideLazyInputAction ?? inputAction;
                         foreach (var input in ipcPip.LazilyMaterializedDependencies)
                         {
-                            if (!overrideLazyInputAction(input))
+                            if (!(overrideLazyInputAction != null ? overrideLazyInputAction(input) : inputAction(input, isHashOnly: false)))
                             {
                                 return false;
                             }

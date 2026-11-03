@@ -1005,7 +1005,7 @@ namespace BuildXL.Scheduler
                 {
                     // If the pip has the source file declared as a dependency, then the violation was caught already at the sandbox level. Let's not report it then, as a way
                     // to avoid reporting a duplicate
-                    if (pip.Dependencies.Contains((maybeProducer as HashSourceFile).Artifact))
+                    if (pip.RegularDependencies.Contains((maybeProducer as HashSourceFile).Artifact))
                     {
                         return;
                     }
@@ -1694,7 +1694,7 @@ namespace BuildXL.Scheduler
                     // Since absentPathProbe is guaranteed to be a probe under an opaque directory 
                     // (we filtered on DynamicObservationKind.AbsentPathProbeUnderOutputDirectory),
                     // it is safe to enumerate over all directory dependencies here and not just 'opaque' dependencies. 
-                    var allowProbe = absentPathProbe.IsWithin(Context.PathTable, pip.DirectoryDependencies.Select(dir => dir.Path));
+                    var allowProbe = absentPathProbe.IsWithin(Context.PathTable, pip.RegularDirectoryDependencies.Select(dir => dir.Path));
 
                     // If the probe is outside of input directories the pip depends on, we do not need to check whether the probed path
                     // matches file dependencies. If it did match, the access would have been classified as read rather than probe.

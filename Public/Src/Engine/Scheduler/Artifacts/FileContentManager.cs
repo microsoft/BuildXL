@@ -397,8 +397,8 @@ namespace BuildXL.Scheduler.Artifacts
         {
             using (PipArtifactsState state = GetPipArtifactsState())
             {
-                // Get inputs
-                PopulateDependencies(pip, state.PipArtifacts, includeLazyInputs: true, onlySourceFiles: true);
+                // Hash-only source inputs also need content hashes for fingerprinting and hash rendering.
+                PopulateDependencies(pip, state.PipArtifacts, includeLazyInputs: true, onlySourceFiles: true, includeHashOnlyInputs: true);
 
                 var maybeInputsHashed = await TryHashFileArtifactsAsync(state, operationContext, pip.ProcessAllowsUndeclaredSourceReads, pip.GetDescription(Context));
 
@@ -418,8 +418,8 @@ namespace BuildXL.Scheduler.Artifacts
         {
             using (PipArtifactsState state = GetPipArtifactsState())
             {
-                // Get inputs
-                PopulateDependencies(pip, state.PipArtifacts, includeLazyInputs: true, onlySourceFiles: true);
+                // Include hash-only sources when reporting source hashes to distributed workers.
+                PopulateDependencies(pip, state.PipArtifacts, includeLazyInputs: true, onlySourceFiles: true, includeHashOnlyInputs: true);
 
                 List<(FileArtifact, FileContentInfo)> sourceHashes = new List<(FileArtifact, FileContentInfo)>(state.PipArtifacts.Count);
                 foreach (var artifact in state.PipArtifacts)
@@ -440,8 +440,8 @@ namespace BuildXL.Scheduler.Artifacts
             // Probably assume dependencies are materialized if force skip dependencies is enabled
             using (PipArtifactsState state = GetPipArtifactsState())
             {
-                // Get inputs
-                PopulateDependencies(pip, state.PipArtifacts, includeLazyInputs: true);
+                // Hash-only inputs need content metadata for fingerprinting and hash rendering, not materialization.
+                PopulateDependencies(pip, state.PipArtifacts, includeLazyInputs: true, includeHashOnlyInputs: true);
 
                 // In case of dirty build, we need to hash the seal contents without relying on consumers of seal contents.
                 SealDirectory sealDirectory = pip as SealDirectory;
@@ -542,8 +542,8 @@ namespace BuildXL.Scheduler.Artifacts
         {
             using (PipArtifactsState state = GetPipArtifactsState())
             {
-                // Get inputs
-                PopulateDependencies(pip, state.PipArtifacts, registerDirectories: true);
+                // Register hash-only directory membership for worker cache lookup without materializing files.
+                PopulateDependencies(pip, state.PipArtifacts, registerDirectories: true, includeHashOnlyInputs: true);
             }
         }
 
@@ -934,8 +934,8 @@ namespace BuildXL.Scheduler.Artifacts
             Func<PipId, bool> serviceFilter = null,
             bool excludeSourceFiles = false)
         {
-            CollectPipFilesToMaterialize(
-                isMaterializingInputs: true,
+            CollectPipFiles(
+                collectInputs: true,
                 pipTable: pipTable,
                 pip: pip,
                 files: files,
@@ -946,36 +946,19 @@ namespace BuildXL.Scheduler.Artifacts
         }
 
         /// <summary>
-        /// Gets the pip outputs
+        /// Collects input or output file artifacts, expanding directory contents and optionally recording dynamic directory membership.
+        /// This only collects artifacts; it does not materialize files.
         /// </summary>
-        public void CollectPipOutputsToMaterialize(
-            IPipTable pipTable,
-            Pip pip,
-            HashSet<FileArtifact> files,
-            MultiValueDictionary<FileArtifact, DirectoryArtifact> dynamicOutputs = null,
-            Func<FileOrDirectoryArtifact, bool> shouldInclude = null)
-        {
-            CollectPipFilesToMaterialize(
-                isMaterializingInputs: false,
-                pipTable: pipTable,
-                pip: pip,
-                files: files,
-                dynamicFileMap: dynamicOutputs,
-                shouldInclude: shouldInclude);
-        }
-
-        /// <summary>
-        /// Gets the pip inputs or outputs
-        /// </summary>
-        public void CollectPipFilesToMaterialize(
-            bool isMaterializingInputs,
+        public void CollectPipFiles(
+            bool collectInputs,
             IPipTable pipTable,
             Pip pip,
             HashSet<FileArtifact> files = null,
             MultiValueDictionary<FileArtifact, DirectoryArtifact> dynamicFileMap = null,
             Func<FileOrDirectoryArtifact, bool> shouldInclude = null,
             Func<PipId, bool> shouldIncludeServiceFiles = null,
-            bool excludeSourceFiles = false)
+            bool excludeSourceFiles = false,
+            bool includeHashOnlyInputs = false)
         {
             // Always include if no filter specified
             shouldInclude ??= (a => true);
@@ -983,10 +966,10 @@ namespace BuildXL.Scheduler.Artifacts
 
             using (PipArtifactsState state = GetPipArtifactsState())
             {
-                if (isMaterializingInputs)
+                if (collectInputs)
                 {
                     // Get inputs
-                    PopulateDependencies(pip, state.PipArtifacts, includeLazyInputs: true, excludeSourceFiles: excludeSourceFiles);
+                    PopulateDependencies(pip, state.PipArtifacts, includeLazyInputs: true, excludeSourceFiles: excludeSourceFiles, includeHashOnlyInputs: includeHashOnlyInputs);
                 }
                 else
                 {
@@ -1030,7 +1013,7 @@ namespace BuildXL.Scheduler.Artifacts
                 }
             }
 
-            if (isMaterializingInputs)
+            if (collectInputs)
             {
                 // For the IPC pips, we need to collect the inputs of their service dependencies as well.
                 if (pip.PipType == PipType.Ipc)
@@ -1044,7 +1027,15 @@ namespace BuildXL.Scheduler.Artifacts
                         }
 
                         var servicePip = pipTable.HydratePip(servicePipId, PipQueryContext.CollectPipInputsToMaterializeForIPC);
-                        CollectPipInputsToMaterialize(pipTable, servicePip, files, dynamicFileMap, filter: shouldInclude, excludeSourceFiles: excludeSourceFiles);
+                        CollectPipFiles(
+                            collectInputs: true,
+                            pipTable: pipTable,
+                            pip: servicePip,
+                            files: files,
+                            dynamicFileMap: dynamicFileMap,
+                            shouldInclude: shouldInclude,
+                            excludeSourceFiles: excludeSourceFiles,
+                            includeHashOnlyInputs: includeHashOnlyInputs);
                     }
                 }
             }
@@ -1360,7 +1351,7 @@ namespace BuildXL.Scheduler.Artifacts
             return state;
         }
 
-        private void PopulateDependencies(Pip pip, HashSet<FileOrDirectoryArtifact> dependencies, bool includeLazyInputs = false, bool onlySourceFiles = false, bool registerDirectories = false, bool excludeSourceFiles = false)
+        private void PopulateDependencies(Pip pip, HashSet<FileOrDirectoryArtifact> dependencies, bool includeLazyInputs = false, bool onlySourceFiles = false, bool registerDirectories = false, bool excludeSourceFiles = false, bool includeHashOnlyInputs = false)
         {
             Contract.Requires(!onlySourceFiles || !excludeSourceFiles);
 
@@ -1406,7 +1397,7 @@ namespace BuildXL.Scheduler.Artifacts
                 };
             }
 
-            PipArtifacts.ForEachInput(pip, action, includeLazyInputs: true, overrideLazyInputAction: lazyInputAction);
+            PipArtifacts.ForEachInput(pip, action, includeLazyInputs: true, overrideLazyInputAction: lazyInputAction, includeHashOnlyInputs: includeHashOnlyInputs);
         }
 
         private void PopulateOutputs(Pip pip, HashSet<FileOrDirectoryArtifact> outputs, Func<FileOrDirectoryArtifact, bool> exclude = null)

@@ -368,11 +368,11 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 {
                     case ArtifactValueType.File:
                         AddVsoHashOption(argumentName, artifact.File);
-                        m_processBuilder.AddInputFile(artifact.File);
+                        m_processBuilder.AddHashInputFile(artifact.File);
                         break;
                     case ArtifactValueType.Directory:
                         AddVsoHashDirectoryOption(argumentName, artifact.Directory);
-                        m_processBuilder.AddInputDirectory(artifact.Directory);
+                        m_processBuilder.AddHashInputDirectory(artifact.Directory);
                         break;
                     case ArtifactValueType.AbsolutePath:
                         Contract.Assert(false); // should never happen because of preconditions in CommandLineArgumentsConverter
@@ -456,7 +456,11 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                     {
                         case ArtifactValueType.File:
                             var file = artifact.File;
-                            if (artifact.Kind == ArtifactKind.Input || artifact.Kind == ArtifactKind.VsoHash)
+                            if (artifact.Kind == ArtifactKind.VsoHash)
+                            {
+                                m_processBuilder.AddHashInputFile(file);
+                            }
+                            else if (artifact.Kind == ArtifactKind.Input)
                             {
                                 m_processBuilder.AddInputFile(file);
                             }
@@ -471,7 +475,11 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                             break;
                         case ArtifactValueType.Directory:
                             var dir = artifact.Directory;
-                            if (artifact.Kind == ArtifactKind.Input)
+                            if (artifact.Kind == ArtifactKind.VsoHash)
+                            {
+                                m_processBuilder.AddHashInputDirectory(dir);
+                            }
+                            else if (artifact.Kind == ArtifactKind.Input)
                             {
                                 m_processBuilder.AddInputDirectory(dir);
                             }

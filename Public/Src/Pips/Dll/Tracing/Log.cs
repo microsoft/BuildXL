@@ -637,6 +637,24 @@ namespace BuildXL.Pips.Tracing
             string path);
 
         [GeneratedEvent(
+            (int)LogEventId.HashOnlyInputDirectoryMustBeOpaque,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Scheduler,
+            Message = EventConstants.ProvenancePrefix +
+                "The pip '{pipDescription}' cannot be added because hash-only input directory '{path}' is not an output directory.")]
+        public abstract void HashOnlyInputDirectoryMustBeOpaque(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId,
+            string path);
+
+        [GeneratedEvent(
             (int)LogEventId.InvalidTempDirectoryInvalidPath,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

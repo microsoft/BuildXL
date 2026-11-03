@@ -317,7 +317,12 @@ namespace BuildXL.Pips.Graph
             AddFileOutput(fingerprinter, nameof(Process.TraceFile), process.TraceFile);
 
             AddRelevantProcessDependencies(fingerprinter, process);
-            fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>(nameof(Process.DirectoryDependencies), process.DirectoryDependencies, (fp, d) => AddDirectoryDependency(fp, d), DirectoryComparer);
+            fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>(nameof(Process.DirectoryDependencies), process.RegularDirectoryDependencies, (fp, d) => AddDirectoryDependency(fp, d), DirectoryComparer);
+            if (process.HashOnlyDirectoryDependencies.Length != 0)
+            {
+                fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>(
+                    nameof(Process.HashOnlyDirectoryDependencies), process.HashOnlyDirectoryDependencies, (fp, directory) => AddDirectoryDependency(fp, directory), DirectoryComparer);
+            }
 
             fingerprinter.AddOrderIndependentCollection<FileArtifactWithAttributes, ReadOnlyArray<FileArtifactWithAttributes>>(nameof(Process.FileOutputs), process.FileOutputs, (fp, f) => AddFileOutput(fp, f), m_expandedPathFileArtifactWithAttributesComparer);
             fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>(nameof(Process.DirectoryOutputs), process.DirectoryOutputs, (h, p) => h.Add(p.Path), DirectoryComparer);
@@ -618,7 +623,14 @@ namespace BuildXL.Pips.Graph
             if (!process.UntrackedPaths.IsValid || process.UntrackedPaths.Length == 0)
             {
                 fingerprinter.AddOrderIndependentCollection<FileArtifact, ReadOnlyArray<FileArtifact>>(
-                    nameof(Process.Dependencies), process.Dependencies, (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);
+                    nameof(Process.Dependencies), process.RegularDependencies, (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);
+                
+                if (process.HashOnlyFileDependencies.Length != 0)
+                {
+                    fingerprinter.AddOrderIndependentCollection<FileArtifact, ReadOnlyArray<FileArtifact>>(
+                        nameof(Process.HashOnlyFileDependencies), process.HashOnlyFileDependencies, (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);
+                }
+
                 return;
             }
 
@@ -638,22 +650,32 @@ namespace BuildXL.Pips.Graph
 
                 var filteredDeps = pooledList.Instance;
 #if NET5_0_OR_GREATER
-                filteredDeps.EnsureCapacity(process.Dependencies.Length);
+                filteredDeps.EnsureCapacity(Math.Max(process.RegularDependencies.Length, process.HashOnlyFileDependencies.Length));
 #endif
-                foreach (var f in process.Dependencies)
+                addFilteredDependencies(nameof(Process.Dependencies), process.RegularDependencies);
+                if (process.HashOnlyFileDependencies.Length != 0)
                 {
-                    bool isUntracked = useHashSet
-                        ? untrackedPaths.Contains(f.Path)
-                        : ContainsPath(process.UntrackedPaths, f.Path);
-
-                    if (!isUntracked)
-                    {
-                        filteredDeps.Add(f);
-                    }
+                    addFilteredDependencies(nameof(Process.HashOnlyFileDependencies), process.HashOnlyFileDependencies);
                 }
 
-                fingerprinter.AddOrderIndependentCollection<FileArtifact, List<FileArtifact>>(
-                    nameof(Process.Dependencies), filteredDeps, (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);
+                void addFilteredDependencies(string name, ReadOnlyArray<FileArtifact> dependencies)
+                {
+                    filteredDeps.Clear();
+                    foreach (var f in dependencies)
+                    {
+                        bool isUntracked = useHashSet
+                            ? untrackedPaths.Contains(f.Path)
+                            : ContainsPath(process.UntrackedPaths, f.Path);
+
+                        if (!isUntracked)
+                        {
+                            filteredDeps.Add(f);
+                        }
+                    }
+
+                    fingerprinter.AddOrderIndependentCollection<FileArtifact, List<FileArtifact>>(
+                        name, filteredDeps, (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);
+                }
             }
         }
 

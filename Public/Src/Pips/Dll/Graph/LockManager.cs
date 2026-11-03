@@ -714,7 +714,7 @@ namespace BuildXL.Pips.Graph
                 /// </remarks>
                 /// <param name="paths">the files accessed</param>
                 /// <param name="accessType">indicates is files is written or read</param>
-                public void AddAccesses(ReadOnlyArray<FileArtifact> paths, AccessType accessType)
+                public void AddAccesses(IEnumerable<FileArtifact> paths, AccessType accessType)
                 {
                     m_pathLock.m_hasAddedInputs |= accessType == AccessType.Read;
                     Contract.Assert(accessType == AccessType.Read || !m_pathLock.m_hasAddedInputs, "Outputs must be added before inputs");
@@ -750,7 +750,7 @@ namespace BuildXL.Pips.Graph
                 /// </remarks>
                 /// <param name="paths">the directories accessed</param>
                 /// <param name="accessType">indicates is directories is written or read</param>
-                public void AddAccesses(ReadOnlyArray<DirectoryArtifact> paths, AccessType accessType)
+                public void AddAccesses(IEnumerable<DirectoryArtifact> paths, AccessType accessType)
                 {
                     m_pathLock.m_hasAddedInputs |= accessType == AccessType.Read;
                     Contract.Assert(accessType == AccessType.Read || !m_pathLock.m_hasAddedInputs, "Outputs must be added before inputs");

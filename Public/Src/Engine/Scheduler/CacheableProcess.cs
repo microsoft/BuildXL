@@ -28,9 +28,11 @@ namespace BuildXL.Scheduler
                 pip: process,
                 context: environment.Context,
                 outputs: process.FileOutputs,
-                dependencies: process.Dependencies,
+                dependencies: process.RegularDependencies,
                 directoryOutputs: process.DirectoryOutputs,
-                directoryDependencies: process.DirectoryDependencies)
+                directoryDependencies: process.RegularDirectoryDependencies,
+                hashOnlyFileDependencies: process.HashOnlyFileDependencies,
+                hashOnlyDirectoryDependencies: process.HashOnlyDirectoryDependencies)
         {
             Process = process;
             m_environment = environment;
@@ -63,9 +65,11 @@ namespace BuildXL.Scheduler
                 pip: process,
                 context: context,
                 outputs: process.FileOutputs,
-                dependencies: process.Dependencies,
+                dependencies: process.RegularDependencies,
                 directoryOutputs: process.DirectoryOutputs,
-                directoryDependencies: process.DirectoryDependencies);
+                directoryDependencies: process.RegularDirectoryDependencies,
+                hashOnlyFileDependencies: process.HashOnlyFileDependencies,
+                hashOnlyDirectoryDependencies: process.HashOnlyDirectoryDependencies);
         }
     }
 }

@@ -953,13 +953,14 @@ namespace BuildXL.Engine.Distribution
 
                 using (m_orchestratorService.Counters.StartStopwatch(DistributionCounter.RemoteWorker_CollectPipFilesToMaterializeDuration))
                 {
-                    Environment.State.FileContentManager.CollectPipFilesToMaterialize(
-                        isMaterializingInputs: !materializingOutputs,
+                    Environment.State.FileContentManager.CollectPipFiles(
+                        collectInputs: !materializingOutputs,
                         pipTable: Environment.PipTable,
                         pip: runnable.Pip,
                         files: files,
                         dynamicFileMap: dynamicFiles,
                         excludeSourceFiles: enableDistributedSourceHashing,
+                        includeHashOnlyInputs: true,
                         // Only send content which is not already on the worker.
                         // TryAddAvailableHash can return null if the artifact is dynamic file in which case
                         // the file cannot be added to the set due to missing index (note that we're using ContentTrackingSet as the underlying set).

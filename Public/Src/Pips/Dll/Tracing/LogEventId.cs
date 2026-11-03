@@ -60,6 +60,7 @@ namespace BuildXL.Pips.Tracing
         InvalidOutputSinceDirectoryHasBeenProducedByAnotherPip = 13100,
         InvalidOutputSinceOutputIsBothSpecifiedAsFileAndDirectory = 13101,
         SourceDirectoryUsedAsDependency = 13102,
+        HashOnlyInputDirectoryMustBeOpaque = 13103,
 
         // Graph validation.
 

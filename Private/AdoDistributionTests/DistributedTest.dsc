@@ -3,45 +3,52 @@
 
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 
-const runningInWindows = Context.getCurrentHost().os === "win";
-
 export const cmdTool: Transformer.ToolDefinition = 
     {
-        exe: Context.isWindowsOS() ? f`${Environment.getPathValue("COMSPEC")}` : f`/bin/bash`,
+        exe: f`/bin/bash`,
         dependsOnCurrentHostOSDirectories: true,
     };
 
 const wd = d`${Context.getMount("Out").path}`;
-const outFile = f`${Context.getMount("Out").path}\file.out`;
+const outFile = f`${wd}/file.out`;
+const hashFile = f`${wd}/hashInput.txt`;
+const hashDirectory = d`${wd}/hashDirectory`;
 
-// The helloPip runs the cmdTool (cmd.exe) to write "Hello" to file.out
-// The pip is executed in the working directory which is specified by the pip as the "Out" mount. The "Out" mount was defined as "Out\Bin" in config.dsc
+// The helloPip runs Bash to write "Hello" and the hash inputs under the Out mount.
 export const helloPip = Transformer.execute({
     tool: cmdTool,
+    mustRunOnOrchestrator: true,
     arguments: [
-        ...addIf(runningInWindows, Cmd.argument("/D"), Cmd.argument("/C")),
-        ...addIf(!runningInWindows, Cmd.argument("-c")),
-        Cmd.argument("echo Hello > file.out"),
+        Cmd.argument("-c"),
+        Cmd.argument("echo Hello > file.out && echo Hash input > hashInput.txt && mkdir -p hashDirectory && echo Directory member > hashDirectory/member.txt"),
     ],
     outputs: [
-        outFile
+        outFile,
+        hashFile,
+        hashDirectory
     ],
     workingDirectory: wd,
 });
 
-// The worldPip runs the cmdTool (cmd.exe) to append "World" to file.out
-// For the correct output of "Hello World", the worldPip must execute after the helloPip
-// To guarantee that BuildXL executed helloPip first, the worldPip specifies the output of helloPip ("helloPip.getOutputFile(outFile.path)") as a dependency
-// BuildXL will ensure that all dependencies of worldPip are produced before executing worldPip
+// The worldPip runs remotely and validates file and opaque-directory hashes from the orchestrator's helloPip.
+// Enumerating the working directory verifies the hash-only artifacts were not materialized without probing them.
+// It then appends "World" to file.out, which remains a regular input/output dependency.
 const appendFile = helloPip.getOutputFile(outFile.path);
 export const worldPip = Transformer.execute({
     tool: cmdTool,
     tags: ["buildxl.internal:runRemotely"], // force this pip to run on a remote worker
     priority: 99, // indicate that this is used for test purposes so the tag above applies
     arguments: [
-        ...addIf(runningInWindows, Cmd.argument("/D"), Cmd.argument("/C")),
-        ...addIf(!runningInWindows, Cmd.argument("-c")),
-        Cmd.argument("echo World >> file.out"),
+        Cmd.argument("-c"),
+        // Hash-only artifacts are produced on the orchestrator; the worker needs their metadata, not their bytes.
+        Cmd.argument(Cmd.concat([
+            "fileHash='",
+            Artifact.vsoHash(helloPip.getOutputFile(hashFile.path)),
+            "'; directoryHash='",
+            Artifact.vsoHash(helloPip.getOutputDirectory(hashDirectory)),
+            '\'; [[ "$fileHash" == VSO0:* && "$directoryHash" == VSO0:* ]] && ',
+            'for artifact in *; do [[ "$artifact" != hashInput.txt && "$artifact" != hashDirectory ]] || exit 1; done && echo World >> file.out',
+        ])),
     ],
     dependencies: [
         appendFile

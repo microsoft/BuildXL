@@ -166,6 +166,16 @@ namespace Test.BuildXL.Scheduler
             CreateArguments(builder.ArgumentsBuilder, processOperations, Context.StringTable);
             var operations = InferIOFromOperations(processOperations);
 
+            foreach (var dependency in operations.HashOnlyFileDependencies)
+            {
+                builder.AddHashInputFile(dependency);
+            }
+
+            foreach (var dependency in operations.HashOnlyDirectoryDependencies)
+            {
+                builder.AddHashInputDirectory(dependency);
+            }
+
             foreach (var dependency in operations.Dependencies)
             {
                 builder.AddInputFile(dependency);

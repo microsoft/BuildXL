@@ -33,6 +33,8 @@ export namespace Cmd {
      * Adds an artifact's hash to the command-line for the process. The argument value is a string representing 
      * the hash of the artifact.
      * For directories, only opaque directories (shared or exclusive) are supported.
+     * Does not materialize the artifact or grant read access. Declare a separate input dependency
+     * if the process also reads the artifact.
      */
     @@public
     export function vsoHash(value: File | OpaqueDirectory) : Argument {

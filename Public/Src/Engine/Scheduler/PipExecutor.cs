@@ -1758,7 +1758,8 @@ namespace BuildXL.Scheduler
                         bool isDirty = false;
 
                         var dirDepPaths = new ReadOnlyHashSet<HierarchicalNameId>();
-                        foreach (var dir in pip.DirectoryDependencies)
+                        // Hash-only directories do not provide a filesystem view that makes absent probes safe.
+                        foreach (var dir in pip.RegularDirectoryDependencies)
                         {
                             dirDepPaths.Add(dir.Path.Value);
                         }

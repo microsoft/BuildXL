@@ -1159,14 +1159,14 @@ namespace Test.BuildXL.Scheduler
                 return ExistentFiles[path];
             }
 
-            protected override ReadOnlyArray<Directory> GetDirectoryDependencies(TestProcess process)
+            protected override IEnumerable<Directory> GetDirectoryDependencies(TestProcess process)
             {
                 return process.Directories != null ?
                     ReadOnlyArray<Directory>.FromWithoutCopy(process.Directories) :
                     ReadOnlyArray<Directory>.Empty;
             }
 
-            protected override ReadOnlyArray<FileId> GetFileDependencies(TestProcess process)
+            protected override IEnumerable<FileId> GetFileDependencies(TestProcess process)
             {
                 return process.Dependencies != null ?
                     ReadOnlyArray<FileId>.FromWithoutCopy(process.Dependencies) :

@@ -55,13 +55,16 @@ namespace Artifact {
     }
 
     /**
-     * Creates a VsoHash artifact from a file or a static directory.
+     * Creates a VsoHash artifact from a file or an opaque output directory.
      * For files, the artifact resolves to the VSO content hash of that file.
      * For directories, only opaque directories (shared or exclusive) are supported.
      * The artifact resolves to a single aggregated hash that incorporates the
      * VSO hash and relative path of every file in the directory. Files are
      * processed in sorted order by relative path so the hash is deterministic
      * and reflects both content and layout.
+     * Establishes a dependency without materializing the artifact or granting filesystem 
+     * read access. Consider declaring Artifact.input or an explicit dependency
+     * when the process needs to read the artifact.
      */
     @@public
     export function vsoHash(value: File | OpaqueDirectory): Artifact {

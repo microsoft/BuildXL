@@ -652,7 +652,7 @@ namespace BuildXL.Scheduler.Tracing
             return null;
         }
 
-        private static List<string> GetDirectoryDependencies(ReadOnlyArray<DirectoryArtifact> dependencies, PathTable pathTable, PipGraph graph)
+        private static List<string> GetDirectoryDependencies(IEnumerable<DirectoryArtifact> dependencies, PathTable pathTable, PipGraph graph)
         {
             return GetJsonFriendlyList(
                 dependencies

@@ -1371,7 +1371,8 @@ namespace Test.BuildXL.Scheduler
             IEnumerable<EnvironmentVariable> environmentVariables = null,
             Dictionary<AbsolutePath, DirectoryArtifact> resultingSealedOutputDirectories = null,
             IEnumerable<int> succeedFastExitCodes = null,
-            IEnumerable<AbsolutePath> outputsAssertedUnderOutputDirectories = null)
+            IEnumerable<AbsolutePath> outputsAssertedUnderOutputDirectories = null,
+            IEnumerable<FileArtifact> hashOnlyFileDependencies = null)
         {
             Contract.Requires(dependencies != null, "Argument dependencies cannot be null");
             Contract.Requires(outputs != null, "Argument outputs cannot be null");
@@ -1392,7 +1393,8 @@ namespace Test.BuildXL.Scheduler
                 resultingSealedOutputDirectories,
                 semaphores: null,
                 succeedFastExitCodes,
-                outputsAssertedUnderOutputDirectories);
+                outputsAssertedUnderOutputDirectories,
+                hashOnlyFileDependencies);
         }
 
         private PipData CreateArguments(
@@ -1508,7 +1510,8 @@ namespace Test.BuildXL.Scheduler
             Dictionary<AbsolutePath, DirectoryArtifact> resultingSealedOutputDirectories = null,
             IEnumerable<ProcessSemaphoreInfo> semaphores = null,
             IEnumerable<int> succeedFastExitCodes = null,
-            IEnumerable<AbsolutePath> outputsAssertedUnderOutputDirectories = null)
+            IEnumerable<AbsolutePath> outputsAssertedUnderOutputDirectories = null,
+            IEnumerable<FileArtifact> hashOnlyFileDependencies = null)
         {
             Contract.Requires(dependencies != null, "Argument dependencies cannot be null");
             Contract.Requires(outputs != null, "Argument outputs cannot be null");
@@ -1590,7 +1593,8 @@ namespace Test.BuildXL.Scheduler
                     provenance ?? CreateProvenance(),
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
-                    succeedFastExitCodes: succeedFastExitCodes != null ? ReadOnlyArray<int>.From(succeedFastExitCodes) : ReadOnlyArray<int>.Empty);
+                    succeedFastExitCodes: succeedFastExitCodes != null ? ReadOnlyArray<int>.From(succeedFastExitCodes) : ReadOnlyArray<int>.Empty,
+                    hashOnlyFileDependencies: ReadOnlyArray<FileArtifact>.From(hashOnlyFileDependencies ?? ReadOnlyArray<FileArtifact>.Empty));
 
             return process;
         }
@@ -1698,6 +1702,27 @@ namespace Test.BuildXL.Scheduler
 
             AssertPipDescriptionAndProvenanceLogged(process2);
             AssertSchedulerErrorEventLogged(PipLogEventId.InvalidInputSincePathIsWrittenAndThusNotSource);
+
+            return RunScheduler();
+        }
+
+        [Fact]
+        [Feature(Features.RewrittenFile)]
+        public Task CanRewriteHashOnlyInputWithoutReading()
+        {
+            Setup();
+            FileArtifact source = CreateSourceFile();
+            FileArtifact output = CreateOutputFileArtifact();
+            Process producer = CreateProcess(
+                dependencies: new List<FileArtifact> { source },
+                outputs: new List<FileArtifact> { output });
+            XAssert.IsTrue(PipGraphBuilder.AddProcess(producer));
+
+            Process rewriter = CreateProcess(
+                dependencies: new List<FileArtifact>(),
+                outputs: new List<FileArtifact> { output.CreateNextWrittenVersion() },
+                hashOnlyFileDependencies: new[] { output });
+            XAssert.IsTrue(PipGraphBuilder.AddProcess(rewriter));
 
             return RunScheduler();
         }

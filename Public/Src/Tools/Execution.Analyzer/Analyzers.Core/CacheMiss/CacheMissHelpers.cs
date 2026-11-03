@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
@@ -27,13 +28,13 @@ namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
             return false;
         }
 
-        public static IReadOnlyList<FileData> ToFileDataList(this IReadOnlyList<FileArtifact> files, uint workerId, AnalysisModel model)
+        public static IReadOnlyList<FileData> ToFileDataList(this IEnumerable<FileArtifact> files, uint workerId, AnalysisModel model)
         {
-            return files.SelectList(f => new FileData()
+            return files.Select(f => new FileData()
             {
                 File = f,
                 Hash = model.LookupHash(workerId, f).Hash,
-            });
+            }).ToList();
         }
 
         public static IReadOnlyList<AbsolutePath> ToPathList(this IReadOnlyList<DirectoryArtifact> directories)

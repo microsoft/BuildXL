@@ -15,8 +15,10 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
+using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Utilities.Core;
+using Process = System.Diagnostics.Process;
 
 namespace Test.BuildXL.Executables.TestProcess
 {
@@ -293,6 +295,11 @@ namespace Test.BuildXL.Executables.TestProcess
             Sleep,
 
             /// <summary>
+            /// Echoes a file or directory hash rendered into the command line by BuildXL.
+            /// </summary>
+            EchoVsoHash,
+
+            /// <summary>
             /// Attempts to write to a handle supplied by the parent process
             /// </summary>
             WriteToInheritedHandle,
@@ -540,6 +547,9 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     case Type.Echo:
                         DoEcho();
+                        return;
+                    case Type.EchoVsoHash:
+                        DoEchoVsoHash();
                         return;
                     case Type.Block:
                         DoBlock();
@@ -889,6 +899,15 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation Echo(string message, bool useStdErr = false)
         {
             return new Operation(Type.Echo, content: message, additionalArgs: useStdErr ? StdErrMoniker : null);
+        }
+
+        /// <summary>
+        /// Echoes the runtime-rendered VSO hash of a file or opaque directory without reading its contents.
+        /// </summary>
+        public static Operation EchoVsoHash(FileOrDirectoryArtifact input)
+        {
+            Contract.Requires(input.IsValid);
+            return new Operation(Type.EchoVsoHash, path: input, doNotInfer: false);
         }
 
         /// <summary>
@@ -1636,6 +1655,11 @@ namespace Test.BuildXL.Executables.TestProcess
             }
         }
 
+        private void DoEchoVsoHash()
+        {
+            Console.WriteLine(PathAsString);
+        }
+
         private void DoEchoCurrentDirectory()
         {
             Console.WriteLine(Environment.CurrentDirectory);
@@ -1988,35 +2012,50 @@ namespace Test.BuildXL.Executables.TestProcess
         /// </summary>
         public string ToCommandLine(PathTable pathTable, bool escapeResult = false)
         {
+            var builder = new PipDataBuilder(pathTable.StringTable);
+            GetCommandLineArguments(pathTable, builder);
+            string commandLine = builder.ToPipData(OperationArgsDelimiter.ToString(), PipDataFragmentEscaping.NoEscaping).ToString(pathTable);
+            return escapeResult
+                ? CommandLineEscaping.EscapeAsCommandLineWord(commandLine)
+                : commandLine;
+        }
+
+        /// <summary>
+        /// Appends the operation as a command-line argument, preserving runtime-resolved hash fragments.
+        /// </summary>
+        public void ToCommandLine(PathTable pathTable, PipDataBuilder builder)
+        {
+            using (builder.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, OperationArgsDelimiter.ToString()))
+            {
+                GetCommandLineArguments(pathTable, builder);
+            }
+        }
+
+        private void GetCommandLineArguments(PathTable pathTable, PipDataBuilder builder)
+        {
             PathTable = pathTable;
-
-            StringBuilder sb = new StringBuilder();
-
-            sb.Append(((int)OpType).ToString(System.Globalization.CultureInfo.CurrentCulture));
-
-            var orderOfArgs = new string[]
+            builder.Add(((int)OpType).ToString(System.Globalization.CultureInfo.CurrentCulture));
+            if (OpType == Type.EchoVsoHash)
             {
-                Path.IsValid ? Path.Path(PathTable) : null,
-                Content,
-                LinkPath.IsValid ? FileOrDirectoryToString(LinkPath) : null,
-                SymLinkFlag.ToString(),
-                AdditionalArgs,
-                EnvironmentVariablesToSet,
-                // The process as a test executable does not use the DoNotInfer field
-            };
-
-            foreach (var arg in orderOfArgs)
-            {
-                sb.Append(OperationArgsDelimiter);
-                if (arg != null)
+                if (Path.IsFile)
                 {
-                    sb.Append(arg.ToString());
+                    builder.AddVsoHash(Path.FileArtifact);
+                }
+                else
+                {
+                    builder.AddVsoHash(Path.DirectoryArtifact);
                 }
             }
+            else
+            {
+                builder.Add(Path.IsValid ? Path.Path(PathTable) : string.Empty);
+            }
 
-            return escapeResult
-                ? CommandLineEscaping.EscapeAsCommandLineWord(sb.ToString())
-                : sb.ToString();
+            builder.Add(Content ?? string.Empty);
+            builder.Add(LinkPath.IsValid ? FileOrDirectoryToString(LinkPath) : string.Empty);
+            builder.Add(SymLinkFlag.ToString());
+            builder.Add(AdditionalArgs ?? string.Empty);
+            builder.Add(EnvironmentVariablesToSet ?? string.Empty);
         }
 
         /// <summary>

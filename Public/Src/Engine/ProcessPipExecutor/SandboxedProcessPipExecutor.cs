@@ -1432,7 +1432,7 @@ namespace BuildXL.ProcessPipExecutor
             // Directory outputs are not supported for now. This is enforced by the process builder.
             Contract.Assert(process.DirectoryOutputs.Length == 0);
 
-            foreach (var inputArtifact in process.Dependencies)
+            foreach (var inputArtifact in process.RegularDependencies)
             {
                 if (TryGetDeclaredAccessForFile(reportedProcess, inputArtifact, isRead: true, isDirectoryMember: false, out var reportedFileAccess))
                 {
@@ -1440,7 +1440,7 @@ namespace BuildXL.ProcessPipExecutor
                 }
             }
 
-            foreach (var inputDirectory in process.DirectoryDependencies)
+            foreach (var inputDirectory in process.RegularDirectoryDependencies)
             {
                 // Source seal directories are not supported for now. Discovering them via enumerations
                 // could be a way to do it in the future. This is enforced by the process builder.
@@ -2566,7 +2566,7 @@ namespace BuildXL.ProcessPipExecutor
                         }
                     }
 
-                    AddStaticFileDependenciesToFileAccessManifest(outputFiles, pip.Dependencies, allInputPathsUnderSharedOpaques);
+                    AddStaticFileDependenciesToFileAccessManifest(outputFiles, pip.RegularDependencies, allInputPathsUnderSharedOpaques);
                 }
 
                 var userProfilePath = AbsolutePath.Create(m_pathTable, s_userProfilePath);
@@ -2745,7 +2745,7 @@ namespace BuildXL.ProcessPipExecutor
                     // Directory artifact dependencies are supposed to be immutable. Therefore it is never okay to write, but it is safe to probe for non-existent files
                     // (the set of files is stable). We turn on explicit access reporting so that reads and
                     // failed probes can be used by the scheduler (rather than fingerprinting the precise directory contents).
-                    foreach (DirectoryArtifact directory in pip.DirectoryDependencies)
+                    foreach (DirectoryArtifact directory in pip.RegularDirectoryDependencies)
                     {
                         bool isWithinSharedOpaqueOutput = directory.IsSharedOpaque
                             && sharedOpaqueOutputDirectories.HasKnownAncestor(m_pathTable, directory.Path);
@@ -3528,7 +3528,7 @@ namespace BuildXL.ProcessPipExecutor
             }
 
             var dependencies = dependenciesWrapper.Instance;
-            foreach (FileArtifact dependency in m_pip.Dependencies)
+            foreach (FileArtifact dependency in m_pip.RegularDependencies)
             {
                 dependencies.Add(dependency.Path);
             }
@@ -3582,7 +3582,7 @@ namespace BuildXL.ProcessPipExecutor
                         Contract.Assume(output.RewriteCount > 0);
                         var inputVersionOfOutput = new FileArtifact(output.Path, output.RewriteCount - 1);
 #if DEBUG
-                        Contract.Assume(m_pip.Dependencies.Contains(inputVersionOfOutput), "Each rewrite increments the rewrite count by one");
+                        Contract.Assume(m_pip.RegularDependencies.Contains(inputVersionOfOutput), "Each rewrite increments the rewrite count by one");
 #endif
 
                         if (m_makeInputPrivate != null)

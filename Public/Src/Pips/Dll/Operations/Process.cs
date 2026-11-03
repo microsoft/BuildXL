@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -176,7 +177,7 @@ namespace BuildXL.Pips.Operations
         public TimeSpan? Timeout { get; }
 
         /// <summary>
-        /// File dependencies. Each member of the array is distinct.
+        /// Regular file inputs requiring filesystem access. Each member of the array is distinct.
         /// </summary>
         /// <remarks>
         /// <code>Dependencies</code> and
@@ -185,14 +186,48 @@ namespace BuildXL.Pips.Operations
         /// </remarks>
         [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         [PipCaching(FingerprintingRole = FingerprintingRole.Content)]
-        public ReadOnlyArray<FileArtifact> Dependencies { get; }
+        public ReadOnlyArray<FileArtifact> RegularDependencies { get; }
 
         /// <summary>
-        /// Directory dependencies. Each member of the array is distinct.
+        /// Regular directory inputs requiring filesystem access. Each member of the array is distinct.
         /// </summary>
         [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         [PipCaching(FingerprintingRole = FingerprintingRole.Content)]
-        public ReadOnlyArray<DirectoryArtifact> DirectoryDependencies { get; private set; }
+        public ReadOnlyArray<DirectoryArtifact> RegularDirectoryDependencies { get; private set; }
+
+        /// <summary>
+        /// Content dependencies needed for hashing, but not for filesystem access by this process.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public ReadOnlyArray<FileArtifact> HashOnlyFileDependencies { get; }
+
+        /// <summary>
+        /// Opaque directory dependencies needed for hashing, but not for filesystem access.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Content)]
+        public ReadOnlyArray<DirectoryArtifact> HashOnlyDirectoryDependencies { get; }
+
+        /// <summary>
+        /// All file content dependencies, including hash-only inputs. Enumerated without copying the underlying arrays.
+        /// </summary>
+        /// <remarks>
+        /// The underlying collections are disjoint. Use <see cref="RegularDependencies"/> for byte materialization and access permissions.
+        /// </remarks>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public IEnumerable<FileArtifact> Dependencies => HashOnlyFileDependencies.Length == 0
+            ? RegularDependencies
+            : RegularDependencies.Concat(HashOnlyFileDependencies);
+
+        /// <summary>
+        /// All directory content dependencies, including hash-only inputs. Enumerated without copying the underlying arrays.
+        /// </summary>
+        /// <remarks>
+        /// The underlying collections are disjoint. Use <see cref="RegularDirectoryDependencies"/> for byte materialization and access permissions.
+        /// </remarks>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public IEnumerable<DirectoryArtifact> DirectoryDependencies => HashOnlyDirectoryDependencies.Length == 0
+            ? RegularDirectoryDependencies
+            : RegularDirectoryDependencies.Concat(HashOnlyDirectoryDependencies);
 
         /// <summary>
         /// Order-only dependencies.
@@ -483,7 +518,9 @@ namespace BuildXL.Pips.Operations
             FileArtifact traceFile = default,
             ReadOnlyArray<AbsolutePath>? allowedUndeclaredSourceReadScopes = null,
             ReadOnlyArray<AbsolutePath>? allowedUndeclaredSourceReadPaths = null,
-            ReadOnlyArray<RegexDescriptor>? allowedUndeclaredSourceReadRegexes = null)
+            ReadOnlyArray<RegexDescriptor>? allowedUndeclaredSourceReadRegexes = null,
+            ReadOnlyArray<FileArtifact>? hashOnlyFileDependencies = null,
+            ReadOnlyArray<DirectoryArtifact>? hashOnlyDirectoryDependencies = null)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -539,6 +576,8 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(additionalTempDirectories.Length == additionalTempDirectories.Distinct().Count());
             Contract.RequiresForAll(semaphores, s => s.IsValid);
             Contract.Requires(semaphores.Length == semaphores.Distinct().Count());
+            Contract.RequiresForAll(hashOnlyFileDependencies ?? ReadOnlyArray<FileArtifact>.Empty, file => file.IsValid && !dependencies.Contains(file) && file != executable && (!standardInput.IsFile || file != standardInput.File));
+            Contract.RequiresForAll(hashOnlyDirectoryDependencies ?? ReadOnlyArray<DirectoryArtifact>.Empty, directory => directory.IsValid && !directoryDependencies.Contains(directory));
 #endif
 
             Provenance = provenance;
@@ -558,8 +597,10 @@ namespace BuildXL.Pips.Operations
 
             // We allow any IEnumerable for these fields, but perform a copy up-front. 
             // See the remarks of RemoveDuplicateFileArtifacts for why it is used on the input / output lists.
-            Dependencies = dependencies;
-            DirectoryDependencies = directoryDependencies;
+            RegularDependencies = dependencies;
+            RegularDirectoryDependencies = directoryDependencies;
+            HashOnlyFileDependencies = hashOnlyFileDependencies ?? ReadOnlyArray<FileArtifact>.Empty;
+            HashOnlyDirectoryDependencies = hashOnlyDirectoryDependencies ?? ReadOnlyArray<DirectoryArtifact>.Empty;
             FileOutputs = outputs;
             DirectoryOutputs = directoryOutputs;
             OrderDependencies = orderDependencies;
@@ -661,7 +702,9 @@ namespace BuildXL.Pips.Operations
             ReadOnlyArray<AbsolutePath>? preserveOutputAllowlist = null,
             FileArtifact? changeAffectedInputListWrittenFilePath = default,
             int? preserveOutputsTrustLevel = null,
-            FileArtifact? traceFile = default)
+            FileArtifact? traceFile = default,
+            ReadOnlyArray<FileArtifact>? hashOnlyFileDependencies = null,
+            ReadOnlyArray<DirectoryArtifact>? hashOnlyDirectoryDependencies = null)
         {
             return new Process(
                 executable ?? Executable,
@@ -676,9 +719,9 @@ namespace BuildXL.Pips.Operations
                 standardDirectory ?? StandardDirectory,
                 warningTimeout ?? WarningTimeout,
                 timeout ?? Timeout,
-                dependencies ?? Dependencies,
+                dependencies ?? RegularDependencies,
                 fileOutputs ?? FileOutputs,
-                directoryDependencies ?? DirectoryDependencies,
+                directoryDependencies ?? RegularDirectoryDependencies,
                 directoryOutputs ?? DirectoryOutputs,
                 orderDependencies ?? OrderDependencies,
                 untrackedPaths ?? UntrackedPaths,
@@ -709,7 +752,9 @@ namespace BuildXL.Pips.Operations
                 preserveOutputAllowlist ?? PreserveOutputAllowlist,
                 changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFile,
                 preserveOutputsTrustLevel ?? PreserveOutputsTrustLevel,
-                traceFile: traceFile ?? TraceFile);
+                traceFile: traceFile ?? TraceFile,
+                hashOnlyFileDependencies: hashOnlyFileDependencies ?? HashOnlyFileDependencies,
+                hashOnlyDirectoryDependencies: hashOnlyDirectoryDependencies ?? HashOnlyDirectoryDependencies);
 
         }
 
@@ -923,7 +968,7 @@ namespace BuildXL.Pips.Operations
 
         internal void UnsafeUpdateDirectoryDependencies(ReadOnlyArray<DirectoryArtifact> newDirectoryDependencies)
         {
-            DirectoryDependencies = newDirectoryDependencies;
+            RegularDirectoryDependencies = newDirectoryDependencies;
         }
 
         #region PipUniqueOutputHash
@@ -1051,7 +1096,9 @@ namespace BuildXL.Pips.Operations
                 allowedUndeclaredSourceReadScopes: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath()),
                 allowedUndeclaredSourceReadPaths: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath()),
                 allowedUndeclaredSourceReadRegexes: reader.ReadReadOnlyArray(reader1 => reader1.ReadRegexDescriptor()),
-                uncacheableExitCodes: reader.ReadReadOnlyArray(r => r.ReadInt32()));
+                uncacheableExitCodes: reader.ReadReadOnlyArray(r => r.ReadInt32()),
+                hashOnlyFileDependencies: reader.ReadDeltaEncodedFileArtifactArray(),
+                hashOnlyDirectoryDependencies: reader.ReadDeltaEncodedDirectoryArtifactArray());
         }
 
         /// <inheritdoc />
@@ -1069,9 +1116,9 @@ namespace BuildXL.Pips.Operations
             writer.Write(StandardDirectory);
             writer.Write(WarningTimeout, (w, value) => w.Write(value));
             writer.Write(Timeout, (w, value) => w.Write(value));
-            writer.WriteDeltaEncodedFileArtifactArray(Dependencies);
+            writer.WriteDeltaEncodedFileArtifactArray(RegularDependencies);
             writer.WriteDeltaEncodedFileArtifactWithAttributesArray(FileOutputs);
-            writer.WriteDeltaEncodedDirectoryArtifactArray(DirectoryDependencies);
+            writer.WriteDeltaEncodedDirectoryArtifactArray(RegularDirectoryDependencies);
             writer.WriteDeltaEncodedDirectoryArtifactArray(DirectoryOutputs);
             writer.Write(OrderDependencies, (w, v) => ((PipWriter)w).Write(v));
             writer.WriteDeltaEncodedAbsolutePathArray(UntrackedPaths);
@@ -1114,6 +1161,8 @@ namespace BuildXL.Pips.Operations
             writer.Write(AllowedUndeclaredSourceReadPaths, (w, v) => w.Write(v));
             writer.Write(AllowedUndeclaredSourceReadRegexes, (w, v) => w.Write(v));
             writer.Write(UncacheableExitCodes, (w, v) => w.Write(v));
+            writer.WriteDeltaEncodedFileArtifactArray(HashOnlyFileDependencies);
+            writer.WriteDeltaEncodedDirectoryArtifactArray(HashOnlyDirectoryDependencies);
         }
         #endregion
     }

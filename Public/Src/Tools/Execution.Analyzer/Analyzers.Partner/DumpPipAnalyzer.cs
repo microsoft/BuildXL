@@ -746,7 +746,7 @@ namespace BuildXL.Execution.Analyzer
         /// <summary>
         /// Returns a properly formatted/sorted list of directory dependencies.
         /// </summary>
-        private List<string> GetDirectoryDependencies(ReadOnlyArray<DirectoryArtifact> dependencies)
+        private List<string> GetDirectoryDependencies(IEnumerable<DirectoryArtifact> dependencies)
         {
             var result = new List<string>();
             var directories = new Stack<(DirectoryArtifact artifact, string path, int tabCount)>(

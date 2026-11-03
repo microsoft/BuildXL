@@ -374,6 +374,8 @@ namespace BuildXL.Execution.Analyzer
             UntrackedScopes,
             WriteFileContents,
             WriteFileEncoding,
+            HashOnlyInputFiles,
+            HashOnlyInputDirs,
         }
     }
 
@@ -382,8 +384,10 @@ namespace BuildXL.Execution.Analyzer
         private Pip m_pip;
 
         private readonly HashSet<string> m_inputFiles = new HashSet<string>(OperatingSystemHelper.PathComparer);
+        private readonly HashSet<string> m_hashOnlyInputFiles = new HashSet<string>(OperatingSystemHelper.PathComparer);
         private readonly HashSet<string> m_outputFiles = new HashSet<string>(OperatingSystemHelper.PathComparer);
         private readonly HashSet<string> m_opaqueInputDirs = new HashSet<string>(OperatingSystemHelper.PathComparer);
+        private readonly HashSet<string> m_hashOnlyInputDirs = new HashSet<string>(OperatingSystemHelper.PathComparer);
         private readonly HashSet<string> m_opaqueOutputDirs = new HashSet<string>(OperatingSystemHelper.PathComparer);
         private readonly string m_executable = null;
         private readonly string m_stdInFile = null;
@@ -450,6 +454,11 @@ namespace BuildXL.Execution.Analyzer
                 result.DiffReasons.Add(DifferentPipPair.DifferenceReason.InputFiles);
             }
 
+            if (!m_hashOnlyInputFiles.SetEquals(other.m_hashOnlyInputFiles))
+            {
+                result.DiffReasons.Add(DifferentPipPair.DifferenceReason.HashOnlyInputFiles);
+            }
+
             if (!m_outputFiles.SetEquals(other.m_outputFiles))
             {
                 result.DiffReasons.Add(DifferentPipPair.DifferenceReason.OutputFiles);
@@ -458,6 +467,11 @@ namespace BuildXL.Execution.Analyzer
             if (!m_opaqueInputDirs.SetEquals(other.m_opaqueInputDirs))
             {
                 result.DiffReasons.Add(DifferentPipPair.DifferenceReason.OpaqueInputDirs);
+            }
+
+            if (!m_hashOnlyInputDirs.SetEquals(other.m_hashOnlyInputDirs))
+            {
+                result.DiffReasons.Add(DifferentPipPair.DifferenceReason.HashOnlyInputDirs);
             }
 
             if (!m_opaqueOutputDirs.SetEquals(other.m_opaqueOutputDirs))
@@ -553,12 +567,17 @@ namespace BuildXL.Execution.Analyzer
             // Input files
             {
                 var inputFiles = processPip
-                .Dependencies
+                .RegularDependencies
                 .Select(x => x.Path.ToString(pathTable));
 
                 foreach (var inputFile in inputFiles)
                 {
                     m_inputFiles.Add(inputFile);
+                }
+
+                foreach (var inputFile in processPip.HashOnlyFileDependencies)
+                {
+                    m_hashOnlyInputFiles.Add(inputFile.Path.ToString(pathTable));
                 }
             }
 
@@ -577,12 +596,17 @@ namespace BuildXL.Execution.Analyzer
             // Opaque input dirs
             {
                 var opaqueInputDirs = processPip
-                .DirectoryDependencies
+                .RegularDirectoryDependencies
                 .Select(x => x.Path.ToString(pathTable));
 
                 foreach (var inputDir in opaqueInputDirs)
                 {
                     m_opaqueInputDirs.Add(inputDir);
+                }
+
+                foreach (var inputDir in processPip.HashOnlyDirectoryDependencies)
+                {
+                    m_hashOnlyInputDirs.Add(inputDir.Path.ToString(pathTable));
                 }
             }
 

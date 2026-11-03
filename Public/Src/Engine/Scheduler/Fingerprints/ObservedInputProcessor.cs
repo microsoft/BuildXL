@@ -158,7 +158,7 @@ namespace BuildXL.Scheduler.Fingerprints
             {
                 var pathTable = environment.Context.PathTable;
                 PathTable.ExpandedAbsolutePathComparer pathComparer = pathTable.ExpandedPathComparer;
-                ReadOnlyArray<DirectoryArtifact> directoryDependencies = pip.DirectoryDependencies;
+                ReadOnlyArray<DirectoryArtifact> directoryDependencies = pip.RegularDirectoryDependencies;
 
                 int numAbsentPathsEliminated = 0;
 
@@ -460,8 +460,8 @@ namespace BuildXL.Scheduler.Fingerprints
                                     {
                                         if (directoryDependenciesLookup == null)
                                         {
-                                            directoryDependenciesLookup = new HashSet<AbsolutePath>(pip.DirectoryDependencies.Length);
-                                            foreach (var dep in pip.DirectoryDependencies)
+                                            directoryDependenciesLookup = new HashSet<AbsolutePath>(pip.RegularDirectoryDependencies.Length);
+                                            foreach (var dep in pip.RegularDirectoryDependencies)
                                             {
                                                 directoryDependenciesLookup.Add(dep.Path);
                                             }
@@ -1120,14 +1120,14 @@ namespace BuildXL.Scheduler.Fingerprints
                     return DirectoryMembershipFilter.AllowAllFilter;
                 }
 
-                foreach (var dependency in pip.Dependencies)
+                foreach (var dependency in pip.RegularDependencies)
                 {
                     var path = dependency.Path;
                     bool isDirectory = false;
                     AddAccessedFileNames(pathTable, searchPaths, visitedFilePaths, visitedDirectoryPaths, accessedFileNames, path, isDirectory);
                 }
 
-                foreach (var dependency in pip.DirectoryDependencies)
+                foreach (var dependency in pip.RegularDirectoryDependencies)
                 {
                     var path = dependency.Path;
                     bool isDirectory = true;
@@ -2580,7 +2580,8 @@ namespace BuildXL.Scheduler.Fingerprints
 
             PipFileSystem.Initialize(PathTable);
 
-            foreach (var input in process.Dependencies)
+            // Only regular file/directory inputs participate in reads; hash-only inputs do not.
+            foreach (var input in process.RegularDependencies)
             {
                 PipFileSystem.AddPath(PathTable, input.Path);
             }
@@ -2590,7 +2591,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 PipFileSystem.AddPath(PathTable, output.Path);
             }
 
-            foreach (var directoryDependency in process.DirectoryDependencies)
+            foreach (var directoryDependency in process.RegularDirectoryDependencies)
             {
                 PipFileSystem.AddSealDirectoryContents(m_env, directoryDependency);
             }

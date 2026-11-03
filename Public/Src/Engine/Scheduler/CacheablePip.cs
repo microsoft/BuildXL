@@ -20,8 +20,10 @@ namespace BuildXL.Scheduler
             ReadOnlyArray<FileArtifactWithAttributes> outputs,
             ReadOnlyArray<FileArtifact> dependencies,
             ReadOnlyArray<DirectoryArtifact> directoryOutputs,
-            ReadOnlyArray<DirectoryArtifact> directoryDependencies)
-            : base(pip, context, outputs, dependencies, directoryOutputs, directoryDependencies)
+            ReadOnlyArray<DirectoryArtifact> directoryDependencies,
+            ReadOnlyArray<FileArtifact> hashOnlyFileDependencies,
+            ReadOnlyArray<DirectoryArtifact> hashOnlyDirectoryDependencies)
+            : base(pip, context, outputs, dependencies, directoryOutputs, directoryDependencies, hashOnlyFileDependencies, hashOnlyDirectoryDependencies)
         {
         }
 

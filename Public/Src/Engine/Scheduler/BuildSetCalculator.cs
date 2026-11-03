@@ -110,12 +110,12 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Gets the process file dependencies
         /// </summary>
-        protected abstract ReadOnlyArray<TFile> GetFileDependencies(TProcess process);
+        protected abstract IEnumerable<TFile> GetFileDependencies(TProcess process);
 
         /// <summary>
         /// Gets the process directory dependencies
         /// </summary>
-        protected abstract ReadOnlyArray<TDirectory> GetDirectoryDependencies(TProcess process);
+        protected abstract IEnumerable<TDirectory> GetDirectoryDependencies(TProcess process);
 
         /// <summary>
         /// Gets the files contained sealed the directory
@@ -1086,7 +1086,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private static void FindMissingDependenciesFromDirectories(DirtyBuildState state, ReadOnlyArray<TDirectory> dirs)
+        private static void FindMissingDependenciesFromDirectories(DirtyBuildState state, IEnumerable<TDirectory> dirs)
         {
             foreach (var dir in dirs)
             {
@@ -1095,7 +1095,7 @@ namespace BuildXL.Scheduler
         }
 
         private int FindMissingDependenciesFromFiles<TFileList>(DirtyBuildState state, TFileList files, NodeId consumer, bool isReport = true)
-            where TFileList : IReadOnlyList<TFile>
+            where TFileList : IEnumerable<TFile>
         {
             int numMissingFiles = 0;
 

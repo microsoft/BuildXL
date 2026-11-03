@@ -69,6 +69,10 @@ namespace BuildXL.Pips.Builders
         // Dependencies
         private readonly PooledObjectWrapper<HashSet<FileArtifact>> m_inputFiles;
         private readonly PooledObjectWrapper<HashSet<DirectoryArtifact>> m_inputDirectories;
+        // The case of hash-only artifacts is not very common, so these collections are lazily created only when needed.
+        private PooledObjectWrapper<HashSet<FileArtifact>>? m_hashInputFiles;
+        private PooledObjectWrapper<HashSet<DirectoryArtifact>>? m_hashInputDirectories;
+
         private readonly PooledObjectWrapper<HashSet<PipId>> m_servicePipDependencies;
         private readonly PooledObjectWrapper<HashSet<PipId>> m_orderPipDependencies;
 
@@ -296,6 +300,39 @@ namespace BuildXL.Pips.Builders
             Contract.Requires(file.IsValid);
 
             m_inputFiles.Instance.Add(file);
+            // A regular input file already implies a content dependency
+            if (m_hashInputFiles.HasValue)
+            {
+                m_hashInputFiles.Value.Instance.Remove(file);
+            }
+        }
+
+        /// <summary>
+        /// Adds a content dependency without requiring the process to read its bytes.
+        /// </summary>
+        public void AddHashInputFile(FileArtifact file)
+        {
+            Contract.Requires(file.IsValid);
+            // A regular file already implies a content dependency
+            if (!m_inputFiles.Instance.Contains(file))
+            {
+                m_hashInputFiles ??= Pools.GetFileArtifactSet();
+                m_hashInputFiles.Value.Instance.Add(file);
+            }
+        }
+
+        /// <summary>
+        /// Adds an opaque directory content dependency without requiring its bytes.
+        /// </summary>
+        public void AddHashInputDirectory(DirectoryArtifact directory)
+        {
+            Contract.Requires(directory.IsValid);
+            // A regular directory already implies a content dependency
+            if (!m_inputDirectories.Instance.Contains(directory))
+            {
+                m_hashInputDirectories ??= Pools.GetDirectoryArtifactSet();
+                m_hashInputDirectories.Value.Instance.Add(directory);
+            }
         }
 
         /// <summary>
@@ -306,7 +343,9 @@ namespace BuildXL.Pips.Builders
         /// </remarks>
         public ReadOnlyArray<FileArtifact> GetInputFilesSoFar()
         {
-            return ReadOnlyArray<FileArtifact>.From(m_inputFiles.Instance);
+            return !m_hashInputFiles.HasValue
+                ? ReadOnlyArray<FileArtifact>.From(m_inputFiles.Instance)
+                : ReadOnlyArray<FileArtifact>.From(m_inputFiles.Instance.Union(m_hashInputFiles.Value.Instance));
         }
 
         /// <nodoc />
@@ -315,6 +354,11 @@ namespace BuildXL.Pips.Builders
             Contract.Requires(directory.IsValid);
 
             m_inputDirectories.Instance.Add(directory);
+            // A regular directory already implies a content dependency
+            if (m_hashInputDirectories.HasValue)
+            {
+                m_hashInputDirectories.Value.Instance.Remove(directory);
+            }
         }
 
         /// <summary>
@@ -325,7 +369,9 @@ namespace BuildXL.Pips.Builders
         /// </remarks>
         public ReadOnlyArray<DirectoryArtifact> GetInputDirectoriesSoFar()
         {
-            return ReadOnlyArray<DirectoryArtifact>.From(m_inputDirectories.Instance);
+            return !m_hashInputDirectories.HasValue
+                ? ReadOnlyArray<DirectoryArtifact>.From(m_inputDirectories.Instance)
+                : ReadOnlyArray<DirectoryArtifact>.From(m_inputDirectories.Instance.Union(m_hashInputDirectories.Value.Instance));
         }
 
         /// <summary>
@@ -387,7 +433,7 @@ namespace BuildXL.Pips.Builders
         {
             Contract.Requires(file.IsValid);
 
-            m_inputFiles.Instance.Add(file);
+            AddInputFile(file);
             m_outputFiles.Instance.Add(new FileArtifactWithAttributes(file.Path, file.RewriteCount + 1, FileExistence.Required));
         }
 
@@ -722,6 +768,13 @@ namespace BuildXL.Pips.Builders
 
             processOutputs = new ProcessOutputs(outputFileMap, directoryOutputMap);
 
+            var hashOnlyFiles = m_hashInputFiles.HasValue
+                ? ReadOnlyArray<FileArtifact>.From(m_hashInputFiles.Value.Instance)
+                : ReadOnlyArray<FileArtifact>.Empty;
+            var hashOnlyDirectories = m_hashInputDirectories.HasValue
+                ? ReadOnlyArray<DirectoryArtifact>.From(m_hashInputDirectories.Value.Instance)
+                : ReadOnlyArray<DirectoryArtifact>.Empty;
+
             process = new Process(
                 executable: Executable,
                 workingDirectory: WorkingDirectory.IsValid ? WorkingDirectory : defaultDirectory,
@@ -782,7 +835,9 @@ namespace BuildXL.Pips.Builders
                 reclassificationRules: ReclassificationRules,
                 allowedUndeclaredSourceReadScopes: AllowedUndeclareSourceReadScopes,
                 allowedUndeclaredSourceReadPaths: AllowedUndeclareSourceReadPaths,
-                allowedUndeclaredSourceReadRegexes: AllowedUndeclareSourceReadRegexes);
+                allowedUndeclaredSourceReadRegexes: AllowedUndeclareSourceReadRegexes,
+                hashOnlyFileDependencies: hashOnlyFiles,
+                hashOnlyDirectoryDependencies: hashOnlyDirectories);
 
             m_credentialScanner.PostEnvVarsForProcessing(process, process.EnvironmentVariables);
 
@@ -796,6 +851,8 @@ namespace BuildXL.Pips.Builders
 
             m_inputFiles.Dispose();
             m_inputDirectories.Dispose();
+            m_hashInputFiles?.Dispose();
+            m_hashInputDirectories?.Dispose();
             m_servicePipDependencies.Dispose();
             m_orderPipDependencies.Dispose();
 

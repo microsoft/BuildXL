@@ -64,9 +64,11 @@ namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
                 process,
                 OldGraph.Context,
                 Convert(process.FileOutputs, this, (i, me) => me.Convert(i)),
-                Convert(process.Dependencies, this, (i, me) => me.Convert(i)),
+                Convert(process.RegularDependencies, this, (i, me) => me.Convert(i)),
                 Convert(process.DirectoryOutputs, this, (i, me) => me.Convert(i)),
-                Convert(process.DirectoryDependencies, this, (i, me) => me.Convert(i)));
+                Convert(process.RegularDirectoryDependencies, this, (i, me) => me.Convert(i)),
+                Convert(process.HashOnlyFileDependencies, this, (i, me) => me.Convert(i)),
+                Convert(process.HashOnlyDirectoryDependencies, this, (i, me) => me.Convert(i)));
         }
 
         public PipCachingInfo GetPipInfo(PipId pipId)

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using BuildXL.Pips.Operations;
 using IntegrationTest.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -445,6 +446,36 @@ namespace Test.BuildXL.Scheduler.DynamicGraph
         public void VsoHashOfExclusiveOpaqueDirectorySucceeds()
         {
             base.VsoHashOfOpaqueDirectorySucceeds(isSharedOpaque: false);
+        }
+
+        [Theory(Skip = "The inherited theory uses filtering, which is unsupported by the dynamic scheduler.")]
+        public override void HashOnlyDependencyMaterialization(SealDirectoryKind? directoryKind, bool readInput)
+        {
+            base.HashOnlyDependencyMaterialization(directoryKind, readInput);
+        }
+
+        [Theory(Skip = "Shared opaques are unsupported by the dynamic scheduler.")]
+        public override void HashOnlyDependenciesDoNotAuthorizeReads(bool directoryInput)
+        {
+            base.HashOnlyDependenciesDoNotAuthorizeReads(directoryInput);
+        }
+
+        [Theory(Skip = "Shared opaques are unsupported by the dynamic scheduler.")]
+        public override void HashOnlyInputsWithRegularDirectoryAtSameRoot(bool regularDirectoryContainsHashFile)
+        {
+            base.HashOnlyInputsWithRegularDirectoryAtSameRoot(regularDirectoryContainsHashFile);
+        }
+
+        [Fact(Skip = "Shared opaques are unsupported by the dynamic scheduler.")]
+        public override void ActualReadOverridesHashOnlyOpaque()
+        {
+            base.ActualReadOverridesHashOnlyOpaque();
+        }
+
+        [Fact(Skip = "Shared opaques are unsupported by the dynamic scheduler.")]
+        public override void HashOnlyOpaqueMembershipChangesInvalidateConsumer()
+        {
+            base.HashOnlyOpaqueMembershipChangesInvalidateConsumer();
         }
     }
 

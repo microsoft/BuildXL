@@ -60,12 +60,13 @@ jobs:
       install: false
       invocationPrefix: $(BootstrapLocation)/AdoBuildRunner
       # This build has a pip that is forced to run the ExecuteProcess step remotely
+      # and validates file/directory VSO hashes of artifacts produced on the orchestrator.
       # We salt the build with * to ensure that it is run.
+      # Keep the worker for the remote-only pip; the early-release heuristic counts local capacity.
       arguments: >-
         /c:/home/subst/Private/AdoDistributionTests/config.dsc
         /p:BUILDXL_FINGERPRINT_SALT=*
-        /replicateOutputsToWorkers+
-        /p:BuildXLMinimumWaitForRemoteWorkerMin=5
+        /earlyWorkerRelease-
       env:
         TRANSFORMERS_SDK_DIR: /home/subst/Public/Sdk/Public/Transformers
         OUTPUT_DIR: /home/subst/Out

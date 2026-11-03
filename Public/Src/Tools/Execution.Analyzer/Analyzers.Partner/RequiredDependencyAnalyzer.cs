@@ -850,7 +850,7 @@ namespace BuildXL.Execution.Analyzer
 
                 var computation = data.StrongFingerprintComputations[0];
                 var pip = (Process)m_analyzer.GetPip(data.PipId);
-                PipArtifacts.ForEachInput(pip, input =>
+                PipArtifacts.ForEachInput(pip, (input, isHashOnly) =>
                 {
                     if (input.IsFile)
                     {
@@ -865,7 +865,9 @@ namespace BuildXL.Execution.Analyzer
                                 m_directoryHasSources.Add(input.DirectoryArtifact);
                             }
 
-                            AddConsumedFile(file, input.DirectoryArtifact, ContentFlag.Dynamic);
+                            // A hash-only directory's aggregate hash includes all its members, so every member is consumed.
+                            AddConsumedFile(file, input.DirectoryArtifact,
+                                isHashOnly ? ContentFlag.Dynamic | ContentFlag.Consumed : ContentFlag.Dynamic);
                         }
                     }
 
@@ -952,7 +954,13 @@ namespace BuildXL.Execution.Analyzer
 
                 var trimmedDirectoryDependencies = new List<DirectoryArtifact>();
 
-                foreach (var d in entry.Process.DirectoryDependencies)
+                // Hash-only opaques are consumed through their aggregate hash, even when empty.
+                foreach (var directory in entry.Process.HashOnlyDirectoryDependencies)
+                {
+                    entry.PipDependencies.TryAdd(m_analyzer.PipGraph.GetSealedDirectoryNode(directory).ToPipId(), default);
+                }
+
+                foreach (var d in entry.Process.RegularDirectoryDependencies)
                 {
                     if (m_directoryDependenciesFilterMap.TryGetValue(d, out var shouldInclude))
                     {

@@ -176,7 +176,8 @@ namespace BuildXL.Execution.Analyzer
                         var accesses = observedAccess.Value;
                         var processPip = (Pips.Operations.Process)pip;
 
-                        var pipInputFiles = processPip.Dependencies
+                        // Hash-only inputs intentionally produce no reads; do not report them as removable dependencies.
+                        var pipInputFiles = processPip.RegularDependencies
                             .Select(file =>
                             {
                                 var filePath = file.Path.ToString(pathTable);

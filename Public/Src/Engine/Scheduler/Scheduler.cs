@@ -5440,8 +5440,8 @@ namespace BuildXL.Scheduler
                             // Static graph-shape features for the pip (available pre-run, emitted here alongside the
                             // post-run metrics so the trainer can join them per pip). Counts are O(1) array lengths.
                             Process pipForGraphShape = processRunnable.Process;
-                            int numFileDependencies = pipForGraphShape.Dependencies.Length;
-                            int numDirectoryDependencies = pipForGraphShape.DirectoryDependencies.Length;
+                            int numFileDependencies = pipForGraphShape.RegularDependencies.Length + pipForGraphShape.HashOnlyFileDependencies.Length;
+                            int numDirectoryDependencies = pipForGraphShape.RegularDirectoryDependencies.Length + pipForGraphShape.HashOnlyDirectoryDependencies.Length;
                             int numFileOutputs = pipForGraphShape.FileOutputs.Length;
                             int numDirectoryOutputs = pipForGraphShape.DirectoryOutputs.Length;
                             var processPipRuntimeInfo = GetPipRuntimeInfo(processRunnable.PipId);
@@ -8026,9 +8026,9 @@ namespace BuildXL.Scheduler
                 return possibleProbeResult.Succeeded && possibleProbeResult.Result == PathExistence.ExistsAsFile;
             }
 
-            protected override ReadOnlyArray<DirectoryArtifact> GetDirectoryDependencies(Process process) => process.DirectoryDependencies;
+            protected override IEnumerable<DirectoryArtifact> GetDirectoryDependencies(Process process) => process.DirectoryDependencies;
 
-            protected override ReadOnlyArray<FileArtifact> GetFileDependencies(Process process) => process.Dependencies;
+            protected override IEnumerable<FileArtifact> GetFileDependencies(Process process) => process.Dependencies;
 
             protected override AbsolutePath GetPath(FileArtifact file) => file.Path;
 

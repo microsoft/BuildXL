@@ -667,8 +667,8 @@ namespace BuildXL.Execution.Analyzer
 
                 // part 1: collect requested inputs
                 // count only output files/directories
-                var declaredInputFiles = pip.Dependencies.Where(f => f.IsOutputFile).Select(f => f.Path).ToList();
-                var declaredInputsDirs = pip.DirectoryDependencies.Where(d => d.IsOutputDirectory()).ToList();
+                var declaredInputFiles = pip.RegularDependencies.Where(f => f.IsOutputFile).Select(f => f.Path).ToList();
+                var declaredInputsDirs = pip.RegularDirectoryDependencies.Where(d => d.IsOutputDirectory()).ToList();
 
                 // part 2: collect actual inputs                
                 var consumedPaths = data.StrongFingerprintComputations.Count == 0

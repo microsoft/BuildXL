@@ -987,7 +987,10 @@ namespace Test.BuildXL.Scheduler
 
             var standardDirectory = AbsolutePath.Create(source.PathTable, X("/Z/DefaultStandardDir"));
 
-            var dependencies = new List<FileArtifact>(source.Vary(p => p.Dependencies)) {executable};
+            var dependencies = new List<FileArtifact>(source.Vary(p => p.RegularDependencies)) {executable};
+            var hashOnlyFiles = ReadOnlyArray<FileArtifact>.From(source.Vary(p => p.HashOnlyFileDependencies));
+            var hashOnlyDirectories = ReadOnlyArray<DirectoryArtifact>.From(source.Vary(p => p.HashOnlyDirectoryDependencies));
+            var directoryDependencies = source.Vary(p => p.RegularDirectoryDependencies);
 
             FileArtifact standardInputFile = source.Vary(p => p.StandardInputFile);
             PipData standardInputData = source.Vary(p => p.StandardInputData);
@@ -1135,7 +1138,7 @@ namespace Test.BuildXL.Scheduler
                 timeout: source.Vary(p => p.Timeout),
                 dependencies: ReadOnlyArray<FileArtifact>.From(dependencies),
                 outputs: ReadOnlyArray<FileArtifactWithAttributes>.From(outputs),
-                directoryDependencies: ReadOnlyArray<DirectoryArtifact>.From(source.Vary(p => p.DirectoryDependencies)),
+                directoryDependencies: ReadOnlyArray<DirectoryArtifact>.From(directoryDependencies),
                 directoryOutputs: ReadOnlyArray<DirectoryArtifact>.From(source.Vary(p => p.DirectoryOutputs)),
                 orderDependencies: ReadOnlyArray<PipId>.Empty,
                 untrackedPaths: ReadOnlyArray<AbsolutePath>.From(source.Vary(p => p.UntrackedPaths)),
@@ -1166,7 +1169,9 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredSourceReadScopes: allowedUndeclaredSourceReadScopes,
                 allowedUndeclaredSourceReadPaths: allowedUndeclaredSourceReadPaths,
                 allowedUndeclaredSourceReadRegexes: allowedUndeclaredSourceReadRegexes,
-                childProcessesToBreakawayFromSandbox: source.Vary(p => p.ChildProcessesToBreakawayFromSandbox));
+                childProcessesToBreakawayFromSandbox: source.Vary(p => p.ChildProcessesToBreakawayFromSandbox),
+                hashOnlyFileDependencies: hashOnlyFiles,
+                hashOnlyDirectoryDependencies: hashOnlyDirectories);
         }
 
         private CopyFile CreateCopyFileVariant(VariationSource<CopyFile> source)

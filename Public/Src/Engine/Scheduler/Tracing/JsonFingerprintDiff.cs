@@ -305,6 +305,8 @@ namespace BuildXL.Scheduler.Tracing
                 }
 
                 case nameof(Process.DirectoryDependencies):
+                case nameof(Process.HashOnlyFileDependencies):
+                case nameof(Process.HashOnlyDirectoryDependencies):
                 case nameof(Process.DirectoryOutputs):
                 case nameof(Process.UntrackedPaths):
                 case nameof(Process.UntrackedScopes):

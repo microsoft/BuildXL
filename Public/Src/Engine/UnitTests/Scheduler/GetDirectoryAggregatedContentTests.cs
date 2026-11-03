@@ -53,6 +53,18 @@ namespace Test.BuildXL.Scheduler
             fcm.ReportDynamicDirectoryContents(directory, fileArtifactsWithAttributes, PipOutputOrigin.Produced);
         }
 
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void UnreportedOpaqueDirectoryProducesEmptyHash(bool shared)
+        {
+            var (env, fcm) = CreateEnvironment();
+            var directory = new DirectoryArtifact(AbsolutePath.Create(Context.PathTable, A("t", "missingManifest")), 1, isSharedOpaque: shared);
+            env.RegisterDynamicOutputDirectory(directory);
+            var result = fcm.GetDirectoryAggregatedContent(directory);
+            Assert.Equal(ContentHashingUtilities.HashBytes(System.Array.Empty<byte>()), result.Hash);
+        }
+
         [Fact]
         public void SameContentAtDifferentRootsProducesSameHash()
         {

@@ -235,7 +235,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
             properties.Add(new PropertyAssignment("arguments", Generate(pip.Arguments)));
             properties.Add(new PropertyAssignment("workingDirectory", Generate(DirectoryArtifact.CreateWithZeroPartialSealId(pip.WorkingDirectory))));
 
-            if (pip.Dependencies.Length > 0 || pip.DirectoryDependencies.Length > 0)
+            if (pip.Dependencies.Any() || pip.DirectoryDependencies.Any())
             {
                 var elements = new List<IExpression>();
                 foreach (var file in pip.Dependencies)

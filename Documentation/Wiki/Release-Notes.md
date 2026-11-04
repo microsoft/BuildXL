@@ -12,6 +12,16 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - [Security] Update .NET runtimes to 8.0.33, 9.0.22, and 10.0.14, Node.js to 24.22.1, and QTest to the Brotli-patched 26.10.26 build.
 - Various bug fixes and improvements.
 
+# 0.1.0-20261023.5.3 (Release [32388691](https://mseng.visualstudio.com/Domino/_build/results?buildId=32388691&view=results))
+- [Security] Update bundled .NET components to address the Brotli encoding CVE.
+- Update RocksDB packages from 8.1.1-20241011.2 to 11.8.1-20261021.3.
+- [Performance] Enable optimized shared opaque tracking by default.
+- [JavaScript] Fix stalled sandboxed graph construction.
+- Add the DirectGraph resolver.
+- [MSBuild] Enable DoNotEvaluateElementsWithFalseCondition by default.
+- [Linux] Fix process-tree memory accounting.
+- Various bug fixes and improvements.
+
 # 0.1.0-20261016.6 (Release [32319011](https://dev.azure.com/mseng/Domino/_build/results?buildId=32319011&view=results))
 - [Performance] Speed up graph filtering. **Compatibility:** `pipid` filters now match only Process pips.
 - [Scheduler] Re-enable supported pip filters with `/unsafe_EnableDynamicGraph`; reject unsupported pip features only after filtering.

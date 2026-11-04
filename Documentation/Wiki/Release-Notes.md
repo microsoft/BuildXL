@@ -2,6 +2,16 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20261030.6 (Release [32417842](https://dev.azure.com/mseng/Domino/_build/results?buildId=32417842&view=results))
+- Fix premature `BigBuffer` capacity overflow during graph construction.
+- Fix preserved-output privatization race.
+- [EBPF] Fix zero process duration and inflated CPU usage reporting.
+- [CloudTest SDK] Add opt-in per-job input drops with `usePerJobDrops`.
+- [Diagnostics] Add opt-in fingerprint-store queue drain timeout with `BuildXLFingerprintStoreDrainTimeout=1`.
+- [Drop] Default the drop session ID to the related session ID.
+- [Security] Update .NET runtimes to 8.0.33, 9.0.22, and 10.0.14, Node.js to 24.22.1, and QTest to the Brotli-patched 26.10.26 build.
+- Various bug fixes and improvements.
+
 # 0.1.0-20261016.6 (Release [32319011](https://dev.azure.com/mseng/Domino/_build/results?buildId=32319011&view=results))
 - [Performance] Speed up graph filtering. **Compatibility:** `pipid` filters now match only Process pips.
 - [Scheduler] Re-enable supported pip filters with `/unsafe_EnableDynamicGraph`; reject unsupported pip features only after filtering.

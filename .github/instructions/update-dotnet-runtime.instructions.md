@@ -113,7 +113,7 @@ The helper's optional build uses `/f:tag='extract'`, selecting all tagged archiv
 
 ```powershell
 # Changed downloads fail with "Invalid content" errors showing the actual hashes.
-cmd /c "call bxl.cmd /f:output='*\frontend\Download\DotNet-Runtime*' /server-"
+cmd /c "bxl.cmd /f:output='*\frontend\Download\DotNet-Runtime*' /server-"
 ```
 
 The error output will show lines like:
@@ -125,7 +125,7 @@ Match each URL to its `config.dsc` entry and manually copy the `NEW_HASH` into t
 
 After updating the reported hashes, verify with:
 ```powershell
-cmd /c "call bxl.cmd /f:output='*\frontend\Download\DotNet-Runtime*' /server-"
+cmd /c "bxl.cmd /f:output='*\frontend\Download\DotNet-Runtime*' /server-"
 # Should now succeed with "Build Succeeded"
 ```
 
@@ -151,14 +151,14 @@ Run a minimal build first, then the VBCSCompilerLogger and MSBuild tests (the mo
 
 ```powershell
 # Minimal build — verifies packages resolve and compile
-cmd /c "call bxl.cmd -minimal /server-"
+cmd /c "bxl.cmd -minimal /server-"
 
 # VBCSCompilerLogger test — exercises MSBuild net472 with binding redirects
-cmd /c "call bxl.cmd Test.Tool.VBCSCompilerLogger.dsc /server-"
+cmd /c "bxl.cmd Test.Tool.VBCSCompilerLogger.dsc /server-"
 
 # MSBuild frontend and graph builder tests — exercises msbuild.exe.config binding redirects
-cmd /c "call bxl.cmd Test.BuildXL.FrontEnd.MsBuild.dsc /server-"
-cmd /c "call bxl.cmd Test.Tool.MsBuildGraphBuilder.dsc /server-"
+cmd /c "bxl.cmd Test.BuildXL.FrontEnd.MsBuild.dsc /server-"
+cmd /c "bxl.cmd Test.Tool.MsBuildGraphBuilder.dsc /server-"
 ```
 
 Use a long timeout (300+ seconds) for builds.

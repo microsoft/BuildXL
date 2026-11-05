@@ -90,15 +90,15 @@ file accesses can fail a build or make it uncacheable.
 ## Building and testing
 
 Run builds from the repository root. On Windows, invoke the batch file through
-`cmd /c "call ..."` and pass `/server-` so agents do not leave a BuildXL server
+`cmd /c "..."` and pass `/server-` so agents do not leave a BuildXL server
 running:
 
 ```powershell
-cmd /c "call bxl.cmd -minimal /server-"
-cmd /c "call bxl.cmd Test.BuildXL.Utilities.Collections.dsc /server-"
-cmd /c "call bxl.cmd Test.BuildXL.Utilities.Collections.dsc -TestClass Test.BuildXL.Utilities.Collections.BitSetTests /server-"
-cmd /c "call bxl.cmd Test.BuildXL.Utilities.Collections.dsc -TestMethod Test.BuildXL.Utilities.Collections.BitSetTests.RoundToValidBitCount /server-"
-cmd /c "call bxl.cmd /q:ReleaseNet10 /server-"
+cmd /c "bxl.cmd -minimal /server-"
+cmd /c "bxl.cmd Test.BuildXL.Utilities.Collections.dsc /server-"
+cmd /c "bxl.cmd Test.BuildXL.Utilities.Collections.dsc -TestClass Test.BuildXL.Utilities.Collections.BitSetTests /server-"
+cmd /c "bxl.cmd Test.BuildXL.Utilities.Collections.dsc -TestMethod Test.BuildXL.Utilities.Collections.BitSetTests.RoundToValidBitCount /server-"
+cmd /c "bxl.cmd /q:ReleaseNet10 /server-"
 ```
 
 On Linux, use `./bxl.sh`. Microsoft internal developers need `--internal` for
@@ -122,9 +122,9 @@ qualified name exists and confirm the expected tests actually ran.
 Use the smallest relevant validation first:
 
 ```powershell
-cmd /c "call bxl.cmd <target-test-project>.dsc /server-"
-cmd /c "call bxl.cmd -minimal /server-"
-cmd /c "call bxl.cmd /server-"
+cmd /c "bxl.cmd <target-test-project>.dsc /server-"
+cmd /c "bxl.cmd -minimal /server-"
+cmd /c "bxl.cmd /server-"
 ```
 
 The standard build and test suite is slow. `RunCheckInTests.cmd` performs
@@ -137,7 +137,7 @@ parameter. This keeps benchmarks compiled but prevents automation from
 scheduling them. Run the utilities benchmarks with:
 
 ```powershell
-cmd /c "call bxl.cmd Test.BuildXL.Utilities.Benchmarks.dsc /p:[Sdk.BuildXL]runBenchmarks=1 /q:ReleaseNet10 /server-"
+cmd /c "bxl.cmd Test.BuildXL.Utilities.Benchmarks.dsc /p:[Sdk.BuildXL]runBenchmarks=1 /q:ReleaseNet10 /server-"
 ```
 
 ## Code conventions

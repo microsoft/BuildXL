@@ -32,7 +32,7 @@ jobs:
   pool:
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     os: windows
-    image: 1ESPT-Win2022-PME-3
+    image: Windows-SDL-Image-Vanilla-Win2025
   templateContext:
     sdl:
       baseline:
@@ -145,7 +145,7 @@ jobs:
   pool:
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     os: windows
-    image: 1ESPT-Win2022-PME-3
+    image: Windows-SDL-Image-Vanilla-Win2025
   strategy:
     matrix:
       ${{ each qualifier in parameters.QualifiersToBuild }}:

@@ -15,7 +15,7 @@ jobs:
   # This pool must be a Ubuntu 22.04 or newer to build eBPF Sandbox binaries.
   pool:
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-    image: ubuntu-22.04-PME-GPT
+    image: ubuntu-22.04-vanilla-PME-GPT
     os: linux
 
   templateContext:
@@ -72,7 +72,7 @@ jobs:
 
   pool:
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-    image: ubuntu-22.04-PME-GPT
+    image: ubuntu-22.04-vanilla-PME-GPT
     os: linux
 
   templateContext:

@@ -18,7 +18,7 @@ extends:
   parameters:
     pool:
       name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-      image: ubuntu-22.04-PME-GPT
+      image: ubuntu-22.04-vanilla-PME-GPT
       os: linux
     settings:
       networkIsolationPolicy: CFSClean,CFSClean2,CFSClean3
@@ -42,7 +42,7 @@ extends:
         runExternalValidation: false
         pool:
           name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-          image: ubuntu-22.04-PME-GPT
+          image: ubuntu-22.04-vanilla-PME-GPT
           os: linux
         # Keep using interpose for Ubuntu 22.04 as test coverage until we can retire the interpose sandbox.
         BxlExtraArgs: /enableLinuxEBPFSandbox-

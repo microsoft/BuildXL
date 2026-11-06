@@ -98,11 +98,11 @@ jobs:
     inputs:
       azureSubscription: 'BuildXL - APIScan'
       addSpnToEnvironment: true
-      scriptType: bash
+      scriptType: batch
       scriptLocation: 'inlineScript'
       inlineScript: |
-        echo "##vso[task.setvariable variable=APIScan-clientId;]$servicePrincipalId"
-        echo "##vso[task.setvariable variable=APIScan-tenantId;]$tenantId"
+        echo ##vso[task.setvariable variable=APIScan-clientId;]%servicePrincipalId%
+        echo ##vso[task.setvariable variable=APIScan-tenantId;]%tenantId%
 
   - task: APIScan@2
     displayName: 'Run APIScan via Guardian'

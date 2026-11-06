@@ -971,6 +971,29 @@ namespace BuildXL.Scheduler.Tracing
             SearchPath = 1 << 2,
         }
 
+        private enum PatternKind : byte
+        {
+            None = 0,
+            AllowAll = 1,
+            Win32LegacyAllowAll = 2,
+            Custom = 3,
+        }
+
+        // Packed options layout, from least to most significant bit:
+        // [enumeration mode: 3][static: 1][search path: 1][pattern kind: 2].
+        private const int EnumerationModeBitCount = 3;
+        private const int StaticBit = EnumerationModeBitCount;
+        private const int SearchPathBit = StaticBit + 1;
+        private const int PatternKindShift = SearchPathBit + 1;
+        private const int PatternKindBitCount = 2;
+        private const int SerializedOptionsBitCount = PatternKindShift + PatternKindBitCount;
+
+        private const byte EnumerationModeMask = (1 << EnumerationModeBitCount) - 1;
+        private const byte StaticMask = 1 << StaticBit;
+        private const byte SearchPathMask = 1 << SearchPathBit;
+        private const byte PatternKindMask = ((1 << PatternKindBitCount) - 1) << PatternKindShift;
+        private const byte SerializedOptionsMask = (1 << SerializedOptionsBitCount) - 1;
+
         /// <summary>
         /// The resulting fingerprint from hashing the directory.
         /// Does not need to be serialized, only used at runtime to prevent 
@@ -1033,8 +1056,7 @@ namespace BuildXL.Scheduler.Tracing
         }
 
         /// <summary>
-        /// The process PipId for which the membership was computed. This will only be serialized when
-        /// <see cref="IsStatic"/> or <see cref="IsSearchPath"/> is true
+        /// The process PipId for which the membership was computed.
         /// </summary>
         public PipId PipId;
 
@@ -1058,40 +1080,94 @@ namespace BuildXL.Scheduler.Tracing
         /// <inheritdoc />
         public void Serialize(BinaryLogger.EventWriter writer)
         {
-            writer.Write(Directory);
-            ContentHashSerializer.WriteContentHash(writer, DirectoryFingerprint.Hash);
+            Contract.Requires((uint)EnumerationMode <= EnumerationModeMask);
 
-            writer.Write((byte)m_flags);
-            writer.Write((byte)EnumerationMode);
-            PipId.Serialize(writer);
-
-            writer.WriteCompact(Members.Count);
-            foreach (var member in Members)
+            var patternKind = GetPatternKind(EnumeratePatternRegex);
+            byte options = (byte)((byte)EnumerationMode | ((byte)patternKind << PatternKindShift));
+            if (IsStatic)
             {
-                writer.Write(member);
+                options |= StaticMask;
             }
 
-            writer.Write(EnumeratePatternRegex ?? "");
+            if (IsSearchPath)
+            {
+                options |= SearchPathMask;
+            }
+
+            // The header stores the member count above seven option bits:
+            // [member count][pattern kind][search path][static][enumeration mode].
+            long packedHeader = ((long)Members.Count << SerializedOptionsBitCount) | options;
+            writer.WriteCompact(packedHeader);
+
+            int previousStaticPath = 0;
+            int previousDynamicPath = 0;
+            writer.WriteDeltaEncodedAbsolutePath(Directory, ref previousStaticPath, ref previousDynamicPath);
+            foreach (var member in Members)
+            {
+                writer.WriteDeltaEncodedAbsolutePath(member, ref previousStaticPath, ref previousDynamicPath);
+            }
+
+            ContentHashSerializer.WriteContentHash(writer, DirectoryFingerprint.Hash);
+            PipId.Serialize(writer);
+
+            if (patternKind == PatternKind.Custom)
+            {
+                writer.Write(EnumeratePatternRegex);
+            }
         }
 
         /// <inheritdoc />
         public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
         {
-            Directory = reader.ReadAbsolutePath();
-            DirectoryFingerprint = new DirectoryFingerprint(ContentHashSerializer.ReadDirectoryMembershipHash(reader));
+            long packedHeader = reader.ReadInt64Compact();
+            int count = checked((int)(packedHeader >> SerializedOptionsBitCount));
+            byte options = (byte)(packedHeader & SerializedOptionsMask);
+            EnumerationMode = (DirectoryEnumerationMode)(options & EnumerationModeMask);
+            m_flags = Flags.None;
+            IsStatic = (options & StaticMask) != 0;
+            IsSearchPath = (options & SearchPathMask) != 0;
+            var patternKind = (PatternKind)((options & PatternKindMask) >> PatternKindShift);
 
-            m_flags = (Flags)reader.ReadByte();
-            EnumerationMode = (DirectoryEnumerationMode)reader.ReadByte();
-            PipId = PipId.Deserialize(reader);
-
-            int count = reader.ReadInt32Compact();
+            int previousStaticPath = 0;
+            int previousDynamicPath = 0;
+            Directory = reader.ReadDeltaEncodedAbsolutePath(ref previousStaticPath, ref previousDynamicPath);
             Members = new List<AbsolutePath>(count);
             for (int idx = 0; idx < count; ++idx)
             {
-                Members.Add(reader.ReadAbsolutePath());
+                Members.Add(reader.ReadDeltaEncodedAbsolutePath(ref previousStaticPath, ref previousDynamicPath));
             }
 
-            EnumeratePatternRegex = reader.ReadString();
+            DirectoryFingerprint = new DirectoryFingerprint(ContentHashSerializer.ReadDirectoryMembershipHash(reader));
+            PipId = PipId.Deserialize(reader);
+
+            EnumeratePatternRegex = patternKind switch
+            {
+                PatternKind.None => string.Empty,
+                PatternKind.AllowAll => RegexDirectoryMembershipFilter.AllowAllRegex,
+                PatternKind.Win32LegacyAllowAll => RegexDirectoryMembershipFilter.Win32LegacyAllowAllRegex,
+                PatternKind.Custom => reader.ReadString(),
+                _ => throw Contract.AssertFailure($"Unknown directory enumeration pattern kind: {patternKind}"),
+            };
+        }
+
+        private static PatternKind GetPatternKind(string enumeratePatternRegex)
+        {
+            if (string.IsNullOrEmpty(enumeratePatternRegex))
+            {
+                return PatternKind.None;
+            }
+
+            if (string.Equals(enumeratePatternRegex, RegexDirectoryMembershipFilter.AllowAllRegex, StringComparison.Ordinal))
+            {
+                return PatternKind.AllowAll;
+            }
+
+            if (string.Equals(enumeratePatternRegex, RegexDirectoryMembershipFilter.Win32LegacyAllowAllRegex, StringComparison.Ordinal))
+            {
+                return PatternKind.Win32LegacyAllowAll;
+            }
+
+            return PatternKind.Custom;
         }
 
         /// <inheritdoc />

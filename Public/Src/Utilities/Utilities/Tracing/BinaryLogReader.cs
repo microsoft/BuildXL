@@ -377,15 +377,6 @@ namespace BuildXL.Utilities.Tracing
             }
 
             /// <summary>
-            /// Way for classes that derive from EventReader to call BuildXLReader::ReadAbsolutePath()
-            /// </summary>
-            /// <returns>Absolute path value read from stream</returns>
-            protected AbsolutePath BuildXLReaderReadAbsolutePath()
-            {
-                return base.ReadAbsolutePath();
-            }
-
-            /// <summary>
             /// Reads an AbsolutePath (which may have been added after the serialization of the path table)
             /// </summary>
             public override AbsolutePath ReadAbsolutePath()
@@ -398,10 +389,40 @@ namespace BuildXL.Utilities.Tracing
                     case BinaryLogger.AbsolutePathType.Static:
                         return base.ReadAbsolutePath();
                     case BinaryLogger.AbsolutePathType.Dynamic:
-                        return LogReader.m_capturedPaths[(uint)ReadInt32Compact()];
+                        return ReadDynamicAbsolutePath(ReadInt32Compact());
                     default:
                         throw Contract.AssertFailure($"Unrecognized path type: {absolutePathType}. The XLG file format has potentially changed.");
                 }
+            }
+
+            /// <summary>
+            /// Reads an absolute path encoded as a compact delta from the preceding path of the same serialized type.
+            /// </summary>
+            public AbsolutePath ReadDeltaEncodedAbsolutePath(ref int previousStaticPath, ref int previousDynamicPath)
+            {
+                ulong token = checked((ulong)ReadInt64Compact());
+                bool isDynamic = (token & 1) != 0;
+                uint zigZagDelta = checked((uint)(token >> 1));
+                int delta = unchecked((int)(zigZagDelta >> 1) ^ -((int)zigZagDelta & 1));
+                int previousPath = isDynamic ? previousDynamicPath : previousStaticPath;
+                int pathValue = checked(previousPath + delta);
+
+                if (isDynamic)
+                {
+                    previousDynamicPath = pathValue;
+                    return ReadDynamicAbsolutePath(pathValue);
+                }
+
+                previousStaticPath = pathValue;
+                return new AbsolutePath(pathValue);
+            }
+
+            /// <summary>
+            /// Resolves an index in the dynamic-path table.
+            /// </summary>
+            protected virtual AbsolutePath ReadDynamicAbsolutePath(int index)
+            {
+                return LogReader.m_capturedPaths[(uint)index];
             }
 
             /// <summary>

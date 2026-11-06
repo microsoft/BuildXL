@@ -119,6 +119,67 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
+        public void TestDirectoryMembershipHashedPackedRoundTrip()
+        {
+            // Paths captured before the logger is created use path-table IDs; paths created in the callback use dynamic IDs.
+            // Alternating both kinds in one event verifies that each path domain maintains an independent delta.
+            var staticDirectory = RandomPath();
+            var staticMembers = new List<AbsolutePath> { RandomPath(), RandomPath(), RandomPath() };
+            int lastStaticAbsolutePathIndex = Context.PathTable.Count - 1;
+
+            TestExecutionLogHelper(verifier =>
+            {
+                var mixedMembers = new List<AbsolutePath>
+                {
+                    staticMembers[0],
+                    RandomPath(),
+                    staticMembers[1],
+                    RandomPath(),
+                    staticMembers[2],
+                };
+
+                verifier.Expect(new DirectoryMembershipHashedEventData
+                {
+                    Directory = staticDirectory,
+                    DirectoryFingerprint = new DirectoryFingerprint(ContentHashingUtilities.CreateRandom()),
+                    IsStatic = true,
+                    EnumerationMode = DirectoryEnumerationMode.FullGraph,
+                    PipId = new PipId(123),
+                    Members = mixedMembers,
+                    EnumeratePatternRegex = RegexDirectoryMembershipFilter.AllowAllRegex,
+                });
+
+                verifier.Expect(new DirectoryMembershipHashedEventData
+                {
+                    Directory = RandomPath(),
+                    DirectoryFingerprint = new DirectoryFingerprint(ContentHashingUtilities.CreateRandom()),
+                    IsSearchPath = true,
+                    EnumerationMode = DirectoryEnumerationMode.MinimalGraphWithAlienFiles,
+                    PipId = new PipId(456),
+                    Members = new List<AbsolutePath> { RandomPath(), RandomPath() },
+                    EnumeratePatternRegex = RegexDirectoryMembershipFilter.Win32LegacyAllowAllRegex,
+                });
+
+                verifier.Expect(new DirectoryMembershipHashedEventData
+                {
+                    Directory = RandomPath(),
+                    DirectoryFingerprint = new DirectoryFingerprint(ContentHashingUtilities.CreateRandom()),
+                    EnumerationMode = DirectoryEnumerationMode.RealFilesystem,
+                    Members = new List<AbsolutePath> { RandomPath() },
+                    EnumeratePatternRegex = "^.*\\.dll$",
+                });
+
+                verifier.Expect(new DirectoryMembershipHashedEventData
+                {
+                    Directory = RandomPath(),
+                    DirectoryFingerprint = DirectoryFingerprint.Zero,
+                    EnumerationMode = DirectoryEnumerationMode.DefaultFingerprint,
+                    Members = new List<AbsolutePath>(),
+                });
+            }, lastStaticAbsolutePathIndex);
+        }
+
+        [Fact]
         public void TestObservedInputsLoggedForFingerprintComputation()
         {
             TestExecutionLogHelper(verifier =>
@@ -233,7 +294,7 @@ namespace Test.BuildXL.Scheduler
             return new StrongContentFingerprint(FingerprintUtilities.CreateRandom());
         }
 
-        private void TestExecutionLogHelper(Action<ExecutionLogVerifier> logVerification)
+        private void TestExecutionLogHelper(Action<ExecutionLogVerifier> logVerification, int lastStaticAbsolutePathIndex = int.MinValue)
         {
             PipExecutionContext context = Context;
             Guid logId = Guid.NewGuid();
@@ -241,20 +302,25 @@ namespace Test.BuildXL.Scheduler
             {
                 using (var verifier = new ExecutionLogVerifier(this))
                 {
-                    using (var binaryLogger = new BinaryLogger(stream, context, logId, closeStreamOnDispose: false))
-                    using (var logFile = new ExecutionLogFileTarget(binaryLogger, closeLogFileOnDispose: false))
+                    using (var binaryLogger = new BinaryLogger(stream, context, logId, lastStaticAbsolutePathIndex, closeStreamOnDispose: false))
                     {
-                        verifier.Target = logFile;
+                        using (var logFile = new ExecutionLogFileTarget(binaryLogger, closeLogFileOnDispose: false))
+                        {
+                            verifier.Target = logFile;
 
-                        logVerification(verifier);
+                            logVerification(verifier);
+                        }
+
+                        binaryLogger.FlushAsync().GetAwaiter().GetResult();
                     }
 
                     stream.Position = 0;
-
                     using (var logReader = new ExecutionLogFileReader(stream, context, verifier, closeStreamOnDispose: false))
                     {
-                        logReader.ReadAllEvents();
+                        Assert.True(logReader.ReadAllEvents());
                     }
+
+                    verifier.VerifyComplete();
                 }
             }
         }
@@ -337,7 +403,8 @@ namespace Test.BuildXL.Scheduler
             IEqualityVerifier<ObservedInputsEventData>,
             IEqualityVerifier<PipCacheMissEventData>,
             IEqualityVerifier<PipExecutionDirectoryOutputs>,
-            IEqualityVerifier<BuildSessionConfigurationEventData>
+            IEqualityVerifier<BuildSessionConfigurationEventData>,
+            IEqualityVerifier<DirectoryMembershipHashedEventData>
         {
             private readonly Queue<object> m_expectedData = new Queue<object>();
             private readonly ExecutionLogTests m_parent;
@@ -387,6 +454,11 @@ namespace Test.BuildXL.Scheduler
                 VerifyEvent(data);
             }
 
+            public override void DirectoryMembershipHashed(DirectoryMembershipHashedEventData data)
+            {
+                VerifyEvent(data);
+            }
+
             public virtual void Expect<TEventData>(TEventData data)
                 where TEventData : struct, IExecutionLogEventData<TEventData>
             {
@@ -418,7 +490,7 @@ namespace Test.BuildXL.Scheduler
                 return verifier;
             }
 
-            public override void Dispose()
+            public void VerifyComplete()
             {
                 Assert.Empty(m_expectedData);
             }
@@ -557,6 +629,20 @@ namespace Test.BuildXL.Scheduler
             {
                 XAssert.AreEqual(expected.PipId, actual.PipId);
                 XAssert.AreSetsEqual(expected.DirectoryOutputs, actual.DirectoryOutputs, expectedResult: true, DirectoryOutputComparer.Instance);
+                return true;
+            }
+
+            public bool VerifyEquals(DirectoryMembershipHashedEventData expected, DirectoryMembershipHashedEventData actual)
+            {
+                XAssert.AreEqual(expected.Directory, actual.Directory);
+                XAssert.AreEqual(expected.DirectoryFingerprint, actual.DirectoryFingerprint);
+                XAssert.AreEqual(expected.IsStatic, actual.IsStatic);
+                XAssert.AreEqual(expected.IsSearchPath, actual.IsSearchPath);
+                XAssert.AreEqual(expected.EnumerationMode, actual.EnumerationMode);
+                XAssert.AreEqual(expected.PipId, actual.PipId);
+                XAssert.AreEqual(expected.EnumeratePatternRegex ?? string.Empty, actual.EnumeratePatternRegex);
+                XAssert.AreEqual(expected.Members.Count, actual.Members.Count);
+                XAssert.IsTrue(expected.Members.SequenceEqual(actual.Members));
                 return true;
             }
 

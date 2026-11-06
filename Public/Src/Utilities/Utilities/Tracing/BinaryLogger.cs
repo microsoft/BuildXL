@@ -399,32 +399,74 @@ namespace BuildXL.Utilities.Tracing
                 {
                     Write((byte)AbsolutePathType.Invalid);
                 }
-                else if (value.Value.Index <= m_logWriter.m_lastStaticAbsolutePathIndex)
+                else
                 {
-                    Write((byte)AbsolutePathType.Static);
-                    base.Write(value);
+                    var (pathType, pathValue) = GetSerializedAbsolutePath(value);
+                    Write((byte)pathType);
+                    if (pathType == AbsolutePathType.Static)
+                    {
+                        base.Write(pathValue);
+                    }
+                    else
+                    {
+                        WriteCompact(pathValue);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Writes a valid absolute path as a compact delta from the preceding path of the same serialized type.
+            /// </summary>
+            public void WriteDeltaEncodedAbsolutePath(AbsolutePath value, ref int previousStaticPath, ref int previousDynamicPath)
+            {
+                Contract.Requires(value.IsValid);
+
+                var (pathType, pathValue) = GetSerializedAbsolutePath(value);
+                bool isDynamic = pathType == AbsolutePathType.Dynamic;
+                int previousPath = isDynamic ? previousDynamicPath : previousStaticPath;
+                int delta = checked(pathValue - previousPath);
+                uint zigZagDelta = unchecked((uint)((delta << 1) ^ (delta >> 31)));
+
+                // The low bit identifies the path domain; the remaining bits store its ZigZag-encoded delta.
+                long token = ((long)zigZagDelta << 1) | (isDynamic ? 1L : 0L);
+                WriteCompact(token);
+
+                if (isDynamic)
+                {
+                    previousDynamicPath = pathValue;
                 }
                 else
                 {
-                    Write((byte)AbsolutePathType.Dynamic);
-                    var result = m_logWriter.m_capturedPaths.GetOrAdd(value, false);
-                    if (!result.Item.Value)
-                    {
-                        using (var eventScope = m_logWriter.StartEvent(LogSupportEventId.AddPath))
-                        {
-                            AbsolutePath parent = value.GetParent(m_logWriter.m_context.PathTable);
-                            eventScope.Writer.Write(parent);
-                            eventScope.Writer.WriteCompact(result.Index);
-                            eventScope.Writer.Write(parent.IsValid
-                                ? value.GetName(m_logWriter.m_context.PathTable).ToString(m_logWriter.m_context.StringTable)
-                                : value.ToString(m_logWriter.m_context.PathTable));
-                        }
+                    previousStaticPath = pathValue;
+                }
+            }
 
-                        m_logWriter.m_capturedPaths[value] = true;
+            private (AbsolutePathType PathType, int PathValue) GetSerializedAbsolutePath(AbsolutePath value)
+            {
+                Contract.Requires(value.IsValid);
+
+                if (value.Value.Index <= m_logWriter.m_lastStaticAbsolutePathIndex)
+                {
+                    return (AbsolutePathType.Static, value.RawValue);
+                }
+
+                var result = m_logWriter.m_capturedPaths.GetOrAdd(value, false);
+                if (!result.Item.Value)
+                {
+                    using (var eventScope = m_logWriter.StartEvent(LogSupportEventId.AddPath))
+                    {
+                        AbsolutePath parent = value.GetParent(m_logWriter.m_context.PathTable);
+                        eventScope.Writer.Write(parent);
+                        eventScope.Writer.WriteCompact(result.Index);
+                        eventScope.Writer.Write(parent.IsValid
+                            ? value.GetName(m_logWriter.m_context.PathTable).ToString(m_logWriter.m_context.StringTable)
+                            : value.ToString(m_logWriter.m_context.PathTable));
                     }
 
-                    WriteCompact(result.Index);
+                    m_logWriter.m_capturedPaths[value] = true;
                 }
+
+                return (AbsolutePathType.Dynamic, result.Index);
             }
 
             /// <summary>

@@ -357,57 +357,39 @@ namespace BuildXL.Utilities.Tracing
             }
 
             /// <summary>
-            /// Reads an AbsolutePath (which may have been added after the serialization of the path table)
+            /// Resolves a dynamic path, waiting if its support event has not been processed yet.
             /// </summary>
-            /// <remarks>
-            /// When a log file is being read serially and the absolute path
-            /// type is dynamic, the CapturedPaths array will always have a
-            /// valid AbsolutePath value at the specified index. When reading
-            /// in parallel, this is not guaranteed. To fix this, manual reset
-            /// events are used to allow for the read path event to signal when
-            /// the needed AbsolutePath value becomes valid.
-            /// </remarks>
-            public override AbsolutePath ReadAbsolutePath()
+            protected override AbsolutePath ReadDynamicAbsolutePath(int dynamicPathIndex)
             {
-                var absolutePathType = (BinaryLogger.AbsolutePathType)ReadByte();
-                switch (absolutePathType)
+                uint index = (uint)dynamicPathIndex;
+                AbsolutePath result = ParallelLogReader.m_capturedPaths[index];
+                if (result == AbsolutePath.Invalid)
                 {
-                    case BinaryLogger.AbsolutePathType.Invalid:
-                        return AbsolutePath.Invalid;
-                    case BinaryLogger.AbsolutePathType.Static:
-                        return BuildXLReaderReadAbsolutePath();
-                    default:
-                        Contract.Assert(absolutePathType == BinaryLogger.AbsolutePathType.Dynamic);
-                        uint index = (uint)ReadInt32Compact();
-                        AbsolutePath result = ParallelLogReader.m_capturedPaths[index];
-                        if (result == AbsolutePath.Invalid)
+                    // The read path event for the needed AbsolutePath value has not been processed yet so we must wait
+                    // We register a manual reset event for the index of the AbsolutePath value that we need
+                    ManualResetEvent manualResetEvent = ParallelLogReader.m_absolutePathsBlockingEvents.GetOrAdd(index, (i) => new ManualResetEvent(false));
+
+                    // While we were registering, the AbsolutePath value could have become valid so we check
+                    result = ParallelLogReader.m_capturedPaths[index];
+
+                    if (result != AbsolutePath.Invalid)
+                    {
+                        // If it became valid, we try to remove the manual reset event and signal it
+                        if (ParallelLogReader.m_absolutePathsBlockingEvents.TryRemove(index, out manualResetEvent))
                         {
-                            // The read path event for the needed AbsolutePath value has not been processed yet so we must wait
-                            // We register a manual reset event for the index of the AbsolutePath value that we need
-                            ManualResetEvent manualResetEvent = ParallelLogReader.m_absolutePathsBlockingEvents.GetOrAdd(index, (i) => new ManualResetEvent(false));
-
-                            // While we were registering, the AbsolutePath value could have become valid so we check
-                            result = ParallelLogReader.m_capturedPaths[index];
-
-                            if (result != AbsolutePath.Invalid)
-                            {
-                                // If it became valid, we try to remove the manual reset event and signal it
-                                if (ParallelLogReader.m_absolutePathsBlockingEvents.TryRemove(index, out manualResetEvent))
-                                {
-                                    // It's possible that other events are waiting on this AbsolutePath becoming valid so signal them
-                                    manualResetEvent.Set();
-                                }
-                            }
-                            else
-                            {
-                                // Block until the AbsolutePath becomes valid
-                                manualResetEvent.WaitOne();
-                                result = ParallelLogReader.m_capturedPaths[index];
-                            }
+                            // It's possible that other events are waiting on this AbsolutePath becoming valid so signal them
+                            manualResetEvent.Set();
                         }
-
-                        return result;
+                    }
+                    else
+                    {
+                        // Block until the AbsolutePath becomes valid
+                        manualResetEvent.WaitOne();
+                        result = ParallelLogReader.m_capturedPaths[index];
+                    }
                 }
+
+                return result;
             }
 
             /// <nodoc />

@@ -27,7 +27,13 @@ param(
 
     [double]$MaxNormalizedMae,
 
-    [double]$UnderpredictionMultiplier = 2.0,
+    [double]$CpuUnderpredictionMultiplier = 1.0,
+
+    [double]$MemoryUnderpredictionMultiplier = 1.0,
+
+    [double]$AverageMemoryUnderpredictionMultiplier = 1.0,
+
+    [double]$DurationUnderpredictionMultiplier = 1.0,
 
     [int]$MaxEstimators = 800,
 
@@ -106,7 +112,10 @@ if ($Operation -in @('All', 'Train')) {
         '--output-dir', $ModelDir,
         '--quality-report', $QualityReport,
         '--max-normalized-mae', $MaxNormalizedMae,
-        '--underprediction-multiplier', $UnderpredictionMultiplier,
+        '--cpu-underprediction-multiplier', $CpuUnderpredictionMultiplier,
+        '--memory-underprediction-multiplier', $MemoryUnderpredictionMultiplier,
+        '--average-memory-underprediction-multiplier', $AverageMemoryUnderpredictionMultiplier,
+        '--duration-underprediction-multiplier', $DurationUnderpredictionMultiplier,
         '--max-estimators', $MaxEstimators
     )
     python @trainingArguments

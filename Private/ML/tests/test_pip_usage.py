@@ -37,6 +37,7 @@ from pip_usage.training import (
     native_params,
     partition_expected_mae,
     quality_observations,
+    resolve_underprediction_multipliers,
     scheduler_slots,
     summarize_cpu_scheduler_metrics,
     summarize_prediction_balance,
@@ -430,6 +431,23 @@ class TuningTests(unittest.TestCase):
             native_params(underprediction_multiplier=0.5)
         self.assertEqual(asymmetric_mae(np.array([100.0, 100.0]), np.array([90.0, 110.0]), 2), 15)
         self.assertEqual(asymmetric_mae(np.array([100.0, 100.0]), np.array([90.0, 110.0]), 3), 20)
+
+    def test_target_underprediction_multipliers_default_to_one_and_validate_independently(self):
+        """Every target defaults to symmetric loss and validates independently."""
+        self.assertEqual(
+            resolve_underprediction_multipliers(),
+            {"cpu": 1, "memory": 1, "average_memory": 1, "duration": 1},
+        )
+        self.assertEqual(
+            resolve_underprediction_multipliers(
+                {"cpu": 1.5, "average_memory": 2.5, "duration": 1.75},
+            ),
+            {"cpu": 1.5, "memory": 1, "average_memory": 2.5, "duration": 1.75},
+        )
+        with self.assertRaisesRegex(ValueError, "cpu underprediction multiplier"):
+            resolve_underprediction_multipliers({"cpu": 0.5})
+        with self.assertRaisesRegex(ValueError, "Unknown underprediction multiplier targets"):
+            resolve_underprediction_multipliers({"unknown": 2})
 
 class EvaluationTests(unittest.TestCase):
     """Verify test metrics include the historical expected-value baseline."""

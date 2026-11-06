@@ -4,7 +4,7 @@ The Pip Usage training pipeline trains and validates the models, packages them a
 
 The pipeline trains every Thursday and Friday at 06:00 UTC.
 
-Scheduled runs leave the `trainingEndDate` placeholder as `2026-MM-DD` to train on the preceding seven complete UTC days, use 10 tuning trials per target with a maximum of 100 trees per trial, retain up to 1,000 time-distributed builds per codebase, and publish the validated package. Manual runs can override the tree cap and replace the date placeholder with a UTC date in `YYYY-MM-DD` format for backfills.
+Scheduled runs leave the `trainingEndDate` placeholder as `2026-MM-DD` to train on the preceding seven complete UTC days, use 10 tuning trials per target with a maximum of 100 trees per trial, retain up to 1,000 time-distributed builds per codebase, and publish the validated package. The Azure Pipeline defaults the CPU, peak-memory, average-memory, and duration underprediction multipliers to `1.5`, `1.75`, `1.75`, and `2`, respectively. Manual queued runs use those values unless they override the corresponding pipeline parameters; they can also override the tree cap and replace the date placeholder with a UTC date in `YYYY-MM-DD` format for backfills.
 
 See [Pip Usage ML](../../Documentation/Wiki/Advanced-Features/Pip-Usage-ML.md) for the scheduler runtime contract, enablement modes, telemetry, and package update procedure.
 
@@ -26,7 +26,7 @@ The production pipeline:
 2. Uses a retryable Azure CLI task with scoped Kusto identity to select and prepare completed builds in the requested UTC window.
 3. Retains a deterministic, time-distributed sample of builds across the requested window independently for each codebase.
 4. Encodes shared disk-backed training, validation, and test arrays on the training agent.
-5. Uses a following PowerShell task on the same agent to tune each target with seeded Gaussian-process Bayesian optimization, then trains raw CPU, peak-memory, average-memory, and duration values sequentially without uploading prepared telemetry. Manual runs can set `underpredictionMultiplier` above `1` to penalize underprediction more than overprediction for every target; for example, `2` makes an equal-sized underprediction count twice as much.
+5. Uses a following PowerShell task on the same agent to tune each target with seeded Gaussian-process Bayesian optimization, then trains raw CPU, peak-memory, average-memory, and duration values sequentially without uploading prepared telemetry. CPU, peak-memory, average-memory, and duration each have an independent underprediction multiplier. The Azure Pipeline passes its configured defaults of `1.5 / 1.75 / 1.75 / 2`; the lower-level `Invoke-PipUsageTraining.ps1` parameters and Python CLI each default to `1 / 1 / 1 / 1` (symmetric loss) when invoked directly without pipeline values. For example, `2` makes an equal-sized underprediction count twice as much for that target.
 6. Verifies target model hashes and dataset identity locally.
 7. Reports held-out warm, warm-masked, and cold MAE, bias, slot error, multi-slot recall, and underprediction metrics for manual comparison; thresholds are informational and do not block publication. The Azure DevOps run summary distinguishes estimated, downloaded, and prepared rows and renders target and CPU scheduler tables.
 8. Assembles sanitized model JSON and parity fixtures into one JSON-only `BuildXL.ML.Models` package.

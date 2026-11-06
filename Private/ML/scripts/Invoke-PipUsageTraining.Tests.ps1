@@ -55,7 +55,10 @@ Describe 'Invoke-PipUsageTraining' {
                 -QualityReport $qualityReport `
                 -TuningTrials 1 `
                 -MaxNormalizedMae 1.0 `
-                -UnderpredictionMultiplier 2.0 `
+                -CpuUnderpredictionMultiplier 1.5 `
+                -MemoryUnderpredictionMultiplier 2.5 `
+                -AverageMemoryUnderpredictionMultiplier 3.0 `
+                -DurationUnderpredictionMultiplier 1.75 `
                 -MaxEstimators 300 `
                 -PackageVersion '0.0.1-smoke' `
                 -NugetExecutable $nugetScript
@@ -75,7 +78,10 @@ Describe 'Invoke-PipUsageTraining' {
         $trainingCall | Should -Match 'pip_usage.training'
         $trainingCall | Should -Match '--tuning-trials 1'
         $trainingCall | Should -Match '--max-normalized-mae 1'
-        $trainingCall | Should -Match '--underprediction-multiplier 2'
+        $trainingCall | Should -Match '--cpu-underprediction-multiplier 1.5'
+        $trainingCall | Should -Match '--memory-underprediction-multiplier 2.5'
+        $trainingCall | Should -Match '--average-memory-underprediction-multiplier 3'
+        $trainingCall | Should -Match '--duration-underprediction-multiplier 1.75'
         $trainingCall | Should -Match '--max-estimators 300'
         $trainingCall | Should -Not -Match 'target-transform'
         (Test-Path (Join-Path $exportDir 'model_spec.json')) | Should -BeTrue
@@ -116,7 +122,10 @@ Describe 'Pip Usage pipeline Python execution' {
                 -QualityReport $qualityReport `
                 -TuningTrials 2 `
                 -MaxNormalizedMae 2.0 `
-                -UnderpredictionMultiplier 2.0 `
+                -CpuUnderpredictionMultiplier 1.5 `
+                -MemoryUnderpredictionMultiplier 2.0 `
+                -AverageMemoryUnderpredictionMultiplier 2.0 `
+                -DurationUnderpredictionMultiplier 1.75 `
                 -PackageVersion '0.0.1-test' `
                 -NugetExecutable $nugetScript
 
@@ -126,7 +135,11 @@ Describe 'Pip Usage pipeline Python execution' {
             Test-Path $qualityReport | Should -BeTrue
             $quality = Get-Content $qualityReport -Raw | ConvertFrom-Json
             $quality.modelKind | Should -Be 'pipUsage'
-            $quality.underpredictionMultiplier | Should -Be 2
+            $quality.underpredictionMultipliers.cpu | Should -Be 1.5
+            $quality.underpredictionMultipliers.memory | Should -Be 2
+            $quality.underpredictionMultipliers.average_memory | Should -Be 2
+            $quality.underpredictionMultipliers.duration | Should -Be 1.75
+            $quality.PSObject.Properties.Name | Should -Not -Contain 'underpredictionMultiplier'
             $quality.PSObject.Properties.Name | Should -Not -Contain 'targetTransforms'
             $quality.datasetStatistics.discoveredRows | Should -Be 360
             $quality.datasetStatistics.downloadedRows | Should -Be 360
@@ -139,6 +152,10 @@ Describe 'Pip Usage pipeline Python execution' {
             @($quality.training.PSObject.Properties).Count | Should -Be 4
             $modelSpec = Get-Content (Join-Path $exportDir 'model_spec.json') -Raw | ConvertFrom-Json
             $modelSpec.outputTransform | Should -Be 'identity'
+            $modelSpec.training.underpredictionMultipliers.cpu | Should -Be 1.5
+            $modelSpec.training.underpredictionMultipliers.memory | Should -Be 2
+            $modelSpec.training.underpredictionMultipliers.duration | Should -Be 1.75
+            $modelSpec.training.PSObject.Properties.Name | Should -Not -Contain 'underpredictionMultiplier'
             $modelSpec.PSObject.Properties.Name | Should -Not -Contain 'outputTransforms'
             foreach ($target in $quality.training.PSObject.Properties) {
                 $target.Value.parameters.learning_rate | Should -BeGreaterOrEqual $tuningRanges.learning_rate[0]
@@ -151,7 +168,7 @@ Describe 'Pip Usage pipeline Python execution' {
             foreach ($target in @('cpu', 'memory', 'average_memory', 'duration')) {
                 $quality.testMae.$target.expected | Should -BeGreaterOrEqual 0
                 $quality.testNormalizedMae.$target.expected | Should -BeGreaterOrEqual 0
-                $quality.training.$target.underprediction_multiplier | Should -Be 2
+                $quality.training.$target.underprediction_multiplier | Should -Be $quality.underpredictionMultipliers.$target
                 foreach ($path in @('warm', 'warm_masked', 'cold')) {
                     $quality.predictionBalance.$target.$path.underpredictionRate | Should -BeGreaterOrEqual 0
                     $quality.predictionBalance.$target.$path.meanBias | Should -Not -BeNullOrEmpty

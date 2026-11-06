@@ -342,10 +342,33 @@ def evaluate_partitioned(models: dict[str, NativeModel], evaluation: EvaluationP
     return metrics, normalized, scheduler_metrics, prediction_balance
 
 
+def validate_underprediction_multiplier(value: float, name: str = "Underprediction multiplier") -> float:
+    """Return one valid underprediction multiplier or raise a targeted error."""
+    if not np.isfinite(value) or value < 1:
+        raise ValueError(f"{name} must be finite and at least 1.")
+    return float(value)
+
+
+def resolve_underprediction_multipliers(
+    values: dict[str, float] | None = None,
+) -> dict[str, float]:
+    """Validate an explicit target multiplier map, defaulting omitted targets to symmetric loss."""
+    values = values or {}
+    unknown_targets = set(values) - set(TARGETS)
+    if unknown_targets:
+        raise ValueError(f"Unknown underprediction multiplier targets: {', '.join(sorted(unknown_targets))}.")
+    return {
+        target: validate_underprediction_multiplier(
+            values.get(target, 1),
+            f"{target} underprediction multiplier",
+        )
+        for target in TARGETS
+    }
+
+
 def native_params(model_params: dict[str, Any] | None = None, underprediction_multiplier: float = 2.0) -> tuple[dict[str, Any], int, int]:
     """Build LightGBM settings and return them with training and early-stopping limits."""
-    if not np.isfinite(underprediction_multiplier) or underprediction_multiplier < 1:
-        raise ValueError("Underprediction multiplier must be finite and at least 1.")
+    underprediction_multiplier = validate_underprediction_multiplier(underprediction_multiplier)
     common = {**MODEL_PARAMS, **(model_params or {})}
     rounds = common.pop("estimators")
     early_stopping_rounds = common.pop("early_stopping_rounds")
@@ -532,7 +555,7 @@ def train_target(
 def train_partitioned_models(
     cohort: Path,
     tuning_trials: int,
-    underprediction_multiplier: float,
+    underprediction_multipliers: dict[str, float],
     max_estimators: int,
 ) -> tuple[dict[str, NativeModel], dict[str, dict[str, Any]], EvaluationPartitions, pd.DataFrame]:
     """Train CPU, peak-memory, average-memory, and duration models from one prepared cohort."""
@@ -544,7 +567,7 @@ def train_partitioned_models(
             inputs,
             target,
             tuning_trials,
-            underprediction_multiplier,
+            underprediction_multipliers[target],
             max_estimators,
         )
     return models, details, inputs.test, inputs.test.fixtures
@@ -575,9 +598,11 @@ def quality_summary(report: dict[str, Any]) -> str:
     lines = [
         "# Pip Usage model quality",
         "",
-        "| Dataset | Underprediction multiplier | Max trees | Estimated rows | Downloaded | Prepared | Download/estimate | Preparation yield |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|",
-        f"| {report['dataset']} | {number(report['underpredictionMultiplier'])} | {report['maxEstimators']:,} | "
+        "| Dataset | Underprediction multipliers (CPU / peak / average / duration) | Max trees | Estimated rows | Downloaded | Prepared | Download/estimate | Preparation yield |",
+        "|---|---|---:|---:|---:|---:|---:|---:|",
+        f"| {report['dataset']} | "
+        f"{' / '.join(number(report['underpredictionMultipliers'][target]) for target in ('cpu', 'memory', 'average_memory', 'duration'))} | "
+        f"{report['maxEstimators']:,} | "
         f"{statistics['discoveredRows']:,} | "
         f"{statistics['downloadedRows']:,} | {statistics['preparedRows']:,} | {number(statistics['downloadToDiscoveryRatio'])} | "
         f"{number(statistics['preparationYield'], True)} |",
@@ -609,7 +634,7 @@ def export_pip_usage_models(
     fixture_rows: pd.DataFrame,
     dataset_name: str,
     split_sha256: str,
-    underprediction_multiplier: float,
+    underprediction_multipliers: dict[str, float],
     max_estimators: int,
     output_dir: Path,
 ) -> dict[str, str]:
@@ -629,7 +654,7 @@ def export_pip_usage_models(
             "training": {
                 "dataset": dataset_name,
                 "splitSha256": split_sha256,
-                "underpredictionMultiplier": underprediction_multiplier,
+                "underpredictionMultipliers": underprediction_multipliers,
                 "maxEstimators": max_estimators,
             },
         },
@@ -645,7 +670,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--quality-report", type=Path, required=True)
     parser.add_argument("--tuning-trials", type=int, default=1)
     parser.add_argument("--max-normalized-mae", type=float, default=1.0)
-    parser.add_argument("--underprediction-multiplier", type=float, default=2.0)
+    parser.add_argument("--cpu-underprediction-multiplier", type=float, default=1.0)
+    parser.add_argument("--memory-underprediction-multiplier", type=float, default=1.0)
+    parser.add_argument("--average-memory-underprediction-multiplier", type=float, default=1.0)
+    parser.add_argument("--duration-underprediction-multiplier", type=float, default=1.0)
     parser.add_argument("--max-estimators", type=int, default=800)
     return parser.parse_args()
 
@@ -655,10 +683,18 @@ def main() -> None:
     args = parse_args()
     cohort = args.dataset_root / "snapshots" / args.dataset_name
     split = json.loads((cohort / "split_manifest.json").read_text(encoding="utf-8"))
+    underprediction_multipliers = resolve_underprediction_multipliers(
+        {
+            "cpu": args.cpu_underprediction_multiplier,
+            "memory": args.memory_underprediction_multiplier,
+            "average_memory": args.average_memory_underprediction_multiplier,
+            "duration": args.duration_underprediction_multiplier,
+        },
+    )
     models, training, evaluation, fixture_rows = train_partitioned_models(
         cohort,
         args.tuning_trials,
-        args.underprediction_multiplier,
+        underprediction_multipliers,
         args.max_estimators,
     )
     metrics, normalized, scheduler_metrics, prediction_balance = evaluate_partitioned(models, evaluation)
@@ -668,11 +704,11 @@ def main() -> None:
         fixture_rows,
         args.dataset_name,
         split["sha256"],
-        args.underprediction_multiplier,
+        underprediction_multipliers,
         args.max_estimators,
         args.output_dir,
     )
-    report = {"modelKind": "pipUsage", "createdUtc": datetime.now(timezone.utc).isoformat(), "dataset": args.dataset_name, "splitSha256": split["sha256"], "datasetStatistics": split.get("statistics", {}), "vocabularyCardinalities": {name: len(values) for name, values in models["cpu"].vocabularies.items()}, "training": training, "underpredictionMultiplier": args.underprediction_multiplier, "maxEstimators": args.max_estimators, "testMae": metrics, "testNormalizedMae": normalized, "predictionBalance": prediction_balance, "cpuSchedulerMetrics": scheduler_metrics, "qualityComparisonThreshold": args.max_normalized_mae, "qualityObservations": observations, "artifacts": hashes}
+    report = {"modelKind": "pipUsage", "createdUtc": datetime.now(timezone.utc).isoformat(), "dataset": args.dataset_name, "splitSha256": split["sha256"], "datasetStatistics": split.get("statistics", {}), "vocabularyCardinalities": {name: len(values) for name, values in models["cpu"].vocabularies.items()}, "training": training, "underpredictionMultipliers": underprediction_multipliers, "maxEstimators": args.max_estimators, "testMae": metrics, "testNormalizedMae": normalized, "predictionBalance": prediction_balance, "cpuSchedulerMetrics": scheduler_metrics, "qualityComparisonThreshold": args.max_normalized_mae, "qualityObservations": observations, "artifacts": hashes}
     args.quality_report.parent.mkdir(parents=True, exist_ok=True)
     args.quality_report.write_text(json.dumps(report, indent=2), encoding="utf-8")
     summary_path = args.quality_report.with_suffix(".md")

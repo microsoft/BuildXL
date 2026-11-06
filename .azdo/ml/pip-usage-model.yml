@@ -24,8 +24,20 @@ parameters:
     displayName: "Maximum builds per codebase"
     type: number
     default: 1000
-  - name: underpredictionMultiplier
-    displayName: "Loss multiplier when a prediction is below actual usage"
+  - name: cpuUnderpredictionMultiplier
+    displayName: "CPU underprediction multiplier"
+    type: number
+    default: 1.5
+  - name: memoryUnderpredictionMultiplier
+    displayName: "Peak-memory underprediction multiplier"
+    type: number
+    default: 1.75
+  - name: averageMemoryUnderpredictionMultiplier
+    displayName: "Average-memory underprediction multiplier"
+    type: number
+    default: 1.75
+  - name: durationUnderpredictionMultiplier
+    displayName: "Duration underprediction multiplier"
     type: number
     default: 2
   - name: maxEstimators
@@ -76,6 +88,12 @@ extends:
       sourceAnalysisPool:
         name: Windows-SDL-Agents
         os: windows
+      componentDetection:
+        enabled: false
+        justificationForDisabling: "This pipeline only produces JSON model weights and does not build or publish binaries. BuildXL dependency scanning runs in the dedicated validation and release pipelines."
+      componentgovernance:
+        enabled: false
+        justificationForDisabling: "This pipeline only produces JSON model weights and does not build or publish binaries. Component governance scanning runs in the dedicated validation and release pipelines."
       codeql:
         compiled:
           enabled: false
@@ -165,7 +183,10 @@ extends:
                     -QualityReport '$(qualityReport)'
                     -TuningTrials '${{ parameters.tuningTrials }}'
                     -MaxNormalizedMae '$(maxNormalizedMae)'
-                    -UnderpredictionMultiplier '${{ parameters.underpredictionMultiplier }}'
+                    -CpuUnderpredictionMultiplier '${{ parameters.cpuUnderpredictionMultiplier }}'
+                    -MemoryUnderpredictionMultiplier '${{ parameters.memoryUnderpredictionMultiplier }}'
+                    -AverageMemoryUnderpredictionMultiplier '${{ parameters.averageMemoryUnderpredictionMultiplier }}'
+                    -DurationUnderpredictionMultiplier '${{ parameters.durationUnderpredictionMultiplier }}'
                     -MaxEstimators '${{ parameters.maxEstimators }}'
                     -PackageVersion '$(packageVersion)'
 

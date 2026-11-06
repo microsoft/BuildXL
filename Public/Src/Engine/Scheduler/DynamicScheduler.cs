@@ -339,6 +339,7 @@ namespace BuildXL.Scheduler
         public bool AnyRemoteWorkers => m_workers.Count > 1;
 
         private readonly ConcurrentDictionary<PipId, RunnablePipPerformanceInfo> m_runnablePipPerformance;
+        private long m_processExecutionMeasurementAnomalies;
 
         private readonly AbsolutePath m_fileChangeTrackerFile;
 
@@ -2243,6 +2244,11 @@ namespace BuildXL.Scheduler
 
                 // DYNAMIC-GRAPH: There is no service shutdown result while services are disabled.
                 //return !HasFailed && shutdownServicesSucceeded;
+                if (m_processExecutionMeasurementAnomalies > 0)
+                {
+                    Logger.Log.ProcessExecutionMeasurementAnomaly(m_loggingContext, m_processExecutionMeasurementAnomalies);
+                }
+
                 return !HasFailed;
             }
         }
@@ -6147,6 +6153,11 @@ namespace BuildXL.Scheduler
             m_criticalPathTracker.UpdateCriticalPath(runnablePip, performance);
 
             ProcessPipExecutionPerformance processPerf = performance as ProcessPipExecutionPerformance;
+            if (!IsDistributedWorker && processPerf?.ProcessorsInPercents > 50000)
+            {
+                Interlocked.Increment(ref m_processExecutionMeasurementAnomalies);
+            }
+
             if (runnablePip is ProcessRunnablePip processRunnablePip &&
                 performance.ExecutionLevel == PipExecutionLevel.Executed &&
                 processPerf != null)

@@ -4258,6 +4258,15 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void UnableToWritePipStandardOutputLog(LoggingContext context, string pipSemiStableHash, string path, string message);
         
         [GeneratedEvent(
+            (int)LogEventId.ProcessExecutionMeasurementAnomaly,
+            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Scheduler,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "{anomalousPipCount} process pips reported CPU usage above 50000%.")]
+        public abstract void ProcessExecutionMeasurementAnomaly(LoggingContext context, long anomalousPipCount);
+
+        [GeneratedEvent(
           (int)LogEventId.SchedulerSimulator,
           EventGenerators = EventGenerators.TelemetryOnly,
           EventLevel = Level.Verbose,

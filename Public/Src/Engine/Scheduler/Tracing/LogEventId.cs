@@ -570,5 +570,6 @@ namespace BuildXL.Scheduler.Tracing
         PipUsageMLModelLoadFailed = 14620,
         PipUsageMLPredictionFailed = 14621,
         PipUsageMLModelLoaded = 14622,
+        ProcessExecutionMeasurementAnomaly = 14624,
     }
 }

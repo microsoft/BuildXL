@@ -1963,7 +1963,11 @@ namespace BuildXL.Processes
 
             if (!normalizedFragments.TryGetValue(fragment, out var normalizedFragment))
             {
+#if NETCOREAPP
+                normalizedFragment = new NormalizedPathString(PathTable.StringTable, fragment);
+#else
                 normalizedFragment = new NormalizedPathString(PathTable.StringTable.GetString(fragment));
+#endif
                 normalizedFragments.Add(fragment, normalizedFragment);
             }
 
@@ -2146,6 +2150,33 @@ namespace BuildXL.Processes
             {
                 HashCode = ProcessUtilities.NormalizeAndHashPath(path, out Bytes);
             }
+
+#if NETCOREAPP
+            public NormalizedPathString(StringTable stringTable, StringId fragment)
+            {
+                BinaryStringSegment source = stringTable.GetBinaryString(fragment);
+                int bufferLength = checked(source.Length + 1);
+                const int maximumStackBufferSize = 1024;
+                char[]? rentedBuffer = null;
+                try
+                {
+                    Span<char> fragmentBuffer = bufferLength <= maximumStackBufferSize
+                        ? stackalloc char[bufferLength]
+                        : (rentedBuffer = System.Buffers.ArrayPool<char>.Shared.Rent(bufferLength));
+                    StringTable.CopyString(source, fragmentBuffer);
+                    fragmentBuffer[source.Length] = '\0';
+                    Bytes = new byte[ProcessUtilities.GetNormalizedPathByteCount(fragmentBuffer, source.Length)];
+                    HashCode = ProcessUtilities.NormalizeAndHashPath(fragmentBuffer, source.Length, Bytes);
+                }
+                finally
+                {
+                    if (rentedBuffer is not null)
+                    {
+                        System.Buffers.ArrayPool<char>.Shared.Return(rentedBuffer);
+                    }
+                }
+            }
+#endif
 
             public NormalizedPathString(byte[] utf16EncodedBytes, int hashCode)
             {

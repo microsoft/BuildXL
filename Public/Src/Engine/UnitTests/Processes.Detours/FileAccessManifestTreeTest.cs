@@ -340,6 +340,65 @@ namespace Test.BuildXL.Processes.Detours
 #endif
         }
 
+        [Theory]
+        [InlineData("MiXeD.dll", 1)]
+        [InlineData("\u00E9\u00C0", 1)]
+        [InlineData("\u0100\u65E5\u672C\uD83D\uDE00", 1)]
+        [InlineData("a", 1023)]
+        [InlineData("a", 1024)]
+        [InlineData("\u0100", 4096)]
+        public void ManifestFragmentNormalizationMatchesStringNormalization(string value, int repetitions)
+        {
+            string fragment = string.Concat(Enumerable.Repeat(value, repetitions));
+            var pathTable = new PathTable();
+            var manifest = new FileAccessManifest(pathTable);
+            StringId fragmentId = StringId.Create(pathTable.StringTable, fragment);
+            var normalize = typeof(FileAccessManifest).GetMethod("GetNormalizedFragment", BindingFlags.Instance | BindingFlags.NonPublic);
+            XAssert.IsNotNull(normalize);
+            object normalized = normalize.Invoke(manifest, new object[] { fragmentId });
+            var normalizedType = normalized.GetType();
+            var bytes = (byte[])normalizedType.GetField("Bytes").GetValue(normalized);
+            int hashCode = (int)normalizedType.GetField("HashCode").GetValue(normalized);
+
+            int expectedHashCode = global::BuildXL.Native.Processes.ProcessUtilities.NormalizeAndHashPath(fragment, out byte[] expectedBytes);
+            XAssert.AreEqual(expectedHashCode, hashCode);
+            XAssert.IsTrue(expectedBytes.SequenceEqual(bytes));
+        }
+
+        [Fact]
+        public void ManifestConstructionDoesNotAllocateExpandedFragmentStrings()
+        {
+#if NETCOREAPP
+            string pathValue = @"C:\repo\" + new string('a', 512);
+            long measureAllocation(bool warmStringCache)
+            {
+                var pathTable = new PathTable();
+                var manifest = new FileAccessManifest(pathTable);
+                AbsolutePath path = AbsolutePath.Create(pathTable, pathValue);
+                if (warmStringCache)
+                {
+                    for (AbsolutePath current = path; current.IsValid; current = current.GetParent(pathTable))
+                    {
+                        _ = pathTable.StringTable.GetString(current.GetName(pathTable).StringId);
+                    }
+                }
+
+                long before = GC.GetAllocatedBytesForCurrentThread();
+                manifest.AddPath(path, FileAccessPolicy.MaskNothing, FileAccessPolicy.AllowRead);
+                return GC.GetAllocatedBytesForCurrentThread() - before;
+            }
+
+            // Warm both execution paths before comparing fresh manifests with cold and warm string caches.
+            _ = measureAllocation(false);
+            _ = measureAllocation(true);
+            long coldCacheBytes = measureAllocation(false);
+            long warmCacheBytes = measureAllocation(true);
+            XAssert.IsTrue(
+                coldCacheBytes <= warmCacheBytes + 512,
+                $"String cache misses added allocations: cold={coldCacheBytes}, warm={warmCacheBytes}.");
+#endif
+        }
+
         [Fact]
         public void SerializationReleasesMutableStateOnNetCore()
         {

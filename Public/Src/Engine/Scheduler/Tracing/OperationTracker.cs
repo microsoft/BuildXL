@@ -1211,6 +1211,9 @@ namespace BuildXL.Scheduler.Tracing
             /// </summary>
             private void ReturnRootToPool()
             {
+                // The callback typically captures the pip's execution state, which would otherwise stay reachable from
+                // the pooled root until it is reused. No child operation can invoke it once the root is being pooled.
+                OnOperationCompleted = null;
                 Tracker.m_activePipOperations.Remove(this);
                 Tracker.m_rootOperationPool.Enqueue(this);
             }

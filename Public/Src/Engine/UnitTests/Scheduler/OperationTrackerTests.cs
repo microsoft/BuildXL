@@ -161,6 +161,34 @@ namespace Test.BuildXL.Utilities
             }
         }
 
+        [Fact]
+        public void PooledRootReleasesCompletionCallback()
+        {
+            var tracker = new OperationTracker(new LoggingContext("test"));
+            var root = new OperationTracker.RootOperation(tracker);
+            int invocations = 0;
+            root.Initialize(
+                PipId.Invalid,
+                PipType.Process,
+                PipExecutorCounter.PipRunningStateDuration,
+                onOperationCompleted: (kind, duration) => invocations++);
+
+            var thread = root.StartThread(PipExecutorCounter.ExecutePipStepDuration, default, details: null);
+            var nested = thread.Thread.StartNestedOperation(PipExecutorCounter.ExecutePipStepDuration, default, details: null);
+
+            root.Complete();
+            Assert.True(root.GetChildOperationCountsForTesting().RootPoolReturnPending);
+            Assert.NotNull(root.OnOperationCompleted);
+
+            nested.Complete();
+            Assert.Equal(1, invocations);
+            Assert.NotNull(root.OnOperationCompleted);
+
+            thread.Complete();
+            Assert.False(root.GetChildOperationCountsForTesting().RootPoolReturnPending);
+            Assert.Null(root.OnOperationCompleted);
+        }
+
         public void TestOperationsHelper(bool parallel)
         {
             LoggingContext log = new LoggingContext("op");

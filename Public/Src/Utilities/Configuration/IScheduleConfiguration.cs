@@ -300,7 +300,8 @@ namespace BuildXL.Utilities.Configuration
         string TelemetryTagPrefix { get; }
 
         /// <summary>
-        /// Specifies the cpu queue limit in terms of a multiplier of the normal limit when at least one remote worker gets connected.
+        /// Scales orchestrator process slots to reserve CPU capacity for worker coordination.
+        /// Zero or null automatically reduces slots as worker count grows, unless historical CPU throttling is enabled.
         /// </summary>
         double? OrchestratorCpuMultiplier { get; }
 

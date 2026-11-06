@@ -169,9 +169,11 @@ namespace BuildXL.Scheduler
                     new ChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu);
             }
 
-            // When CpuAdaptiveSemaphore is enabled, the max parallel degree of CPU dispatcher will be throttled by the cpu semaphore, so we don't want to limit the slots.
+            // Historical CPU throttling controls concurrency through the semaphore unless an explicit local slot limit is configured.
             // All pips run in the CPU dispatcher are process pips and they need to go through ChooseWorkerCpu logic to acquire the cpu semaphore.
-            int cpuMaxParallelDegree = m_scheduleConfig.UseHistoricalCpuThrottling ? int.MaxValue : m_scheduleConfig.EffectiveMaxProcesses;
+            int cpuMaxParallelDegree = m_scheduleConfig.UseHistoricalCpuThrottling && !(m_scheduleConfig.OrchestratorCpuMultiplier is > 0)
+                ? int.MaxValue
+                : m_scheduleConfig.EffectiveMaxProcesses;
 
             m_queuesByKind = new Dictionary<DispatcherKind, DispatcherQueue>()
                              {
@@ -235,9 +237,10 @@ namespace BuildXL.Scheduler
                 }
             }
 
-            if (m_scheduleConfig.UseHistoricalCpuThrottling && kind == DispatcherKind.CPU)
+            if (m_scheduleConfig.UseHistoricalCpuThrottling && kind == DispatcherKind.CPU &&
+                !(m_scheduleConfig.OrchestratorCpuMultiplier is > 0))
             {
-                // If it is enabled, we shouldn't adjust the max parallel degree of the CPU dispatcher, as we want the concurrency to only be controlled by the semaphore.
+                // Without an explicit local slot limit, historical CPU throttling controls concurrency through the semaphore.
                 return;
             }
 

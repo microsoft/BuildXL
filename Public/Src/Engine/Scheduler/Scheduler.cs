@@ -473,33 +473,22 @@ namespace BuildXL.Scheduler
         {
             int availableRemoteWorkersCount = AvailableRemoteWorkersCount;
             int targetProcessSlots = m_scheduleConfiguration.EffectiveMaxProcesses;
-            int newProcessSlots;
 
-            if (m_scheduleConfiguration.UseHistoricalCpuThrottling)
+            bool hasExplicitMultiplier = m_scheduleConfiguration.OrchestratorCpuMultiplier is > 0;
+            if (m_scheduleConfiguration.UseHistoricalCpuThrottling && !hasExplicitMultiplier)
             {
-                // When we use cpu usage of the buildxl process as semaphore, we already take into account the distribution overhead.
-                // That's why, there is no need to lower the concurrency level of the orchestrator when more workers get connected. 
+                // Historical CPU throttling accounts for distribution overhead, so skip automatic slot reductions.
+                // A positive explicit multiplier still limits worker admission alongside the CPU semaphore.
                 return;
             }
 
-            if (availableRemoteWorkersCount < 5)
-            {
-                // If there are less than 5 remote workers, the process slots for the orchestrator is not affected. 
-                // The distribution overhead is negligible in those builds. 
-                newProcessSlots = targetProcessSlots;
-            }
-            else
-            {
-                // In the distributed builds, the burden on the orchestrator machine increases with the number of available workers.
-                // We saw blue screen errors, or missing/terminated orchestrator errors in CloudBuild due to high CPU usage. 
-                // To prevent this, we reduce the process slots for the orchestrator machine based on the number of available remote workers.
-                // We chose 5 because almost all official CB builds use 5 or more workers. ADO builds use less, and they are not affected by this change.
-
-                double defaultMultiplier = Math.Max(0.1, 1 - (availableRemoteWorkersCount / 10.0));
-
-                // If the user does not pass orchestratorCpuMultiplier, then the local worker slots are configured based on the calculation above.
-                newProcessSlots = (int)(targetProcessSlots * (m_scheduleConfiguration.OrchestratorCpuMultiplier ?? defaultMultiplier));
-            }
+            // A positive explicit multiplier scales local process slots regardless of worker count (e.g., 0.7 keeps 70%).
+            // Otherwise, each available remote worker reduces local slots by 10 percentage points, down to 10% with nine or more.
+            // The resulting slot count is truncated to an integer.
+            double multiplier = m_scheduleConfiguration.OrchestratorCpuMultiplier is double configuredMultiplier && configuredMultiplier > 0
+                ? configuredMultiplier
+                : Math.Max(0.1, 1 - (availableRemoteWorkersCount / 10.0));
+            int newProcessSlots = (int)(targetProcessSlots * multiplier);
 
             LocalWorker.AdjustTotalProcessSlots(newProcessSlots);
 

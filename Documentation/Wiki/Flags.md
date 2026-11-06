@@ -155,7 +155,7 @@ This page lists flags that can be used to configure BuildXL.
 | NoWarn | Disable specific warning messages. These messages will still be logged in the main log file. |
 | NumRetryFailedPipsOnAnotherWorker | Specify the number of times a pip failing due to worker failures, should be retried on another worker. Default value set to 0 (disabled). |
 | ObjectDirectory | Specifies the root directory for primary build outputs (short form: /o) |
-| OrchestratorCpuMultiplier | Specifies the cpu queue limit in terms of a multiplier of the normal limit when at least one remote worker gets connected. Defaults to 0. |
+| OrchestratorCpuMultiplier | Scales orchestrator process slots to reserve CPU capacity for worker coordination. Zero or unset automatically reduces slots as worker count grows. |
 | OutputMaterializationExclusionRoot | Specifies one or more roots to be excluded from output materialization. NOTE: Files needed for execution are always materialized even if under this root. |
 | Paths | Paths to output files or spec files which determine what gets built. This is a shorthand for a full filter expression. |
 | PathSetAugmentationMonitoring | Check that the paths used in creating an augmented pathset/weak fingerprint are used during the execution of a pip. If a path is not used it's logged together with its hash. The argument controls the max number of paths logged per executed pip. If the value is set to 0, the monitoring is disabled. |

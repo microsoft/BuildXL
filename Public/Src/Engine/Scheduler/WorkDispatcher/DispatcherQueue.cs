@@ -93,13 +93,10 @@ namespace BuildXL.Scheduler.WorkDispatcher
             m_numQueuedProcessPips = 0;
             UseWeight = useWeight;
             m_stack = new ConcurrentStack<int>();
-            for (int i = MaxParallelDegree - 1; i >= 0; i--)
-            {
-                m_stack.Push(i);
-            }
         }
 
         private readonly ConcurrentStack<int> m_stack;
+        private int m_nextThreadId;
 
         /// <summary>
         /// Enqueues the given runnable pip
@@ -205,7 +202,12 @@ namespace BuildXL.Scheduler.WorkDispatcher
             int tid = -1;
             if (runnablePip.IncludeInTracer)
             {
-                m_stack.TryPop(out tid);
+                // Historical CPU throttling permits int.MaxValue slots; allocate tracing IDs only as needed.
+                if (!m_stack.TryPop(out tid))
+                {
+                    tid = Interlocked.Increment(ref m_nextThreadId) - 1;
+                }
+
                 runnablePip.ThreadId = tid;
             }
 

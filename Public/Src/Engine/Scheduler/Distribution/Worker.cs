@@ -567,6 +567,13 @@ namespace BuildXL.Scheduler.Distribution
             var (acquiredSlots, newPipCount) = UpdateProcessSlots(processRunnablePip);
             int totalSlots = processRunnablePip.IsLight ? TotalLightProcessSlots : TotalProcessSlots;
 
+            if (IsLocal && !processRunnablePip.IsLight && m_scheduleConfig.UseHistoricalCpuThrottling &&
+                m_scheduleConfig.OrchestratorCpuMultiplier is > 0)
+            {
+                // Historical CPU oversubscription must not bypass an explicit orchestrator slot limit.
+                loadFactor = 1;
+            }
+
             // If there is no process pip assigned to the worker, the resources should be acquired forcefully to prevent deadlocks.
             // There might be some pips requiring more resources than the machine has. In those cases, we should allow one pip to run.
             // We use the atomic return value of Interlocked.Add (newPipCount) rather than re-reading m_acquiredProcessPips,

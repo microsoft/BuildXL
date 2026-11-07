@@ -85,9 +85,12 @@ namespace BuildXL.Processes
         private string? m_messageCountSemaphoreName;
 
         /// <summary>
-        /// Sealed manifest tree.
+        /// Owned buffer containing the sealed tree, optionally preceded by the native startup payload header.
         /// </summary>
         private byte[]? m_sealedManifestTreeBlock;
+
+        // Initialized before publishing the buffer and never changed afterward. Tree offsets remain relative to this origin.
+        private int m_sealedManifestTreeOffset;
         private int[]? m_sealedPathIndex;
 #if NETCOREAPP
         private int m_sealedPathCount = -1;
@@ -839,24 +842,25 @@ namespace BuildXL.Processes
             if (sealedTree is not null)
             {
 #if NETCOREAPP
+                ReadOnlySpan<byte> tree = sealedTree.AsSpan(m_sealedManifestTreeOffset);
                 int sealedPathLookupCount = Interlocked.Increment(ref m_sealedPathLookupCount);
                 RecordSealedPathLookupMilestone(sealedPathLookupCount);
 
                 int[]? sealedPathIndex = Volatile.Read(ref m_sealedPathIndex);
                 if (sealedPathIndex is not null)
                 {
-                    return TryFindManifestPathForSealedTree(sealedTree, sealedPathIndex, path, out manifestPath, out nodePolicy);
+                    return TryFindManifestPathForSealedTree(tree, sealedPathIndex, path, out manifestPath, out nodePolicy);
                 }
 
                 bool indexCreationWasInProgress =
                     Volatile.Read(ref m_sealedPathIndexCreationState) == SealedPathIndexCreationInProgress;
                 if (m_sealedTreePathIdsMatchPathTable && sealedPathLookupCount >= SealedPathIndexPromotionLookupThreshold)
                 {
-                    TryCreateSealedPathIndex(sealedTree);
+                    TryCreateSealedPathIndex(tree);
                     sealedPathIndex = Volatile.Read(ref m_sealedPathIndex);
                     if (sealedPathIndex is not null)
                     {
-                        return TryFindManifestPathForSealedTree(sealedTree, sealedPathIndex, path, out manifestPath, out nodePolicy);
+                        return TryFindManifestPathForSealedTree(tree, sealedPathIndex, path, out manifestPath, out nodePolicy);
                     }
 
                     if (indexCreationWasInProgress
@@ -869,7 +873,7 @@ namespace BuildXL.Processes
 
                 SandboxedProcessFactory.Counters.IncrementCounter(
                     SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexFallbackLookupCount);
-                return TryFindManifestPathForSealedTreeByFragment(sealedTree, path, out manifestPath, out nodePolicy);
+                return TryFindManifestPathForSealedTreeByFragment(tree, path, out manifestPath, out nodePolicy);
 #else
                 HydrateTreeNodeIfNeeded();
 #endif
@@ -894,7 +898,7 @@ namespace BuildXL.Processes
 
 #if NETCOREAPP
         private bool TryFindManifestPathForSealedTree(
-            byte[] tree,
+            ReadOnlySpan<byte> tree,
             int[] pathIndex,
             AbsolutePath path,
             out AbsolutePath manifestPath,
@@ -917,7 +921,7 @@ namespace BuildXL.Processes
         }
 
         private bool TryFindManifestPathForSealedTreeByFragment(
-            byte[] tree,
+            ReadOnlySpan<byte> tree,
             AbsolutePath path,
             out AbsolutePath manifestPath,
             out FileAccessPolicy nodePolicy)
@@ -1008,7 +1012,7 @@ namespace BuildXL.Processes
             return true;
         }
 
-        private static int FindSealedNode(int[] pathIndex, byte[] tree, AbsolutePath path)
+        private static int FindSealedNode(int[] pathIndex, ReadOnlySpan<byte> tree, AbsolutePath path)
         {
             int pathId = path.Value.Value;
             int bucket = GetSealedPathIndexBucket(pathId, pathIndex.Length);
@@ -1042,19 +1046,19 @@ namespace BuildXL.Processes
             return (int)(hash % (uint)bucketCount);
         }
 
-        private static int ReadSealedNodePathId(byte[] tree, int nodeOffset)
+        private static int ReadSealedNodePathId(ReadOnlySpan<byte> tree, int nodeOffset)
         {
             int pathIdOffset = nodeOffset;
 #if DEBUG
-            Contract.Assert(BitConverter.ToUInt32(tree, pathIdOffset) == 0xF00DCAFE);
+            Contract.Assert(BitConverter.ToUInt32(tree.Slice(pathIdOffset)) == 0xF00DCAFE);
             pathIdOffset += sizeof(uint);
 #endif
             pathIdOffset += 3 * sizeof(uint);
-            return BitConverter.ToInt32(tree, pathIdOffset);
+            return BitConverter.ToInt32(tree.Slice(pathIdOffset));
         }
 
         private static bool TryFindSealedChild(
-            byte[] tree,
+            ReadOnlySpan<byte> tree,
             int parentOffset,
             int bucketsOffset,
             uint bucketCount,
@@ -1064,7 +1068,7 @@ namespace BuildXL.Processes
         {
             // CODESYNC: DataTypes.h and PolicySearch.cpp::ManifestRecord::FindChild.
             uint index = unchecked((uint)normalizedHash) % bucketCount;
-            uint childEntry = BitConverter.ToUInt32(tree, checked(bucketsOffset + ((int)index * sizeof(uint))));
+            uint childEntry = BitConverter.ToUInt32(tree.Slice(checked(bucketsOffset + ((int)index * sizeof(uint)))));
             if (childEntry == 0)
             {
                 childOffset = 0;
@@ -1090,7 +1094,7 @@ namespace BuildXL.Processes
             do
             {
                 index = (index + 1) % bucketCount;
-                childEntry = BitConverter.ToUInt32(tree, checked(bucketsOffset + ((int)index * sizeof(uint))));
+                childEntry = BitConverter.ToUInt32(tree.Slice(checked(bucketsOffset + ((int)index * sizeof(uint)))));
                 Contract.Assert(childEntry != 0);
                 childOffset = checked(parentOffset + (int)(childEntry & ~(uint)FileAccessBucketOffsetFlag.ChainMask));
                 if (SealedNodeFragmentMatches(
@@ -1109,7 +1113,7 @@ namespace BuildXL.Processes
         }
 
         private static bool SealedNodeFragmentMatches(
-            byte[] tree,
+            ReadOnlySpan<byte> tree,
             int nodeOffset,
             int normalizedHash,
             ReadOnlySpan<byte> normalizedFragment)
@@ -1118,25 +1122,25 @@ namespace BuildXL.Processes
 #if DEBUG
             offset += sizeof(uint);
 #endif
-            int hashCode = BitConverter.ToInt32(tree, offset);
+            int hashCode = BitConverter.ToInt32(tree.Slice(offset));
             if (hashCode != normalizedHash)
             {
                 return false;
             }
 
             offset += (4 * sizeof(uint)) + sizeof(ulong);
-            uint bucketCount = BitConverter.ToUInt32(tree, offset);
+            uint bucketCount = BitConverter.ToUInt32(tree.Slice(offset));
             offset += sizeof(uint) + checked((int)bucketCount * sizeof(uint));
 
             if (offset + normalizedFragment.Length > tree.Length)
             {
                 return false;
             }
-            return tree.AsSpan(offset, normalizedFragment.Length).SequenceEqual(normalizedFragment);
+            return tree.Slice(offset, normalizedFragment.Length).SequenceEqual(normalizedFragment);
         }
 
         private static void ReadSealedNode(
-            byte[] tree,
+            ReadOnlySpan<byte> tree,
             int nodeOffset,
             out FileAccessPolicy nodePolicy,
             out AbsolutePath path,
@@ -1145,15 +1149,15 @@ namespace BuildXL.Processes
         {
             int offset = nodeOffset;
 #if DEBUG
-            Contract.Assert(BitConverter.ToUInt32(tree, offset) == 0xF00DCAFE);
+            Contract.Assert(BitConverter.ToUInt32(tree.Slice(offset)) == 0xF00DCAFE);
             offset += sizeof(uint);
 #endif
             offset += 2 * sizeof(uint); // Hash and cone policy.
-            nodePolicy = (FileAccessPolicy)BitConverter.ToUInt32(tree, offset);
+            nodePolicy = (FileAccessPolicy)BitConverter.ToUInt32(tree.Slice(offset));
             offset += sizeof(uint);
-            path = new AbsolutePath(BitConverter.ToInt32(tree, offset));
+            path = new AbsolutePath(BitConverter.ToInt32(tree.Slice(offset)));
             offset += sizeof(uint) + sizeof(ulong);
-            bucketCount = BitConverter.ToUInt32(tree, offset);
+            bucketCount = BitConverter.ToUInt32(tree.Slice(offset));
             bucketsOffset = offset + sizeof(uint);
         }
 #endif
@@ -1531,9 +1535,10 @@ namespace BuildXL.Processes
 
         private void WriteManifestTreeBlock(BinaryWriter writer)
         {
-            if (m_sealedManifestTreeBlock is not null)
+            byte[]? sealedTree = Volatile.Read(ref m_sealedManifestTreeBlock);
+            if (sealedTree is not null)
             {
-                writer.Write(m_sealedManifestTreeBlock);
+                writer.Write(sealedTree, m_sealedManifestTreeOffset, sealedTree.Length - m_sealedManifestTreeOffset);
             }
             else
             {
@@ -1545,11 +1550,13 @@ namespace BuildXL.Processes
         /// Creates, as an Unicode encoded byte array, an expanded textual representation of the manifest, as consumed by the
         /// native detour implementation
         /// </summary>
+        /// <remarks>
+        /// Keep the stream leased until the payload is consumed. The returned bytes may share the manifest's owned
+        /// tree buffer and must not be modified.
+        /// </remarks>
         [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
         public ArraySegment<byte> GetPayloadBytes(LoggingContext loggingContext, FileAccessSetup setup, MemoryStream stream, uint timeoutMins, ref bool debugFlagsMatch)
         {
-            // Payload generation is the lifetime boundary after which the manifest is immutable.
-            SealManifestTree();
             stream.Position = 0;
             using (var writer = new BinaryWriter(stream, Encoding.Unicode, true))
             {
@@ -1572,6 +1579,15 @@ namespace BuildXL.Processes
                 WriteReportBlock(writer, setup);
                 WriteDllBlock(writer, setup);
                 WriteSubstituteProcessShimBlock(writer);
+
+                if (!IsManifestTreeBlockSealed)
+                {
+                    // Serialize directly behind the header in an owned buffer, rather than copying the sealed tree
+                    // into the caller's pooled stream. Managed lookups use a bounded view of the tree.
+                    SealManifestTree(new ArraySegment<byte>(stream.GetBuffer(), 0, checked((int)stream.Position)));
+                    return new ArraySegment<byte>(m_sealedManifestTreeBlock!);
+                }
+
                 WriteManifestTreeBlock(writer);
 
                 return new ArraySegment<byte>(stream.GetBuffer(), 0, (int)stream.Position);
@@ -1602,7 +1618,7 @@ namespace BuildXL.Processes
         }
 #endif
 
-        private void SealManifestTree()
+        private void SealManifestTree(ArraySegment<byte> payloadHeader = default)
         {
             if (Volatile.Read(ref m_sealedManifestTreeBlock) is not null)
             {
@@ -1611,8 +1627,13 @@ namespace BuildXL.Processes
 
             int nodeCount = m_mutableManifestNodeCount;
             int serializedSize = m_mutableManifestSerializedSize;
-            var sealedManifestTreeBlock = new byte[serializedSize];
-            using var stream = new MemoryStream(sealedManifestTreeBlock, writable: true);
+            var sealedManifestTreeBlock = new byte[checked(payloadHeader.Count + serializedSize)];
+            if (payloadHeader.Count > 0)
+            {
+                Array.Copy(payloadHeader.Array!, payloadHeader.Offset, sealedManifestTreeBlock, 0, payloadHeader.Count);
+            }
+
+            using var stream = new MemoryStream(sealedManifestTreeBlock, payloadHeader.Count, serializedSize, writable: true);
             using (var writer = new BinaryWriter(stream, Encoding.Unicode, leaveOpen: true))
             {
                 m_rootNode.InternalSerialize(this, default(NormalizedPathString), writer);
@@ -1626,6 +1647,7 @@ namespace BuildXL.Processes
             m_sealedPathCount = nodeCount - 1;
 #endif
 
+            m_sealedManifestTreeOffset = payloadHeader.Count;
             Volatile.Write(ref m_sealedManifestTreeBlock, sealedManifestTreeBlock);
 #if NETCOREAPP
             SandboxedProcessFactory.Counters.IncrementCounter(
@@ -1656,7 +1678,7 @@ namespace BuildXL.Processes
             }
         }
 
-        private void TryCreateSealedPathIndex(byte[] tree)
+        private void TryCreateSealedPathIndex(ReadOnlySpan<byte> tree)
         {
             if (!m_sealedTreePathIdsMatchPathTable)
             {
@@ -1738,7 +1760,7 @@ namespace BuildXL.Processes
             return SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexSizeGreaterThan262144Count;
         }
 
-        private static int CountSealedPaths(byte[] tree)
+        private static int CountSealedPaths(ReadOnlySpan<byte> tree)
         {
             var pendingNodes = new Stack<int>();
             pendingNodes.Push(0);
@@ -1755,7 +1777,7 @@ namespace BuildXL.Processes
 
                 for (int i = 0; i < childBucketCount; i++)
                 {
-                    uint childEntry = BitConverter.ToUInt32(tree, checked(childrenOffset + (i * sizeof(uint))));
+                    uint childEntry = BitConverter.ToUInt32(tree.Slice(checked(childrenOffset + (i * sizeof(uint)))));
                     if (childEntry != 0)
                     {
                         pendingNodes.Push(checked(nodeOffset + (int)(childEntry & ~(uint)FileAccessBucketOffsetFlag.ChainMask)));
@@ -1766,7 +1788,7 @@ namespace BuildXL.Processes
             return pathCount;
         }
 
-        private static int[]? CreateSealedPathIndex(byte[] tree, int pathCount)
+        private static int[]? CreateSealedPathIndex(ReadOnlySpan<byte> tree, int pathCount)
         {
             Contract.Requires(pathCount >= 0);
 
@@ -1815,7 +1837,7 @@ namespace BuildXL.Processes
 
                 for (int i = 0; i < childBucketCount; i++)
                 {
-                    uint childEntry = BitConverter.ToUInt32(tree, checked(childrenOffset + (i * sizeof(uint))));
+                    uint childEntry = BitConverter.ToUInt32(tree.Slice(checked(childrenOffset + (i * sizeof(uint)))));
                     if (childEntry != 0)
                     {
                         pendingNodes.Push(checked(nodeOffset + (int)(childEntry & ~(uint)FileAccessBucketOffsetFlag.ChainMask)));
@@ -1912,7 +1934,9 @@ namespace BuildXL.Processes
                 return;
             }
             
-            using (var stream = new MemoryStream(m_sealedManifestTreeBlock!))
+            byte[]? sealedTree = Volatile.Read(ref m_sealedManifestTreeBlock);
+            Contract.Assert(sealedTree is not null);
+            using (var stream = new MemoryStream(sealedTree, m_sealedManifestTreeOffset, sealedTree.Length - m_sealedManifestTreeOffset, writable: false))
             using (var reader = new BinaryReader(stream, Encoding.Unicode, leaveOpen: true))
             {
                 (m_rootNode, _) = Node.InternalDeserialize(reader);
@@ -1931,7 +1955,9 @@ namespace BuildXL.Processes
             if (IsManifestTreeBlockSealed)
             {
                 Contract.Assert(m_sealedManifestTreeBlock is not null);
-                return m_sealedManifestTreeBlock;
+                return m_sealedManifestTreeOffset == 0
+                    ? m_sealedManifestTreeBlock
+                    : m_sealedManifestTreeBlock.AsSpan(m_sealedManifestTreeOffset).ToArray();
             }
 
             // start with 4 KB of memory (one page), which will expand as necessary
@@ -2013,7 +2039,7 @@ namespace BuildXL.Processes
         {
             byte[]? sealedTree = Volatile.Read(ref m_sealedManifestTreeBlock);
             Contract.Assert(sealedTree is not null);
-            TryCreateSealedPathIndex(sealedTree);
+            TryCreateSealedPathIndex(sealedTree.AsSpan(m_sealedManifestTreeOffset));
         }
 
         internal bool TryFindManifestPathForSealedTreeByFragmentForTesting(
@@ -2023,7 +2049,7 @@ namespace BuildXL.Processes
         {
             byte[]? sealedTree = Volatile.Read(ref m_sealedManifestTreeBlock);
             Contract.Assert(sealedTree is not null);
-            return TryFindManifestPathForSealedTreeByFragment(sealedTree, path, out manifestPath, out nodePolicy);
+            return TryFindManifestPathForSealedTreeByFragment(sealedTree.AsSpan(m_sealedManifestTreeOffset), path, out manifestPath, out nodePolicy);
         }
 
         internal bool TryFindManifestPathForSealedTreeByIndexForTesting(
@@ -2035,7 +2061,7 @@ namespace BuildXL.Processes
             int[]? sealedPathIndex = Volatile.Read(ref m_sealedPathIndex);
             Contract.Assert(sealedTree is not null);
             Contract.Assert(sealedPathIndex is not null);
-            return TryFindManifestPathForSealedTree(sealedTree, sealedPathIndex, path, out manifestPath, out nodePolicy);
+            return TryFindManifestPathForSealedTree(sealedTree.AsSpan(m_sealedManifestTreeOffset), sealedPathIndex, path, out manifestPath, out nodePolicy);
         }
 #endif
 
@@ -2857,8 +2883,9 @@ namespace BuildXL.Processes
             [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
             public IEnumerable<string> Describe(FileAccessManifest owner)
             {
-                using (var stream = owner.m_sealedManifestTreeBlock is not null
-                    ? new MemoryStream(owner.m_sealedManifestTreeBlock, writable: false)
+                byte[]? sealedTree = Volatile.Read(ref owner.m_sealedManifestTreeBlock);
+                using (var stream = sealedTree is not null
+                    ? new MemoryStream(sealedTree, owner.m_sealedManifestTreeOffset, sealedTree.Length - owner.m_sealedManifestTreeOffset, writable: false)
                     : new MemoryStream(4096))
                 {
                     if (!owner.IsManifestTreeBlockSealed)

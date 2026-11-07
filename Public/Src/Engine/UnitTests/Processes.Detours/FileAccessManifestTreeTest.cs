@@ -273,6 +273,137 @@ namespace Test.BuildXL.Processes.Detours
             XAssert.IsTrue(expected.SequenceEqual(actual));
         }
 
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(128)]
+        public void PayloadSharesOwnedTreeBufferAndPreservesSerialization(int pathCount)
+        {
+            var pathTable = new PathTable();
+            var manifest = createManifest();
+            var presealed = createManifest();
+            byte[] expectedTree = manifest.GetManifestTreeBytes();
+            string[] expectedDescription = manifest.Describe().ToArray();
+
+            using var expectedSerialization = new MemoryStream();
+            presealed.Serialize(expectedSerialization);
+            using var expectedScratch = new MemoryStream();
+            using var scratch = new MemoryStream();
+            ArraySegment<byte> expectedPayload = GetPayload(presealed, expectedScratch);
+            ArraySegment<byte> payload = GetPayload(manifest, scratch);
+            XAssert.IsTrue(expectedPayload.SequenceEqual(payload));
+
+            var treeField = typeof(FileAccessManifest).GetField("m_sealedManifestTreeBlock", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.Same(payload.Array, treeField.GetValue(manifest));
+            Assert.NotSame(scratch.GetBuffer(), payload.Array);
+            byte[] firstPayload = payload.ToArray();
+
+            Array.Clear(scratch.GetBuffer(), 0, scratch.Capacity);
+            scratch.SetLength(payload.Count + 1024);
+            XAssert.IsTrue(expectedTree.SequenceEqual(manifest.GetManifestTreeBytes()));
+            XAssert.IsTrue(expectedDescription.SequenceEqual(manifest.Describe()));
+
+            using var serialization = new MemoryStream();
+            manifest.Serialize(serialization);
+            XAssert.IsTrue(expectedSerialization.ToArray().SequenceEqual(serialization.ToArray()));
+            serialization.Position = 0;
+            var deserialized = FileAccessManifest.Deserialize(serialization);
+            XAssert.IsTrue(expectedTree.SequenceEqual(deserialized.GetManifestTreeBytes()));
+            using var deserializedScratch = new MemoryStream();
+            XAssert.IsTrue(firstPayload.SequenceEqual(GetPayload(deserialized, deserializedScratch)));
+
+            if (pathCount > 0)
+            {
+                var path = AbsolutePath.Create(pathTable, @"c:\REPO\SOURCE\PROJECT0\OUTPUT.DLL");
+                var policy = FileAccessPolicy.AllowRead | FileAccessPolicy.ReportAccess;
+                XAssert.IsTrue(manifest.TryFindManifestPathFor(path, out AbsolutePath found, out FileAccessPolicy actualPolicy));
+                XAssert.AreEqual(path, found);
+                XAssert.AreEqual(policy, actualPolicy);
+#if NETCOREAPP
+                XAssert.IsTrue(manifest.TryFindManifestPathForSealedTreeByFragmentForTesting(path, out found, out actualPolicy));
+                XAssert.AreEqual(path, found);
+                XAssert.AreEqual(policy, actualPolicy);
+                manifest.CreateSealedPathIndexForTesting();
+                XAssert.IsTrue(manifest.TryFindManifestPathForSealedTreeByIndexForTesting(path, out found, out actualPolicy));
+                XAssert.AreEqual(path, found);
+                XAssert.AreEqual(policy, actualPolicy);
+#endif
+                var deserializedPath = AbsolutePath.Create(deserialized.PathTable, path.ToString(pathTable));
+                XAssert.IsTrue(deserialized.TryFindManifestPathFor(deserializedPath, out found, out actualPolicy));
+                XAssert.AreEqual(path, found);
+                XAssert.AreEqual(policy, actualPolicy);
+            }
+
+            var missingPath = AbsolutePath.Create(pathTable, @"D:\unrelated\file");
+            XAssert.IsFalse(manifest.TryFindManifestPathFor(missingPath, out _, out FileAccessPolicy missingPolicy));
+            XAssert.AreEqual(FileAccessPolicy.Deny, missingPolicy);
+
+            string longerReportPath = new string('r', 1024);
+            expectedPayload = GetPayload(presealed, expectedScratch, longerReportPath);
+            ArraySegment<byte> secondPayload = GetPayload(manifest, scratch, longerReportPath);
+            XAssert.IsTrue(expectedPayload.SequenceEqual(secondPayload));
+            XAssert.IsTrue(firstPayload.SequenceEqual(payload));
+            scratch.Dispose();
+            XAssert.IsTrue(expectedTree.SequenceEqual(manifest.GetManifestTreeBytes()));
+            XAssert.IsTrue(expectedDescription.SequenceEqual(manifest.Describe()));
+
+            FileAccessManifest createManifest()
+            {
+                var result = new FileAccessManifest(pathTable);
+                if (pathCount > 0)
+                {
+                    result.AddScope(AbsolutePath.Create(pathTable, @"C:\repo\source"), FileAccessPolicy.Deny, FileAccessPolicy.AllowRead);
+                }
+
+                for (int i = 0; i < pathCount; i++)
+                {
+                    result.AddPath(
+                        AbsolutePath.Create(pathTable, $@"C:\repo\source\project{i}\output.dll"),
+                        FileAccessPolicy.MaskNothing,
+                        FileAccessPolicy.ReportAccess);
+                }
+
+                return result;
+            }
+        }
+
+#if NETCOREAPP
+        [Fact]
+        public void PayloadDoesNotAllocateASecondTreeSizedBuffer()
+        {
+            using var scratch = new MemoryStream(4096);
+            _ = GetPayload(new FileAccessManifest(new PathTable()), scratch);
+            var pathTable = new PathTable();
+            var manifest = new FileAccessManifest(pathTable);
+            for (int i = 0; i < 4096; i++)
+            {
+                manifest.AddPath(
+                    AbsolutePath.Create(pathTable, $@"C:\repo\long-output-file-name-to-make-serialized-records-dominate-scratch-space-{i}.dll"),
+                    FileAccessPolicy.MaskNothing,
+                    FileAccessPolicy.ReportAccess);
+            }
+
+            long treeSize = manifest.MutableManifestSerializedSize;
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            ArraySegment<byte> payload = GetPayload(manifest, scratch);
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            XAssert.IsTrue(
+                allocated < treeSize * 3 / 2,
+                $"Allocated {allocated} bytes for a {treeSize}-byte tree and {payload.Count}-byte payload.");
+        }
+#endif
+
+        private ArraySegment<byte> GetPayload(FileAccessManifest manifest, MemoryStream scratch, string reportPath = "#123")
+        {
+            bool debugFlagsMatch = true;
+            return manifest.GetPayloadBytes(
+                LoggingContext,
+                new FileAccessSetup { DllNameX64 = "detours64.dll", DllNameX86 = "detours32.dll", ReportPath = reportPath },
+                scratch,
+                timeoutMins: 10,
+                ref debugFlagsMatch);
+        }
+
         [Fact]
         public void SerializationScratchHandlesWideAndDeepTrees()
         {

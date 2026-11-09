@@ -380,7 +380,6 @@ namespace NugetPackages {
         assemblies: [
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net8PackageQualifier).InMemory.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net8PackageQualifier).Interfaces.dll,
-            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net8PackageQualifier).BasicFilesystem.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net8PackageQualifier).BuildCacheAdapter.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net8PackageQualifier).MemoizationStoreAdapter.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net8PackageQualifier).VerticalAggregator.dll,
@@ -389,7 +388,6 @@ namespace NugetPackages {
 
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net9PackageQualifier).InMemory.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net9PackageQualifier).Interfaces.dll,
-            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net9PackageQualifier).BasicFilesystem.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net9PackageQualifier).BuildCacheAdapter.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net9PackageQualifier).MemoizationStoreAdapter.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net9PackageQualifier).VerticalAggregator.dll,
@@ -398,7 +396,6 @@ namespace NugetPackages {
 
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net10PackageQualifier).InMemory.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net10PackageQualifier).Interfaces.dll,
-            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net10PackageQualifier).BasicFilesystem.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net10PackageQualifier).BuildCacheAdapter.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net10PackageQualifier).MemoizationStoreAdapter.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net10PackageQualifier).VerticalAggregator.dll,

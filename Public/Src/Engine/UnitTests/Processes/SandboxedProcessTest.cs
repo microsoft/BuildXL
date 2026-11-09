@@ -678,10 +678,22 @@ namespace Test.BuildXL.Processes
 
             // Use wall-clock time.
             var sw = System.Diagnostics.Stopwatch.StartNew();
+            var counters = SandboxedProcessFactory.Counters;
+            var statisticsBefore = counters.AsStatistics("SandboxedProcess");
+            var eofWaitTimeBefore = counters.GetElapsedTime(SandboxedProcessFactory.SandboxedProcessCounters.ReportEofWaitDuration);
 
             var result = await RunProcess(info);
 
             sw.Stop();
+
+            XAssert.IsTrue(counters.GetElapsedTime(SandboxedProcessFactory.SandboxedProcessCounters.ReportEofWaitDuration) > eofWaitTimeBefore);
+            if (!includeAllowedSurvivingChildren)
+            {
+                var statisticsAfter = counters.AsStatistics("SandboxedProcess");
+                XAssert.IsTrue(
+                    statisticsAfter["SandboxedProcess.ChildProcessWaitDurationMs"] > statisticsBefore["SandboxedProcess.ChildProcessWaitDurationMs"],
+                    "The blocked child must contribute time to the job completion wait statistic.");
+            }
 
             XAssert.AreEqual(0, result.ExitCode);
             XAssert.IsNotNull(result.SurvivingChildProcesses);
@@ -790,7 +802,14 @@ namespace Test.BuildXL.Processes
             var spawnOperation = Operation.Spawn(Context.PathTable, waitToFinish, Operation.Echo(echoMessage));
             var info = ToProcessInfo(ToProcess(spawnOperation));
             info.DiagnosticsEnabled = true;
+            var counters = SandboxedProcessFactory.Counters;
+            var childWaitTimeBefore = counters.GetElapsedTime(SandboxedProcessFactory.SandboxedProcessCounters.ChildProcessWaitDuration);
+            var eofWaitTimeBefore = counters.GetElapsedTime(SandboxedProcessFactory.SandboxedProcessCounters.ReportEofWaitDuration);
+
             var result = await RunProcess(info);
+
+            XAssert.IsTrue(counters.GetElapsedTime(SandboxedProcessFactory.SandboxedProcessCounters.ChildProcessWaitDuration) > childWaitTimeBefore);
+            XAssert.IsTrue(counters.GetElapsedTime(SandboxedProcessFactory.SandboxedProcessCounters.ReportEofWaitDuration) > eofWaitTimeBefore);
 
             // no survivors
             XAssert.IsNull(result.SurvivingChildProcesses);

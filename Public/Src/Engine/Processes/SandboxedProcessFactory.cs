@@ -38,6 +38,19 @@ namespace BuildXL.Processes
             AccessReportCount,
 
             /// <summary>
+            /// Aggregate time spent awaiting Windows job completion after the primary process exits, excluding survivor handling.
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            ChildProcessWaitDuration,
+
+            /// <summary>
+            /// Aggregate time spent awaiting Windows Detours report reader completion (including cancellation),
+            /// excluding report reader semaphore acquisition and disposal.
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            ReportEofWaitDuration,
+
+            /// <summary>
             /// Number of access reports whose reported path exactly matched the manifest path.
             /// </summary>
             [CounterType(CounterType.Numeric)]

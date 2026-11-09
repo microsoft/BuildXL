@@ -712,7 +712,10 @@ namespace BuildXL.Processes
             {
                 if (m_reportReader != null)
                 {
-                    await m_reportReader.CompletionAsync(!cancel);
+                    using (SandboxedProcessFactory.Counters.StartStopwatch(SandboxedProcessFactory.SandboxedProcessCounters.ReportEofWaitDuration))
+                    {
+                        await m_reportReader.CompletionAsync(!cancel);
+                    }
 
                     m_reportReader.Dispose();
                     m_reportReader = null;
@@ -728,8 +731,13 @@ namespace BuildXL.Processes
                 if (ShouldWaitForSurvivingChildProcesses(jobObject))
                 {
                     // If there are any remaining child processes, we wait for a moment.
-                    // This should be a rare case, and even if we have to wait it should typically only be for a fraction of a second, so we simply wait synchronously (blocking the current thread).
-                    if (!(await jobObject.WaitAsync(m_loggingContext, m_nestedProcessTerminationTimeout)))
+                    bool terminated;
+                    using (SandboxedProcessFactory.Counters.StartStopwatch(SandboxedProcessFactory.SandboxedProcessCounters.ChildProcessWaitDuration))
+                    {
+                        terminated = await jobObject.WaitAsync(m_loggingContext, m_nestedProcessTerminationTimeout);
+                    }
+
+                    if (!terminated)
                     {
                         HandleSurvivingChildProcesses(jobObject);
                     }

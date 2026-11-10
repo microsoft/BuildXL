@@ -3082,6 +3082,24 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void EBPFRequiredNativeLibrariesMissing(LoggingContext context, string errorMessage);
 
         [GeneratedEvent(
+            (int)LogEventId.EBPFBpfFileSystemSudoPrompt,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "BuildXL requires elevated permissions to mount the BPF filesystem at /sys/fs/bpf for its sandbox.")]
+        public abstract void EBPFBpfFileSystemSudoPrompt(LoggingContext context);
+
+        [GeneratedEvent(
+            (int)LogEventId.CannotMountEBPFBpfFileSystem,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Engine,
+            Message = "Unable to prepare the BPF filesystem for the sandbox: {errorMessage}")]
+        public abstract void CannotMountEBPFBpfFileSystem(LoggingContext context, string errorMessage);
+
+        [GeneratedEvent(
             (int)LogEventId.ConfigUnsafeMonitorCreateProcessAsUser,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,

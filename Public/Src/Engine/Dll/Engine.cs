@@ -3043,6 +3043,15 @@ namespace BuildXL.Engine
                     return ConstructScheduleResult.Failure;
                 }
 
+                if (!UnixBpfUtils.TryMountBpfFileSystemIfNeeded(
+                    Configuration.Interactive,
+                    out string mountFailure,
+                    () => Logger.Log.EBPFBpfFileSystemSudoPrompt(loggingContext)))
+                {
+                    Logger.Log.CannotMountEBPFBpfFileSystem(loggingContext, mountFailure);
+                    return ConstructScheduleResult.Failure;
+                }
+
                 if (!UnixGetCapUtils.TrySetEBPFCapabilitiesIfNeeded(
                     SandboxConnectionLinuxEBPF.EBPFRunner,
                     Configuration.Interactive,

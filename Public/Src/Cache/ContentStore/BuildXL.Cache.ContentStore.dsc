@@ -121,6 +121,12 @@ export function getGrpcAspNetCorePackages() : (Managed.ManagedNugetPackage | Man
 
 @@public
 export function getAsptNetCoreAssemblies() : Managed.ManagedNugetPackage[] {
+    if (qualifier.targetFramework === "net11.0") {
+        // Older standalone package pins cannot replace the implementations required by this framework.
+        // Framework runtime binaries now take precedence during deployment, including transitive dependencies.
+        return [BuildXLSdk.WebFramework.getFrameworkPackage()];
+    }
+
     return [
         // The ASPNet web framework package comes with some DLLs that we also import individually.
         // We prefer the one individually imported, so remove the overlapping DLLs from the web framework

@@ -6,11 +6,13 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine;
 using BuildXL.Processes;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities;
@@ -24,7 +26,22 @@ namespace Test.BuildXL.FrontEnd.Download
     /// </summary>
     public abstract class DownloadResolverIntegrationTestBase : DsTestWithCacheBase
     {
-        private const string TestServer = "http://localhost:9753/";
+        private HttpListener m_listener;
+
+        protected string TestServer
+        {
+            get
+            {
+                if (m_listener == null)
+                {
+                    // Publish the URL only after startup succeeds, and retain it across graph reloads.
+                    m_listener = CreateAndStartListener();
+                    TestRequestHandler.StartRequestHandler(m_listener, m_alternativeDataIndicator, m_webRequestCount);
+                }
+
+                return m_listener.Prefixes.Single();
+            }
+        }
 
         private readonly RequestCount m_webRequestCount = new RequestCount();
         private readonly AlternativeDataIndicator m_alternativeDataIndicator = new AlternativeDataIndicator();
@@ -58,6 +75,70 @@ namespace Test.BuildXL.FrontEnd.Download
             OutDir = "target";
         }
 
+        protected static int GetTestServerPort()
+        {
+            using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
+            {
+                socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+                return ((IPEndPoint)socket.LocalEndPoint).Port;
+            }
+        }
+
+        protected HttpListener CreateAndStartListener(Func<int> getPort = null)
+        {
+            const int MaxAttempts = 10;
+            getPort = getPort ?? GetTestServerPort;
+            for (int attempt = 1; ; attempt++)
+            {
+                var listener = new HttpListener();
+                try
+                {
+                    listener.Prefixes.Add($"http://localhost:{getPort()}/");
+                    listener.Start();
+                    return listener;
+                }
+                catch (HttpListenerException exception) when (attempt < MaxAttempts && IsAddressInUse(exception))
+                {
+                    Output.WriteLine($"HTTP test listener address conflict on attempt {attempt}/{MaxAttempts}: {exception}");
+                }
+                finally
+                {
+                    if (!listener.IsListening)
+                    {
+                        listener.Close();
+                    }
+                }
+            }
+        }
+
+        private static bool IsAddressInUse(HttpListenerException exception)
+        {
+            const int ErrorAlreadyExists = 183;
+            const int ErrorSharingViolation = 32;
+
+            // Unix HttpListener reports duplicate prefixes as HTTP 400, or propagates a native socket bind error.
+            return exception.NativeErrorCode == new SocketException((int)SocketError.AddressAlreadyInUse).NativeErrorCode
+                || (OperatingSystemHelper.IsWindowsOS
+                    ? exception.NativeErrorCode == ErrorAlreadyExists || exception.NativeErrorCode == ErrorSharingViolation
+                    : exception.NativeErrorCode == (int)HttpStatusCode.BadRequest);
+        }
+
+        /// <inheritdoc/>
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
+                if (disposing)
+                {
+                    m_listener?.Close();
+                }
+            }
+            finally
+            {
+                base.Dispose(disposing);
+            }
+        }
+
         /// <inheritdoc/>
         protected SpecEvaluationBuilder Build(IDownloadFileSettings[] settings)
         {
@@ -67,11 +148,12 @@ namespace Test.BuildXL.FrontEnd.Download
         }
 
         /// <summary>
-        /// Runs the engine for a given config startig the http server before the test runs
+        /// Runs the engine with the HTTP server started when <see cref="TestServer"/> was first accessed.
         /// </summary>
-        protected BuildXLEngineResult RunEngineWithServer(ICommandLineConfiguration config)
+        protected BuildXLEngineResult RunEngineWithServer(ICommandLineConfiguration config, TestCache testCache = null)
         {
-            return StartServerAndRunTest(() => RunEngine(config));
+            Assert.True(m_listener?.IsListening == true);
+            return RunEngine(config, testCache);
         }
 
         /// <summary>
@@ -148,34 +230,6 @@ config({{
     {(!string.IsNullOrEmpty(settings.DownloadedValueName) ? $"downloadedValueName: '{settings.DownloadedValueName}'," : string.Empty)}
     {(settings.RequiredFiles == null ? string.Empty : $"requiredFiles: [{string.Join(", ", settings.RequiredFiles.Select(file => $"r`{file.ToString(FrontEndContext.StringTable, global::BuildXL.Utilities.Core.PathFormat.Script)}`"))}],")}
 }}";
-        }
-
-        /// <summary>
-        /// Starts an HTTP server for testing purposes and runs a test in its context
-        /// </summary>
-        protected BuildXLEngineResult StartServerAndRunTest(Func<BuildXLEngineResult> performTest)
-        {
-            using (var listener = new HttpListener())
-            {
-                // This test relies on the mutex in the build engine to only run one unittest at a time and this assembly to be single thread
-                // if any of those assumptions will be broken we will have to either dynamically (remind you globally) get unique ports.
-                // HttpListner doesn't have this built-in so there will always be a race. Just spam the ports until one doesn't fail
-                // use a global mutex (This is not honored by qtest since it can run in a different session on cloudbuild).
-                listener.Prefixes.Add(TestServer);
-                listener.Start();
-
-                TestRequestHandler.StartRequestHandler(listener, m_alternativeDataIndicator, m_webRequestCount);
-
-                try
-                {
-                    return performTest();
-                }
-                finally 
-                {
-                    listener.Stop();
-                    listener.Close();
-                }
-            }
         }
     }
 

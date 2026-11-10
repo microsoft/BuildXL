@@ -34,7 +34,7 @@ export function flatten(
     return flattenItem(
         definition,
         r`.`,
-        handleDuplicateFile || Diagnostics.reportDuplicateFileError,
+        handleDuplicateFile || Diagnostics.handleDuplicateFileDeployment,
         initialFlattenResult,
         deploymentOptions,
         Diagnostics.initialProvenance
@@ -157,7 +157,7 @@ function flattenItem(
 }
 
 @@public
-export function flattenFile(file: File, targetFile: RelativePath, handleDuplicateFile: HandleDuplicateFileDeployment, currentResult: FlattenedResult, provenance: Diagnostics.Provenance) : FlattenedResult {
+export function flattenFile(file: File, targetFile: RelativePath, handleDuplicateFile: HandleDuplicateFileDeployment, currentResult: FlattenedResult, provenance: Diagnostics.Provenance, preferDeployment?: boolean) : FlattenedResult {
     if (file === undefined) {
         return currentResult;
     }
@@ -165,30 +165,27 @@ export function flattenFile(file: File, targetFile: RelativePath, handleDuplicat
     let result = currentResult;
 
     // This could be more preformant if we had a getOrAdd operation.
-    const existingFileWithProvenace = result.flattenedFiles.get(targetFile);
+    const existingFileWithProvenance = result.flattenedFiles.get(targetFile);
 
-    const currentFileWithProvenace : DeployedFileWithProvenance = {
+    const currentFileWithProvenance : DeployedFileWithProvenance = {
         file: file,
-        provenance: provenance
+        provenance: provenance,
+        preferDeployment: preferDeployment,
     };
 
     // TODO: Validate if the file is going to be under an existing OpaqueDirectory. To implement this we'll need IsWithin on RelativePath
 
-    if (existingFileWithProvenace !== undefined) {
-        if (existingFileWithProvenace.file !== file) {
+    if (existingFileWithProvenance !== undefined) {
+        if (existingFileWithProvenance.file !== file) {
             // If the two files are different, report the error.
-            let action = handleDuplicateFile(targetFile, existingFileWithProvenace, currentFileWithProvenace);
+            let action = handleDuplicateFile(targetFile, existingFileWithProvenance, currentFileWithProvenance);
             switch  (action) {
                 case "takeA":
                     // Do nothing just skip, the left one is already added.
                     return result;
                 case "takeB":
-                    // we need to remove the already added one and then add the current one.
                     return {
-                        flattenedFiles: result
-                            .flattenedFiles
-                            .remove(targetFile)
-                            .add(targetFile, currentFileWithProvenace),
+                        flattenedFiles: result.flattenedFiles.add(targetFile, currentFileWithProvenance),
                         flattenedOpaques: result.flattenedOpaques,
                         visitedItems: result.visitedItems,
                     };
@@ -197,10 +194,18 @@ export function flattenFile(file: File, targetFile: RelativePath, handleDuplicat
             }
         }
 
+        if (preferDeployment && !existingFileWithProvenance.preferDeployment) {
+            return {
+                flattenedFiles: result.flattenedFiles.add(targetFile, currentFileWithProvenance),
+                flattenedOpaques: result.flattenedOpaques,
+                visitedItems: result.visitedItems,
+            };
+        }
+
         return result;
     } else {
         return {
-            flattenedFiles: result.flattenedFiles.add(targetFile, currentFileWithProvenace),
+            flattenedFiles: result.flattenedFiles.add(targetFile, currentFileWithProvenance),
             flattenedOpaques:result.flattenedOpaques,
             visitedItems: result.visitedItems,
         };

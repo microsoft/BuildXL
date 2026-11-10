@@ -84,7 +84,7 @@ param(
     [ValidateSet("Release", "Debug")]
     [string]$DeployConfig = "Debug", # must match defaultQualifier.configuration in config.dsc 
 
-    [ValidateSet("net472", "net8.0", "net9.0", "net10.0", "win-x64", "osx-x64")]
+    [ValidateSet("net472", "net8.0", "net9.0", "net10.0", "net11.0", "win-x64", "osx-x64")]
     [string]$DeployRuntime = "win-x64", # must correspond to defaultQualifier.targetFramework in config.dsc 
 
     [Parameter(Mandatory = $false)]
@@ -315,7 +315,7 @@ if ($Vs -or $VsAll) {
     }
     else {
         # by default (-vs) we build only .NET Core and only projects targeting one of the .NET Core frameworks
-        $AdditionalBuildXLArguments += "/q:Debug /vsTargetFramework:netstandard2.0 /vsTargetFramework:netstandard2.1 /vsTargetFramework:net8.0 /vsTargetFramework:net9.0 /vsTargetFramework:net10.0";
+        $AdditionalBuildXLArguments += "/q:Debug /vsTargetFramework:netstandard2.0 /vsTargetFramework:netstandard2.1 /vsTargetFramework:net8.0 /vsTargetFramework:net9.0 /vsTargetFramework:net10.0 /vsTargetFramework:net11.0";
     }
 }
 
@@ -536,6 +536,9 @@ if ($DeployConfig -eq "Release") {
     elseif ($DeployRuntime -eq "net10.0") {
         $AdditionalBuildXLArguments += "/q:ReleaseNet10"
     }
+    elseif ($DeployRuntime -eq "net11.0") {
+        $AdditionalBuildXLArguments += "/q:ReleaseNet11"
+    }
     elseif ($DeployRuntime -eq "osx-x64") {
         $AdditionalBuildXLArguments += "/q:ReleaseDotNetCoreMac"
     }
@@ -558,6 +561,9 @@ else {
     }
     elseif ($DeployRuntime -eq "net10.0") {
         $AdditionalBuildXLArguments += "/q:DebugNet10"
+    }
+    elseif ($DeployRuntime -eq "net11.0") {
+        $AdditionalBuildXLArguments += "/q:DebugNet11"
     }
     elseif ($DeployRuntime -eq "osx-x64") {
         $AdditionalBuildXLArguments += "/q:DebugDotNetCoreMac"

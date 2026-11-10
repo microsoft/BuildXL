@@ -14,6 +14,9 @@ const asp9RuntimeVersion = "9.0.22";
 const asp10RefVersion = "10.0.14";
 const asp10RuntimeVersion = "10.0.14";
 
+const asp11RefVersion = "11.0.0";
+const asp11RuntimeVersion = "11.0.0";
+
 export const pkgs = [
     // aspnet web api
     { id: "Microsoft.AspNet.WebApi.Client", version: "5.2.7" },
@@ -63,4 +66,10 @@ export const pkgs = [
         filesToExclude: [r`runtimes/osx-x64/lib/net10.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/osx-x64/lib/net10.0/Microsoft.Extensions.Logging.dll`] },
     { id: "Microsoft.AspNetCore.App.Runtime.osx-arm64", version: asp10RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.osx-arm64.10.0.0",
         filesToExclude: [r`runtimes/osx-arm64/lib/net10.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/osx-arm64/lib/net10.0/Microsoft.Extensions.Logging.dll`] },
+
+    { id: "Microsoft.AspNetCore.App.Ref", version: asp11RefVersion, alias: "Microsoft.AspNetCore.App.Ref.11.0.0" },
+    { id: "Microsoft.AspNetCore.App.Runtime.win-x64", version: asp11RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.win-x64.11.0.0" },
+    { id: "Microsoft.AspNetCore.App.Runtime.linux-x64", version: asp11RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.linux-x64.11.0.0" },
+    { id: "Microsoft.AspNetCore.App.Runtime.osx-x64", version: asp11RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.osx-x64.11.0.0" },
+    { id: "Microsoft.AspNetCore.App.Runtime.osx-arm64", version: asp11RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.osx-arm64.11.0.0" },
 ];

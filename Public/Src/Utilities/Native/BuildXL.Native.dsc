@@ -16,7 +16,7 @@ namespace Native {
 
         // .NET 10 promoted System.Threading.AccessControl into the BCL, so referencing the
         // NuGet package here would cause CS0433 ambiguity for types like EventWaitHandleAccessRule.
-        ...addIf(qualifier.targetFramework !== "net10.0",
+        ...addIf(qualifier.targetFramework !== "net10.0" && qualifier.targetFramework !== "net11.0",
             importFrom("System.Threading.AccessControl").pkg),
 
         ...addIf(!BuildXLSdk.isDotNetCore,

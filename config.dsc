@@ -426,6 +426,7 @@ config({
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-8-External\module.config.dsc`] },
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-9-External\module.config.dsc`] },
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-10-External\module.config.dsc`] },
+        { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-11-External\module.config.dsc`] },
 
         {
             kind: "Download",
@@ -437,6 +438,36 @@ config({
                     url: "https://github.com/apple/darwin-xnu/archive/xnu-4903.221.2.tar.gz",
                     hash: "VSO0:D6D26AEECA99240D2D833B6B8B811609B9A6E3516C0EE97A951B64F9AA4F90F400",
                     archiveType: "tgz",
+                },
+
+                // DotNet Core Runtime 11.0.0
+                {
+                    moduleName: "DotNet-Runtime.win-x64.11.0",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/11.0.0/dotnet-runtime-11.0.0-win-x64.zip",
+                    hash: "VSO0:0B2549BA0497FA206B32F4B7EC99BD05FA24B2E5ED0B4BE732EAB26A813D186900",
+                    archiveType: "zip",
+                    requiredFiles: [r`dotnet.exe`],
+                },
+                {
+                    moduleName: "DotNet-Runtime.osx-x64.11.0",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/11.0.0/dotnet-runtime-11.0.0-osx-x64.tar.gz",
+                    hash: "VSO0:A30BCE12CD0C42D19FEF633E971B734675425C962D653D40EF1C3D2816C0B5DF00",
+                    archiveType: "tgz",
+                    requiredFiles: [r`dotnet`],
+                },
+                {
+                    moduleName: "DotNet-Runtime.osx-arm64.11.0",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/11.0.0/dotnet-runtime-11.0.0-osx-arm64.tar.gz",
+                    hash: "VSO0:92E2FA49B60E0F34ED893389B07C2238F09790DAEBE28C31B1AB870D94247E6C00",
+                    archiveType: "tgz",
+                    requiredFiles: [r`dotnet`],
+                },
+                {
+                    moduleName: "DotNet-Runtime.linux-x64.11.0",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/11.0.0/dotnet-runtime-11.0.0-linux-x64.tar.gz",
+                    hash: "VSO0:A892D613662D76848A3820EF5AFB54832D6537F097E65BEF56D4241C52A3368000",
+                    archiveType: "tgz",
+                    requiredFiles: [r`dotnet`],
                 },
 
                 // DotNet Core Runtime 10.0.14
@@ -640,6 +671,11 @@ config({
                 targetFramework: "net10.0",
                 targetRuntime: "win-x64",
             },
+            DebugNet11: {
+                configuration: "debug",
+                targetFramework: "net11.0",
+                targetRuntime: "win-x64",
+            },
             DebugDotNetCoreMac: {
                 configuration: "debug",
                 targetFramework: "net10.0",
@@ -660,9 +696,19 @@ config({
                 targetFramework: "net10.0",
                 targetRuntime: "osx-x64",
             },
+            DebugDotNetCoreMacNet11: {
+                configuration: "debug",
+                targetFramework: "net11.0",
+                targetRuntime: "osx-x64",
+            },
             DebugDotNetCoreMacArm64: {
                 configuration: "debug",
                 targetFramework: "net10.0",
+                targetRuntime: "osx-arm64",
+            },
+            DebugDotNetCoreMacArm64Net11: {
+                configuration: "debug",
+                targetFramework: "net11.0",
                 targetRuntime: "osx-arm64",
             },
             DebugLinux: {
@@ -683,6 +729,11 @@ config({
             DebugLinuxNet10: {
                 configuration: "debug",
                 targetFramework: "net10.0",
+                targetRuntime: "linux-x64",
+            },
+            DebugLinuxNet11: {
+                configuration: "debug",
+                targetFramework: "net11.0",
                 targetRuntime: "linux-x64",
             },
             // Release
@@ -711,6 +762,11 @@ config({
                 targetFramework: "net10.0",
                 targetRuntime: "win-x64",
             },
+            ReleaseNet11: {
+                configuration: "release",
+                targetFramework: "net11.0",
+                targetRuntime: "win-x64",
+            },
             ReleaseDotNetCoreMac: {
                 configuration: "release",
                 targetFramework: "net10.0",
@@ -731,9 +787,19 @@ config({
                 targetFramework: "net10.0",
                 targetRuntime: "osx-x64",
             },
+            ReleaseDotNetCoreMacNet11: {
+                configuration: "release",
+                targetFramework: "net11.0",
+                targetRuntime: "osx-x64",
+            },
             ReleaseDotNetCoreMacArm64: {
                 configuration: "release",
                 targetFramework: "net10.0",
+                targetRuntime: "osx-arm64",
+            },
+            ReleaseDotNetCoreMacArm64Net11: {
+                configuration: "release",
+                targetFramework: "net11.0",
                 targetRuntime: "osx-arm64",
             },
             ReleaseLinux: {
@@ -754,6 +820,11 @@ config({
             ReleaseLinuxNet10: {
                 configuration: "release",
                 targetFramework: "net10.0",
+                targetRuntime: "linux-x64",
+            },
+            ReleaseLinuxNet11: {
+                configuration: "release",
+                targetFramework: "net11.0",
                 targetRuntime: "linux-x64",
             },
         }

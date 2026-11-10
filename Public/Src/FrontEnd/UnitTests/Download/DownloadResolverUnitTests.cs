@@ -1,8 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Pips.Operations;
 using BuildXL.FrontEnd.Sdk;
@@ -90,8 +93,6 @@ namespace Test.BuildXL.FrontEnd.Download
 
     public class DownloadResolverUnitTests : DownloadResolverIntegrationTestBase
     {
-        private const string TestServer = "http://localhost:9753/";
-
         public DownloadResolverUnitTests(ITestOutputHelper output)
             : base(output)
         {
@@ -100,16 +101,62 @@ namespace Test.BuildXL.FrontEnd.Download
         [Fact]
         public void TestNoServer()
         {
-            var data = GetSampleData(TestServer + "file.zip", DownloadArchiveType.File);
+            // Reserve a non-listening endpoint so another process cannot turn this into a successful download.
+            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp) { ExclusiveAddressUse = true };
+            socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+            int port = ((IPEndPoint)socket.LocalEndPoint).Port;
+            var data = GetSampleData($"http://127.0.0.1:{port}/file.zip", DownloadArchiveType.File);
 
             var configuration = Build(new[] { data }).PersistSpecsAndGetConfiguration();
             var result = RunEngine(configuration);
 
             Assert.False(result.IsSuccess);
             AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessError);
+        }
 
-            string error = EventListener.GetLogMessagesForEventId((int)global::BuildXL.Processes.Tracing.LogEventId.PipProcessError).Single();
-            Assert.Contains("refused", error);
+        [Fact]
+        public void TestServerRetriesAddressConflicts()
+        {
+            string server = TestServer;
+            int occupiedPort = new Uri(server).Port;
+            int attempts = 0;
+            using var listener = CreateAndStartListener(() => ++attempts == 1 ? occupiedPort : GetTestServerPort());
+
+            Assert.True(listener.IsListening);
+            Assert.True(attempts >= 2);
+            Assert.NotEqual(server, listener.Prefixes.Single());
+            Assert.Equal(server, TestServer);
+        }
+
+        [Fact]
+        public void TestServerStopsRetryingAddressConflicts()
+        {
+            int occupiedPort = new Uri(TestServer).Port;
+            int attempts = 0;
+            Assert.Throws<HttpListenerException>(() => CreateAndStartListener(() =>
+            {
+                attempts++;
+                return occupiedPort;
+            }));
+
+            Assert.Equal(10, attempts);
+        }
+
+        [Theory]
+        [InlineData(5)]
+        [InlineData(87)]
+        public void TestServerDoesNotRetryUnrelatedErrors(int errorCode)
+        {
+            var expected = new HttpListenerException(errorCode);
+            int attempts = 0;
+            var actual = Assert.Throws<HttpListenerException>(() => CreateAndStartListener(() =>
+            {
+                attempts++;
+                throw expected;
+            }));
+
+            Assert.Same(expected, actual);
+            Assert.Equal(1, attempts);
         }
 
         [Fact]
@@ -313,7 +360,7 @@ const copy = Transformer.copyFile(file, p`${Context.getMount('ObjectRoot').path}
             var testCache = new TestCache();
             string objectRoot = configuration.Layout.ObjectDirectory.ToString(FrontEndContext.PathTable);
 
-            var result = StartServerAndRunTest(() => RunEngine(configuration, testCache));
+            var result = RunEngineWithServer(configuration, testCache);
             Assert.True(result.IsSuccess);
             AssertInformationalEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues);
             AssertInformationalEventLogged(global::BuildXL.Engine.Tracing.LogEventId.EndSerializingPipGraph);
@@ -323,7 +370,7 @@ const copy = Transformer.copyFile(file, p`${Context.getMount('ObjectRoot').path}
                 File.AppendAllText(Path.Combine(SourceRoot, "test.dsc"), "\n");
             }
 
-            result = StartServerAndRunTest(() => RunEngine(configuration, testCache));
+            result = RunEngineWithServer(configuration, testCache);
             Assert.True(result.IsSuccess);
             AssertInformationalEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues, count: partialReload ? 1 : 0);
             AssertInformationalEventLogged(global::BuildXL.Engine.Tracing.LogEventId.StartDeserializingEngineState, count: partialReload ? 1 : 0);

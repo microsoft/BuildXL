@@ -79,7 +79,9 @@ namespace Factory {
         result = addRuntimeSpecificBinariesFromRootDir(result, r`runtimes/${runtimeName}/native`);
         result = addRuntimeSpecificBinariesFromRootDir(result, r`runtimes/${runtimeName}/lib/${frameworkName}`);
 
-        return result;
+        return result.override<ManagedNugetPackage>({
+            preferDeployment: !!result.sharedFrameworkName,
+        });
     }
 
     /**

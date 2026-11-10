@@ -5,6 +5,18 @@ namespace Diagnostics {
     const propertyName = "[Sdk.Deployment]Diagnostics.enabled";
 
     /**
+     * Prefers a marked file when priorities differ; otherwise reports a deployment conflict.
+     */
+    @@public
+    export function handleDuplicateFileDeployment(targetFile: RelativePath, sourceA: DeployedFileWithProvenance, sourceB: DeployedFileWithProvenance, message?: string) : DeployedFileAction {
+        if (!!sourceA.preferDeployment !== !!sourceB.preferDeployment) {
+            return sourceA.preferDeployment ? "takeA" : "takeB";
+        }
+
+        return reportDuplicateFileError(targetFile, sourceA, sourceB);
+    }
+
+    /**
      * Provenance information.
      * This is a list of strings where each string is a friendly representation of 
      * a deployable unit, for example a managed nuget package, assembly etc.

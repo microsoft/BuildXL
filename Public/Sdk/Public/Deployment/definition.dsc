@@ -58,7 +58,9 @@ export interface NestedDefinition extends Definition {
 @@public
 export interface DeployedFileWithProvenance {
     file: File, 
-    provenance?: Diagnostics.Provenance
+    provenance?: Diagnostics.Provenance,
+    /** Prefer this file over an unmarked file, but not over another preferred file. */
+    preferDeployment?: boolean,
 }
 
 /**

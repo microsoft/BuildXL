@@ -1798,11 +1798,11 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Retrieves an example PAT for testing
+        /// Retrieves an example Azure Storage account key for testing.
         /// </summary>
         private static string GetExampleCredentialForTest()
         {
-            return new Microsoft.Security.Utilities.AzureDevOpsLegacyCommonAnnotatedSecurityKeyPat().GenerateTruePositiveExamples().First();
+            return new Microsoft.Security.Utilities.AzureStorageAccountIdentifiableKey().GenerateTruePositiveExamples().First();
         }
 
         [Fact]

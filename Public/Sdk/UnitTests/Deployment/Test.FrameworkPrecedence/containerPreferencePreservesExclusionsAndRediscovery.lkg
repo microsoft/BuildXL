@@ -1,0 +1,2 @@
+
+Transformer.sealDirectory({root: d`./framework`, files: [f`./framework/Library.dll`]});

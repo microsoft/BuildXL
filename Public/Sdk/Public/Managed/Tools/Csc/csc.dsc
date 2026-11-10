@@ -193,7 +193,7 @@ export function compile(inputArgs: Arguments) : Result {
     };
 
     // Microsoft.Net.Compilers.Toolset contains csc.dll for all platforms.
-    cscExecuteArgs = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(getDotNetCoreVersion(cscExecuteArgs), cscExecuteArgs);
+    cscExecuteArgs = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(getDotNetCoreVersion(args), cscExecuteArgs);
 
     if (!isCurrentHostOsWindows) {
         cscExecuteArgs = cscExecuteArgs.merge<Transformer.ExecuteArguments>({
@@ -271,6 +271,10 @@ export function compile(inputArgs: Arguments) : Result {
 export function getDotNetCoreVersion(cscArguments: Arguments): Shared.DotNetCoreVersion {
     if (!cscArguments.defines) {
         return "net9.0";
+    }
+
+    if (cscArguments.defines.some(e => e === "NET11_0")) {
+        return "net11.0";
     }
 
     if (cscArguments.defines.some(e => e === "NET10_0")) {

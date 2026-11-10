@@ -1,0 +1,2 @@
+
+Transformer.sealDirectory({root: d`./framework`, files: [f`./framework/runtimes/test/lib/net10.0/Library.dll`]});

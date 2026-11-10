@@ -7,6 +7,7 @@ namespace StandardSdk.Deployment {
         testFiles: globR(d`.`, "Test.*.dsc"),
         sdkFolders: [
             d`${Context.getMount("SdkRoot").path}/Deployment`,
+            d`${Context.getMount("SdkRoot").path}/Managed/Shared`,
         ],
         // autoFixLkgs: true, // Uncomment this line to have all lkgs automatically updated.
     });

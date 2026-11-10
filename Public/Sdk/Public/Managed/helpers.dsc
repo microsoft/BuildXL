@@ -45,7 +45,15 @@ namespace Helpers {
             }
         }
 
-        return compile.toArray();
+        // Prefer targeting-pack references over overlapping NuGet references. Runtime deployment's
+        // duplicate handling happens too late to resolve compiler conflicts.
+        const frameworkCompile = Set.create<Shared.Binary>(...framework.standardReferences.mapMany(ref =>
+            Shared.isBinary(ref) ? [ref] :
+            Shared.isAssembly(ref) && ref.compile ? [ref.compile] :
+            Shared.isManagedPackage(ref) ? ref.compile : []));
+        const frameworkNames = Set.create<PathAtom>(...frameworkCompile.toArray().map(ref => ref.binary.name));
+        return compile.toArray().filter(ref =>
+            frameworkCompile.contains(ref) || !frameworkNames.contains(ref.binary.name));
     };
 
     /**

@@ -6,6 +6,7 @@ const core50Version = "5.0.0";
 const core80Version = "8.0.33";
 const core90Version = "9.0.22";
 const core100Version = "10.0.14";
+const core110Version = "11.0.0";
 
 // Microsoft.NETCore.Platforms has become out of sync with the rest of the packages.
 // Updaters of this file might want to try to restore the sync: for now we are using the latest version we can
@@ -128,6 +129,28 @@ export const pkgs = [
     // .NET Core linux-x64 runtime deps
     { id: "Microsoft.NETCore.App.Runtime.linux-x64", version: core100Version, alias: "Microsoft.NETCore.App.Runtime.linux-x64.10.0" },
     { id: "Microsoft.NETCore.App.Host.linux-x64", version: core100Version, alias: "Microsoft.NETCore.App.Host.linux-x64.10.0" },
+
+    // .NET 11 reuses the .8.0 native host aliases, like .NET 9 and .NET 10.
+    // .NET Core 11.0 Dependencies
+    { id: "Microsoft.NETCore.App.Ref", version: core110Version, alias: "Microsoft.NETCore.App.Ref110",
+        // This dll has a partial copy of System.Text.Json which causes collisions with real System.Text.Json
+        filesToExclude: [r`analyzers/dotnet/cs/System.Text.Json.SourceGeneration.dll`] },
+
+    // .NET Core win-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Host.win-x64", version: core110Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Host.win-x64.11.0" },
+    { id: "Microsoft.NETCore.App.Runtime.win-x64", version: core110Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Runtime.win-x64.11.0" },
+
+    // .NET Core osx-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Host.osx-x64", version: core110Version, alias: "Microsoft.NETCore.App.Host.osx-x64.11.0" },
+    { id: "Microsoft.NETCore.App.Runtime.osx-x64", version: core110Version, alias: "Microsoft.NETCore.App.Runtime.osx-x64.11.0"},
+
+    // .NET Core osx-arm64 runtime deps
+    { id: "Microsoft.NETCore.App.Host.osx-arm64", version: core110Version, alias: "Microsoft.NETCore.App.Host.osx-arm64.11.0" },
+    { id: "Microsoft.NETCore.App.Runtime.osx-arm64", version: core110Version, alias: "Microsoft.NETCore.App.Runtime.osx-arm64.11.0"},
+
+    // .NET Core linux-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Runtime.linux-x64", version: core110Version, alias: "Microsoft.NETCore.App.Runtime.linux-x64.11.0" },
+    { id: "Microsoft.NETCore.App.Host.linux-x64", version: core110Version, alias: "Microsoft.NETCore.App.Host.linux-x64.11.0" },
 
     { id: "runtime.native.System", version: pkgVersion },
     { id: "runtime.win7-x64.runtime.native.System.Data.SqlClient.sni", version: pkgVersion, osSkip: [ "macOS", "unix" ] },

@@ -22,6 +22,26 @@ namespace Deployment {
     const emptyOptions : FlattenOptions = {};
 
     /**
+     * The core runtime takes precedence even over preferred files from other shared frameworks.
+     */
+    @@public
+    export function preferRuntimeFiles(
+        coreRuntimeFiles: Set<File>,
+        handleDuplicate: DeploymentSdk.HandleDuplicateFileDeployment): DeploymentSdk.HandleDuplicateFileDeployment {
+        return (targetFile, sourceA, sourceB, message) => {
+            if (coreRuntimeFiles.contains(sourceA.file)) {
+                return "takeA";
+            }
+
+            if (coreRuntimeFiles.contains(sourceB.file)) {
+                return "takeB";
+            }
+
+            return handleDuplicate(targetFile, sourceA, sourceB, message);
+        };
+    }
+
+    /**
      * Implementation of IDeployment.deploy function for Managed Binary objects
      */
     @@public
@@ -51,15 +71,15 @@ namespace Deployment {
         provenance = provenance && DeploymentSdk.Diagnostics.chain(provenance, `Managed Binary: '${binary.binary.name}'`);
 
         if (!deploymentOptions.skipDll && binary.binary) {
-            result = addAssemblyFile(binary.binary, targetFolder, handleDuplicate, result, deploymentOptions, provenance);
+            result = addAssemblyFile(binary.binary, targetFolder, handleDuplicate, result, deploymentOptions, provenance, binary.preferDeployment);
         }
 
         if (!deploymentOptions.skipPdb && binary.pdb) {
-            result = addAssemblyFile(binary.pdb, targetFolder, handleDuplicate, result, deploymentOptions, provenance);
+            result = addAssemblyFile(binary.pdb, targetFolder, handleDuplicate, result, deploymentOptions, provenance, binary.preferDeployment);
         }
 
         if (!deploymentOptions.skipXml && binary.documentation) {
-            result = addAssemblyFile(binary.documentation, targetFolder, handleDuplicate, result, deploymentOptions, provenance);
+            result = addAssemblyFile(binary.documentation, targetFolder, handleDuplicate, result, deploymentOptions, provenance, binary.preferDeployment);
         }
 
         return result;
@@ -107,12 +127,12 @@ namespace Deployment {
         // TODO: optimize deployment for assemblies with nativeExecutable (they don't need referenced managed assemblies etc.)
         if (assembly.nativeExecutable)
         {
-            result = addAssemblyFile(assembly.nativeExecutable, targetFolder, handleDuplicate, result, deploymentOptions, runtimeProvenance);
+            result = addAssemblyFile(assembly.nativeExecutable, targetFolder, handleDuplicate, result, deploymentOptions, runtimeProvenance, assembly.preferDeployment);
         }
 
         if (assembly.runtime && assembly.runtime.binary !== assembly.nativeExecutable)
         {
-            result = flattenBinary(assembly.runtime, targetFolder, handleDuplicate, result, deploymentOptions, runtimeProvenance);
+            result = flattenRuntimeBinary(assembly.runtime, targetFolder, handleDuplicate, result, deploymentOptions, runtimeProvenance, assembly.preferDeployment, flattenBinary);
         }
 
         if (assembly.runtimeConfigFiles && (!deploymentOptions.skipRuntimeConfigFiles || !deploymentOptions.skipRuntimeContent)) {
@@ -170,7 +190,7 @@ namespace Deployment {
         let runtimeProvenance = chainNugetProvenance(provenance, pkg, 'Runtime assemblies');
         for (let runtime of pkg.runtime)
         {
-            result = flattenDeployable(runtime, targetFolder, handleDuplicate, result, deploymentOptions, runtimeProvenance);
+            result = flattenRuntimeBinary(runtime, targetFolder, handleDuplicate, result, deploymentOptions, runtimeProvenance, pkg.preferDeployment, runtime.deploy);
         }
 
         // Add the contents
@@ -193,6 +213,46 @@ namespace Deployment {
         return result;
     }
 
+    function flattenRuntimeBinary(
+        binary: Binary,
+        targetFolder: RelativePath,
+        handleDuplicate: DeploymentSdk.HandleDuplicateFileDeployment,
+        currentResult: DeploymentSdk.FlattenedResult,
+        deploymentOptions: FlattenOptions,
+        provenance: DeploymentSdk.Diagnostics.Provenance,
+        preferDeployment: boolean,
+        deploy: DeploymentSdk.FlattenForDeploymentFunction): DeploymentSdk.FlattenedResult {
+        if (!preferDeployment || binary.preferDeployment) {
+            return deploy(binary, targetFolder, handleDuplicate, currentResult, deploymentOptions, provenance);
+        }
+
+        if (currentResult.visitedItems.contains(binary)) {
+            // A visited binary may have been excluded. Upgrade only files already deployed, never add skipped files.
+            let result = currentResult;
+            const files = [
+                deploymentOptions.skipDll ? undefined : binary.binary,
+                deploymentOptions.skipPdb ? undefined : binary.pdb,
+                deploymentOptions.skipXml ? undefined : binary.documentation,
+            ];
+            for (let file of files) {
+                if (file !== undefined) {
+                    const targetFile = r`${targetFolder}/${file.name}`;
+                    const existing = result.flattenedFiles.get(targetFile);
+                    if (existing !== undefined && existing.file === file) {
+                        result = DeploymentSdk.flattenFile(file, targetFile, handleDuplicate, result, existing.provenance, true);
+                    }
+                }
+            }
+            return result;
+        }
+
+        const preferredBinary = binary.override<Binary>({ preferDeployment: true });
+        const result = deploy(preferredBinary, targetFolder, handleDuplicate, currentResult, deploymentOptions, provenance);
+        return result.override<DeploymentSdk.FlattenedResult>({
+            visitedItems: result.visitedItems.add(binary),
+        });
+    }
+
     function flattenDeployable(
         deployable: DeploymentSdk.Deployable,
         targetFolder: RelativePath,
@@ -209,9 +269,10 @@ namespace Deployment {
         handleDuplicate: DeploymentSdk.HandleDuplicateFileDeployment, 
         currentResult: DeploymentSdk.FlattenedResult, 
         deploymentOptions: FlattenOptions, 
-        provenance: DeploymentSdk.Diagnostics.Provenance) : DeploymentSdk.FlattenedResult {
+        provenance: DeploymentSdk.Diagnostics.Provenance,
+        preferDeployment?: boolean) : DeploymentSdk.FlattenedResult {
 
-        return DeploymentSdk.flattenFile(file, r`${targetFolder}/${file.name}`, handleDuplicate, currentResult, provenance);
+        return DeploymentSdk.flattenFile(file, r`${targetFolder}/${file.name}`, handleDuplicate, currentResult, provenance, preferDeployment);
     }
 
     export function chainAssemblyProvenance(provenance: DeploymentSdk.Diagnostics.Provenance, assembly: Assembly, marker: string) : DeploymentSdk.Diagnostics.Provenance {

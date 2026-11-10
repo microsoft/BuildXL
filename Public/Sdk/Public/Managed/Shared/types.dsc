@@ -28,6 +28,12 @@ export interface Binary extends Deployment.Deployable {
      * The optional documentation
      */
     documentation?: File;
+
+    /**
+     * Prefer this binary and its associated files over ordinary files during deployment.
+     * Two preferred files still conflict.
+     */
+    preferDeployment?: boolean;
 }
 
 @@public
@@ -56,6 +62,12 @@ export interface Assembly extends Deployment.Deployable {
      * The assembly to use at runtime
      */
     runtime?: Binary;
+
+    /**
+     * Prefer this assembly's runtime binary and native executable, not its references or runtime content.
+     * Two preferred files still conflict.
+     */
+    preferDeployment?: boolean;
 
     /**
      * Optional native executable (for programs compiled to native with ILCompiler)
@@ -109,6 +121,12 @@ export interface ManagedNugetPackage extends NugetPackage, Deployment.Deployable
      * The assemblies needed at runtime
      */
     runtime: Binary[];
+
+    /**
+     * Prefer this package's runtime binaries, not its dependencies or runtime content.
+     * Two preferred files still conflict.
+     */
+    preferDeployment?: boolean;
 
     /**
      * Roslyn analyzers that can validate the referencing project

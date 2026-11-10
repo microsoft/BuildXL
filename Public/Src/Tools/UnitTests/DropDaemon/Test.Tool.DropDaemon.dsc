@@ -42,7 +42,14 @@ namespace Test.Tool.DropDaemon {
             importFrom("Serilog.Sinks.Console").pkg, // This is an SBOM specific dependency, but it is only needed for tests
         ],
 
-        // TODO: The SBOM package expects a netcore 7 JSON package, even for netcore 6. Remove when we stop supporting net6
-        deploymentOptions: { ignoredSelfContainedRuntimeFilenames: [a`System.Text.Encodings.Web.dll`, a`System.Text.Json.dll`, a`System.IO.Pipelines.dll`] },
+        // Keep the pinned JSON packages, including Pipelines when the selected JSON asset requires its package.
+        deploymentOptions: {
+            ignoredSelfContainedRuntimeFilenames: [
+                a`System.Text.Encodings.Web.dll`,
+                a`System.Text.Json.dll`,
+                ...addIf(importFrom("System.Text.Json").pkg.dependencies.some(p => p === importFrom("System.IO.Pipelines").pkg),
+                    a`System.IO.Pipelines.dll`),
+            ],
+        },
     });
 }

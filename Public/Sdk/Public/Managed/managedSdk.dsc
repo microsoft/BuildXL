@@ -82,14 +82,17 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net8.0" && qualifier.configuration === "debug", "CompileDebugNet8Win", "CompileWin"),
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net9.0" && qualifier.configuration === "debug", "CompileDebugNet9Win", "CompileWin"),
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net10.0" && qualifier.configuration === "debug", "CompileDebugNet10Win", "CompileWin"),
+        ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net11.0" && qualifier.configuration === "debug", "CompileDebugNet11Win", "CompileWin"),
         
         ...addIf(qualifier.targetRuntime === "osx-x64" && qualifier.targetFramework === "net8.0" && qualifier.configuration === "debug", "CompileNet8Osx", "CompileOsx"),
         ...addIf(qualifier.targetRuntime === "osx-x64" && qualifier.targetFramework === "net9.0" && qualifier.configuration === "debug", "CompileNet9Osx", "CompileOsx"),
         ...addIf(qualifier.targetRuntime === "osx-x64" && qualifier.targetFramework === "net10.0" && qualifier.configuration === "debug", "CompileNet10Osx", "CompileOsx"),
+        ...addIf(qualifier.targetRuntime === "osx-x64" && qualifier.targetFramework === "net11.0" && qualifier.configuration === "debug", "CompileNet11Osx", "CompileOsx"),
         
         ...addIf(qualifier.targetRuntime === "linux-x64" && qualifier.targetFramework === "net8.0" && qualifier.configuration === "debug", "CompileNet8Linux", "CompileLinux"),
         ...addIf(qualifier.targetRuntime === "linux-x64" && qualifier.targetFramework === "net9.0" && qualifier.configuration === "debug", "CompileNet9Linux", "CompileLinux"),
         ...addIf(qualifier.targetRuntime === "linux-x64" && qualifier.targetFramework === "net10.0" && qualifier.configuration === "debug", "CompileNet10Linux", "CompileLinux"),
+        ...addIf(qualifier.targetRuntime === "linux-x64" && qualifier.targetFramework === "net11.0" && qualifier.configuration === "debug", "CompileNet11Linux", "CompileLinux"),
     ];
 
     // csc
@@ -186,6 +189,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         targetRuntime: qualifier.targetRuntime,
         compile: compileBinary,
         runtime: runtimeBinary,
+        preferDeployment: args.preferDeployment,
         references: references,
         runtimeConfigFiles: runtimeConfigFiles,
         runtimeContent: deploymentResult.runtimeContent,
@@ -376,9 +380,8 @@ function processDeploymentStyle(args: Arguments, targetType: Csc.TargetType, fra
             patchOutputFile,
         ];
 
-        // When deploying self-contained dotNetCore executables we prefer to deploy the binaries that come with
-        // the runtime over the ones that come from nuget. We do so by providing a deploy function that customizes
-        // the handleDuplicate function to prefer the runtime file.
+        // Prefer bundled implementations over transitive NuGet dependencies without rewriting the package graph.
+        // The core runtime retains precedence over additional shared frameworks.
         deployFunction = (
             assembly: Shared.Assembly,
             targetFolder: RelativePath,
@@ -387,17 +390,9 @@ function processDeploymentStyle(args: Arguments, targetType: Csc.TargetType, fra
             deploymentOptions?: Object,
             provenance?: Deployment.Diagnostics.Provenance): Deployment.FlattenedResult => {
 
-            const customHandleDuplicate : Deployment.HandleDuplicateFileDeployment = (targetFile: RelativePath, sourceA: Deployment.DeployedFileWithProvenance, sourceB: Deployment.DeployedFileWithProvenance, message?: string) : Deployment.DeployedFileAction => {
-                if (frameworkRuntimeFileSet.contains(sourceA.file)) {
-                    return "takeA";
-                }
-
-                if (frameworkRuntimeFileSet.contains(sourceB.file)) {
-                    return "takeB";
-                }
-
-                return handleDuplicate(targetFile, sourceA, sourceB, message);
-            };
+            const customHandleDuplicate = Shared.Deployment.preferRuntimeFiles(
+                frameworkRuntimeFileSet,
+                handleDuplicate);
 
             return Shared.Deployment.flattenAssembly(assembly, targetFolder, customHandleDuplicate, currentResult, deploymentOptions, provenance);
         };
@@ -545,6 +540,9 @@ export interface Arguments {
 
     /** Options that control how this compiled assembly gets deployed */
     deploymentOptions?: Deployment.DeploymentOptions;
+
+    /** Prefer this assembly's runtime binary and native executable, not its references or runtime content. */
+    preferDeployment?: boolean;
 
     /** Whether to run crossgen tool on the produced assembly (if the target framework allows for it) */
     runCrossgenIfSupported?: boolean;

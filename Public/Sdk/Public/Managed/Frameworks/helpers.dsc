@@ -157,6 +157,33 @@ namespace Helpers {
                     Contract.fail(`The current DotNetCore Runtime package doesn't support the current target runtime: ${host.os}. Ensure you run on a supported OS -or- update the DotNet-Runtime package to have the version embdded.`);
             }
         }
+        else if (version === 'net11.0')
+        {
+            switch (host.os) {
+                case "win":
+                    return {
+                        executable: importFrom("DotNet-Runtime-11.win-x64").extractedFiles.get(r`dotnet.exe`),
+                        contents: importFrom("DotNet-Runtime-11.win-x64").extracted,
+                    };
+                case "macOS":
+                    return host.cpuArchitecture === "arm64"
+                        ? {
+                            executable: importFrom("DotNet-Runtime-11.osx-arm64").extractedFiles.get(r`dotnet`),
+                            contents: importFrom("DotNet-Runtime-11.osx-arm64").extracted,
+                        }
+                        : {
+                            executable: importFrom("DotNet-Runtime-11.osx-x64").extractedFiles.get(r`dotnet`),
+                            contents: importFrom("DotNet-Runtime-11.osx-x64").extracted,
+                        };
+                case "unix":
+                    return {
+                        executable: importFrom("DotNet-Runtime-11.linux-x64").extractedFiles.get(r`dotnet`),
+                        contents: importFrom("DotNet-Runtime-11.linux-x64").extracted,
+                    };
+                default:
+                    Contract.fail(`The current DotNetCore Runtime package doesn't support the current target runtime: ${host.os}. Ensure you run on a supported OS -or- update the DotNet-Runtime package to have the version embdded.`);
+            }
+        }
         
         Contract.fail(`Unsupport .NET Core version ${version}.`);
     }
@@ -169,12 +196,14 @@ namespace Helpers {
     const tool8Template = getDotNetCoreToolTemplate("net8.0");
     const tool9Template = getDotNetCoreToolTemplate("net9.0");
     const tool10Template = getDotNetCoreToolTemplate("net10.0");
+    const tool11Template = getDotNetCoreToolTemplate("net11.0");
 
     function getCachedDotNetCoreToolTemplate(dotNetCoreVersion: DotNetCoreVersion) : Transformer.ExecuteArgumentsComposible {
         switch (dotNetCoreVersion) {
             case "net8.0": return tool8Template;
             case "net9.0": return tool9Template;
             case "net10.0": return tool10Template;
+            case "net11.0": return tool11Template;
             default: Contract.fail(`Unknown .NET Core version '${dotNetCoreVersion}'.`);
         }
     }

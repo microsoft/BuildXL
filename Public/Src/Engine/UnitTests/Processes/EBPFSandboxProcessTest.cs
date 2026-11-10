@@ -16,6 +16,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
+using Test.BuildXL.Executables.TestProcess;
 
 #nullable enable
 
@@ -27,6 +28,87 @@ namespace Test.BuildXL.Processes
         public EBPFSandboxProcessTest(ITestOutputHelper output) : base(output)
         {
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+        }
+
+        /// <summary>
+        /// Verifies that sampling performance counters counts inherited descriptors without accessing their targets.
+        /// </summary>
+        /// <remarks>
+        /// A shell opens a sentinel file and passes its descriptor to a child that only collects counters.
+        /// The shell's open must be reported, proving the setup is observed, but no child access to that file
+        /// is allowed. Enumerating /proc/self/fd previously probed the target while filtering symlink entries;
+        /// /proc/self/fdinfo must count the descriptor without introducing that undeclared dependency.
+        /// </remarks>
+        [Fact]
+        public async Task PerformanceCountersDoNotProbeInheritedFileDescriptors()
+        {
+            string inheritedFile = Path.Combine(TemporaryDirectory, "inherited.pfx");
+            // StreamWriter.WriteAsync rather than File.WriteAllText(Async): the former is blocking (AsyncFixer02)
+            // and the latter does not exist on net472, which this test assembly is also compiled for.
+            using (var writer = new StreamWriter(inheritedFile))
+            {
+                await writer.WriteAsync("This is not a certificate; only its open descriptor matters.");
+            }
+
+            var operation = Operation.CollectPerformanceCounters();
+            var testProcess = ToProcess(operation);
+            string executable = testProcess.Executable.Path.ToString(Context.PathTable);
+            XAssert.IsTrue(FileUtilities.SetExecutePermissionIfNeeded(executable).Succeeded);
+            string scriptPath = Path.Combine(TemporaryDirectory, "collect-counters.sh");
+            File.WriteAllLines(scriptPath,
+            [
+                "#!/bin/bash",
+                "set -e",
+                $"exec 9< {Quote(inheritedFile)}",
+                // Keep bash as the parent so its intentional open is distinguishable from the child's accesses.
+                $"{Quote(executable)} {Quote(operation.ToCommandLine(Context.PathTable))}",
+                "exec 9<&-",
+            ]);
+
+            var manifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+            };
+            var info = new SandboxedProcessInfo(
+                Context.PathTable,
+                new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                "/bin/bash",
+                manifest,
+                disableConHostSharing: false,
+                loggingContext: LoggingContext,
+                useGentleKill: true)
+            {
+                Arguments = CommandLineEscaping.EscapeAsCommandLineWord(scriptPath),
+                WorkingDirectory = TemporaryDirectory,
+                PipSemiStableHash = manifest.PipId,
+                PipDescription = "EBPF performance counter descriptor probe test",
+                SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
+            };
+
+            using var process = await SandboxedProcessFactory.StartAsync(info, forceSandboxing: true);
+            var result = await process.GetResultAsync();
+            AssertExitCode(result, 0);
+
+            Assert.NotNull(result.Processes);
+            Assert.NotNull(result.FileAccesses);
+            // Match on the file name: the reported exec path is canonicalized by the sandbox and may not be
+            // character-identical to the deployed path. Collect every pid rather than requiring exactly one exec.
+            string testProcessName = Path.GetFileName(executable);
+            var childPids = result.Processes
+                .Where(p => p.Path is not null && Path.GetFileName(p.Path) == testProcessName)
+                .Select(p => p.ProcessId)
+                .ToHashSet();
+            XAssert.IsTrue(childPids.Count > 0,
+                $"No reported exec of '{testProcessName}'. Reported processes: {string.Join(", ", result.Processes.Select(p => p.Path))}");
+            XAssert.IsTrue(result.FileAccesses.Any(a => a.GetPath(Context.PathTable) == inheritedFile),
+                "The shell must open the descriptor inherited by the child.");
+            XAssert.IsFalse(result.FileAccesses.Any(a => childPids.Contains(a.Process.ProcessId) && a.GetPath(Context.PathTable) == inheritedFile),
+                "Counting descriptors must not access their targets.");
+
+            static string Quote(string value) => "'" + value.Replace("'", "'\\''") + "'";
         }
 
         [Fact]

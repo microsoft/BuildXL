@@ -536,7 +536,7 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
-        /// Obtains the number of file descriptors that are currently open in the machine.
+        /// Obtains the number of file descriptors that are currently open in this process.
         /// </summary>
         internal static int GetMachineOpenFileDescriptors()
         {
@@ -547,8 +547,9 @@ namespace BuildXL.Utilities
 
             try
             {
-                // '/proc/self/fd' is a pseudo directory that provides symlinks to all the file descriptors that the current process has open.
-                return Directory.EnumerateFiles("/proc/self/fd").Count();
+                // fdinfo has one regular entry per open descriptor, including directory descriptors.
+                // Counting these entries avoids probing descriptor targets, which may be undeclared sandbox inputs.
+                return Directory.EnumerateFiles("/proc/self/fdinfo").Count();
             }
 #pragma warning disable ERP022 // Do not log an error in case of failure.
             catch (Exception)

@@ -55,6 +55,11 @@ namespace Test.BuildXL.Utilities
         /// <summary>
         /// This test checks whether the GetMachineOpenFileDescriptors methods returns the file descriptors currently open on the machine. 
         /// </summary>
+        /// <remarks>
+        /// This only asserts the count is plausible. The behavior that actually matters - that counting descriptors does not
+        /// resolve and probe their targets - cannot be observed from here; it is covered by
+        /// Test.BuildXL.Processes.EBPFSandboxProcessTest.PerformanceCountersDoNotProbeInheritedFileDescriptors.
+        /// </remarks>
         [FactIfSupported(requiresLinuxBasedOperatingSystem: true)]
         public void VerifyMachineOpenFileDescriptorsCount()
         {

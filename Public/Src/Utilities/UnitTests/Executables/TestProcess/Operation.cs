@@ -303,6 +303,11 @@ namespace Test.BuildXL.Executables.TestProcess
             /// Attempts to write to a handle supplied by the parent process
             /// </summary>
             WriteToInheritedHandle,
+
+            /// <summary>
+            /// Collects a sample of process and machine performance counters.
+            /// </summary>
+            CollectPerformanceCounters,
         }
 
         /// <summary>
@@ -568,6 +573,17 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     case Type.SpawnExe:
                         DoSpawnExe();
+                        return;
+                    case Type.CollectPerformanceCounters:
+                        using (var collector = new global::BuildXL.Utilities.PerformanceCollector(TimeSpan.FromHours(1)))
+                        using (var aggregator = collector.CreateAggregator())
+                        {
+                            var sample = aggregator.ComputeMachinePerfInfo(ensureSample: true);
+                            if (OperatingSystemHelper.IsLinuxOS && sample.MachineOpenFileDescriptors <= 0)
+                            {
+                                throw new InvalidOperationException("Failed to count open file descriptors.");
+                            }
+                        }
                         return;
                     case Type.AppendNewLine:
                         DoWriteFile(Environment.NewLine);
@@ -909,6 +925,11 @@ namespace Test.BuildXL.Executables.TestProcess
             Contract.Requires(input.IsValid);
             return new Operation(Type.EchoVsoHash, path: input, doNotInfer: false);
         }
+
+        /// <summary>
+        /// Collects a sample of process and machine performance counters.
+        /// </summary>
+        public static Operation CollectPerformanceCounters() => new Operation(Type.CollectPerformanceCounters);
 
         /// <summary>
         /// Given an environment variable name (<paramref name="envVarName"/>) returns an

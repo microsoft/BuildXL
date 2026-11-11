@@ -27,6 +27,8 @@ const sessionArgs : CloudTestClient.Helpers.GenerateSessionConfigAndCreateSessio
     timeoutMinutes: 1,
     // Send all JSON payloads to the console
     debug: true,
+    // This should eventually become the default
+    usePerJobDrops: true,
     // Caching is opt-in so validation runs execute jobs even when the example inputs have not changed.
     cacheEnabled: Environment.getFlag("CTCacheEnabled"),
     properties: Map.empty<string, string>()

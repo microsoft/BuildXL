@@ -1757,6 +1757,7 @@ namespace BuildXL.Scheduler
                 loggingContext,
                 m_configuration.Schedule,
                 m_workers,
+                m_configuration.Distribution.RemoteWorkerCount + 1,
                 PipQueue,
                 PipGraph,
                 m_fileContentManager,
@@ -4880,7 +4881,11 @@ namespace BuildXL.Scheduler
                         // For module affinity, we need to set the preferred worker id.
                         // This is intentionally put here after we hydrate the pip for the first time when accessing
                         // runnablePip.Pip above for hashing dependencies.
-                        if (runnablePip.Pip.Provenance.ModuleId.IsValid &&
+                        if (processRunnable?.MustRunOnOrchestrator == true)
+                        {
+                            runnablePip.PreferredWorkerId = 0;
+                        }
+                        else if (runnablePip.Pip.Provenance.ModuleId.IsValid &&
                             m_moduleWorkerMapping.TryGetValue(runnablePip.Pip.Provenance.ModuleId, out var tuple))
                         {
                             for (int i = 0; i < m_workers.Count; i++)
@@ -5370,6 +5375,7 @@ namespace BuildXL.Scheduler
                                 {
                                     // When we cannot send the pip to the workers after some retries, we should try it on the orchestrator.
                                     processRunnable.MustRunOnOrchestrator = true;
+                                    processRunnable.PreferredWorkerId = 0;
                                 }
                             }
 

@@ -89,6 +89,14 @@ namespace BuildXL.Scheduler
         void SetMaxParallelDegreeByKind(DispatcherKind queueKind, int maxParallelDegree);
 
         /// <summary>
+        /// Sets the number of running pips for one worker-specific nested queue.
+        /// </summary>
+        /// <remarks>
+        /// Queues that are not split per worker apply the change to the whole queue.
+        /// </remarks>
+        void SetMaxParallelDegreeByKindForWorker(DispatcherKind queueKind, int workerId, int maxParallelDegree);
+
+        /// <summary>
         /// Drains the queues
         /// </summary>
         void DrainQueues();

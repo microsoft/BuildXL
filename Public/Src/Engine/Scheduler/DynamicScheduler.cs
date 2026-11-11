@@ -1836,6 +1836,7 @@ namespace BuildXL.Scheduler
                 loggingContext,
                 m_configuration.Schedule,
                 m_workers,
+                m_configuration.Distribution.RemoteWorkerCount + 1,
                 PipQueue,
                 PipGraph,
                 m_fileContentManager,

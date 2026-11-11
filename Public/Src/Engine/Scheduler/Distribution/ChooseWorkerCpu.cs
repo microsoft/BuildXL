@@ -34,11 +34,10 @@ namespace BuildXL.Scheduler.Distribution
         private const long TypicalFileLength = 4096;
 
         /// <summary>
-        /// Tracks a sequence number in order to verify if workers resources have changed since
-        /// the time it was checked. This is used by ChooseWorker to decide if the worker queue can
-        /// be paused
+        /// Tracks wake-ups per affinity queue, or for the single shared queue when affinity is disabled.
+        /// Activity on another affinity queue must not invalidate a blocked pip's decision to pause.
         /// </summary>
-        private int m_workerEnableSequenceNumber = 0;
+        private readonly int[] m_workerEnableSequenceNumbers;
 
         /// <summary>
         /// Determines the maximum load factor for oversubscribing workers. Allows extra pips to be assigned to workers. 
@@ -91,11 +90,14 @@ namespace BuildXL.Scheduler.Distribution
             LoggingContext loggingContext,
             IScheduleConfiguration scheduleConfig,
             IReadOnlyList<Worker> workers,
+            int workerCount,
             IPipQueue pipQueue,
             IDynamicGraph pipGraph,
             FileContentManager fileContentManager,
             Dictionary<ModuleId, (int, bool[])> moduleWorkerMapping)
         {
+            Contract.Requires(workerCount >= workers.Count);
+
             m_pipTable = pipGraph.PipTable;
             m_fileContentManager = fileContentManager;
             m_pipSetupCostPool = new ObjectPool<PipSetupCosts>(
@@ -109,6 +111,8 @@ namespace BuildXL.Scheduler.Distribution
             m_loggingContext = loggingContext;
             m_maxParallelDegree = scheduleConfig.MaxChooseWorkerCpu;
             m_moduleAffinityEnabled = scheduleConfig.ModuleAffinityEnabled();
+            // Remote workers are registered after construction; match the configured affinity queue count.
+            m_workerEnableSequenceNumbers = new int[m_moduleAffinityEnabled ? workerCount : 1];
 
             if (scheduleConfig.ModuleAffinityEnabled())
             {
@@ -172,13 +176,13 @@ namespace BuildXL.Scheduler.Distribution
                     return null;
                 }
 
-                TogglePauseChooseWorkerQueue(pause: true, blockedPip: runnablePip);
+                TogglePauseChooseWorkerQueue(pause: true, affectedPip: runnablePip);
             }
             else
             {
                 runnablePip.IsWaitingForWorker = false;
                 m_lastIterationBlockedPip = null;
-                TogglePauseChooseWorkerQueue(pause: false);
+                TogglePauseChooseWorkerQueue(pause: false, affectedPip: runnablePip);
             }
 
             return chosenWorker;
@@ -248,20 +252,27 @@ namespace BuildXL.Scheduler.Distribution
             return null;
         }
 
-        public void TogglePauseChooseWorkerQueue(bool pause, RunnablePip blockedPip = null)
+        /// <summary>
+        /// Pauses or unpauses the choose worker queue.
+        /// </summary>
+        /// <remarks>
+        /// When module affinity is enabled, a non-null <paramref name="affectedPip"/> restricts the change to the
+        /// worker-specific queue the pip is enqueued in, so a blocked module does not stall the other affinity queues.
+        /// A null <paramref name="affectedPip"/> unpauses every queue.
+        /// </remarks>
+        public void TogglePauseChooseWorkerQueue(bool pause, RunnablePip affectedPip = null)
         {
-            Contract.Requires(pause == (blockedPip != null), "Must specify blocked pip if and only if pausing the choose worker queue");
+            Contract.Requires(!pause || affectedPip != null, "Must specify the blocked pip when pausing the choose worker queue");
 
             // Attempt to pause the choose worker queue since resources are not available
-            // Do not pause choose worker queue when module affinity is enabled.
-            if (EngineEnvironmentSettings.DoNotPauseChooseWorkerThreads || m_moduleAffinityEnabled)
+            if (EngineEnvironmentSettings.DoNotPauseChooseWorkerThreads)
             {
                 return;
             }
 
             if (pause)
             {
-                if (blockedPip.IsLight)
+                if (affectedPip.IsLight)
                 {
                     // Light pips do not block the chooseworker queue.
                     return;
@@ -272,9 +283,9 @@ namespace BuildXL.Scheduler.Distribution
                     // Compare with the captured sequence number before the pip re-entered the queue
                     // to avoid race conditions where pip cannot acquire worker resources become available then queue is paused
                     // potentially indefinitely (not likely but theoretically possilbe)
-                    if (Volatile.Read(ref m_workerEnableSequenceNumber) == blockedPip.ChooseWorkerSequenceNumber)
+                    if (Volatile.Read(ref m_workerEnableSequenceNumbers[GetQueueIndex(affectedPip)]) == affectedPip.ChooseWorkerSequenceNumber)
                     {
-                        SetQueueMaxParallelDegree(0);
+                        SetQueueMaxParallelDegree(0, affectedPip);
                     }
                 }
             }
@@ -285,25 +296,45 @@ namespace BuildXL.Scheduler.Distribution
                     // Update the sequence number. This essentially is called for every increase in resources
                     // and successful acquisition of workers to track changes in resource state that invalidate
                     // decision to pause choose worker queue.
-                    Interlocked.Increment(ref m_workerEnableSequenceNumber);
+                    if (affectedPip != null)
+                    {
+                        Interlocked.Increment(ref m_workerEnableSequenceNumbers[GetQueueIndex(affectedPip)]);
+                    }
+                    else
+                    {
+                        for (int i = 0; i < m_workerEnableSequenceNumbers.Length; i++)
+                        {
+                            Interlocked.Increment(ref m_workerEnableSequenceNumbers[i]);
+                        }
+                    }
 
                     // Unpause the queue
-                    SetQueueMaxParallelDegree(m_maxParallelDegree);
+                    SetQueueMaxParallelDegree(m_maxParallelDegree, affectedPip);
                 }
             }
         }
 
         private void OnWorkerResourcesChanged(Worker worker, WorkerResource resourceKind, bool increased)
         {
-            if (increased)
+            // With module affinity, a worker becoming unavailable can allow blocked pips to fall back to unassigned workers.
+            if (increased || (m_moduleAffinityEnabled && resourceKind == WorkerResource.Status))
             {
                 TogglePauseChooseWorkerQueue(pause: false);
             }
         }
 
-        private void SetQueueMaxParallelDegree(int maxConcurrency)
+        private int GetQueueIndex(RunnablePip runnablePip) => m_moduleAffinityEnabled ? runnablePip.PreferredWorkerId ?? 0 : 0;
+
+        private void SetQueueMaxParallelDegree(int maxConcurrency, RunnablePip affectedPip)
         {
-            m_pipQueue.SetMaxParallelDegreeByKind(DispatcherKind.ChooseWorkerCpu, maxConcurrency);
+            if (m_moduleAffinityEnabled && affectedPip != null)
+            {
+                m_pipQueue.SetMaxParallelDegreeByKindForWorker(DispatcherKind.ChooseWorkerCpu, GetQueueIndex(affectedPip), maxConcurrency);
+            }
+            else
+            {
+                m_pipQueue.SetMaxParallelDegreeByKind(DispatcherKind.ChooseWorkerCpu, maxConcurrency);
+            }
         }
 
         public void LogStats()
@@ -317,16 +348,20 @@ namespace BuildXL.Scheduler.Distribution
             // If enqueuing a new highest priority pip to queue
             if (nextQueue == DispatcherKind.ChooseWorkerCpu)
             {
-                if (runnablePip != m_lastIterationBlockedPip)
+                // With module affinity, many worker-specific queues block pips concurrently, so a single last-blocked pip
+                // cannot identify retries. A retry must not unpause its own queue; resource increases and successful
+                // worker acquisitions unpause it instead.
+                bool isNewPip = m_moduleAffinityEnabled ? !runnablePip.IsWaitingForWorker : runnablePip != m_lastIterationBlockedPip;
+                if (isNewPip)
                 {
-                    TogglePauseChooseWorkerQueue(pause: false);
+                    TogglePauseChooseWorkerQueue(pause: false, affectedPip: runnablePip);
                 }
 
                 // Capture the sequence number which will be used to compare if ChooseWorker queue is paused
                 // waiting for resources for this pip to avoid race conditions where pip cannot acquire worker
                 // resources become available then queue is paused potentially indefinitely (not likely but theoretically
                 // possilbe)
-                runnablePip.ChooseWorkerSequenceNumber = Volatile.Read(ref m_workerEnableSequenceNumber);
+                runnablePip.ChooseWorkerSequenceNumber = Volatile.Read(ref m_workerEnableSequenceNumbers[GetQueueIndex(runnablePip)]);
             }
         }
 

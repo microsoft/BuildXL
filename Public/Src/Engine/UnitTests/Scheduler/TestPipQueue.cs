@@ -289,6 +289,10 @@ namespace Test.BuildXL.Scheduler
         public void SetMaxParallelDegreeByKind(DispatcherKind queueKind, int maxParallelDegree) => m_innerQueue.SetMaxParallelDegreeByKind(queueKind, maxParallelDegree);
 
         /// <inheritdoc/>
+        public void SetMaxParallelDegreeByKindForWorker(DispatcherKind queueKind, int workerId, int maxParallelDegree) =>
+            m_innerQueue.SetMaxParallelDegreeByKindForWorker(queueKind, workerId, maxParallelDegree);
+
+        /// <inheritdoc/>
         public void SetAsFinalized()
         {
             m_innerQueue.SetAsFinalized();

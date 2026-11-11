@@ -80,6 +80,161 @@ namespace Test.BuildXL.Scheduler
             }
         }
 
+        [Fact]
+        public void NestedChooseWorkerQueuesCanPauseOneWorker()
+        {
+            using (var pipQueue = new PipQueue(LoggingContext, new ConfigurationImpl()))
+            using (var chooseWorkerQueue = new NestedChooseWorkerQueue(pipQueue, maxParallelDegree: 2, workerCount: 2))
+            using (var dispatcherQueue = new NestedDispatcherQueue(pipQueue, maxParallelDegree: 2, workerCount: 2))
+            {
+                XAssert.IsTrue(chooseWorkerQueue.AdjustParallelDegreeForWorker(workerId: 1, newParallelDegree: 0));
+                XAssert.IsTrue(dispatcherQueue.AdjustParallelDegreeForWorker(workerId: 1, newParallelDegree: 0));
+
+                XAssert.AreEqual(2, chooseWorkerQueue.GetMaxParallelDegreeForWorker(0));
+                XAssert.AreEqual(0, chooseWorkerQueue.GetMaxParallelDegreeForWorker(1));
+                XAssert.AreEqual(2, dispatcherQueue.GetMaxParallelDegreeForWorker(0));
+                XAssert.AreEqual(0, dispatcherQueue.GetMaxParallelDegreeForWorker(1));
+
+                XAssert.IsTrue(chooseWorkerQueue.AdjustParallelDegreeForWorker(workerId: 1, newParallelDegree: 2));
+                XAssert.AreEqual(2, chooseWorkerQueue.GetMaxParallelDegreeForWorker(1));
+            }
+        }
+
+        [Theory]
+        [InlineData(0, false, false)]
+        [InlineData(0, true, false)]
+        [InlineData(1, false, false)]
+        [InlineData(1, true, false)]
+        [InlineData(0, false, true)]
+        public void AffinityQueuePausesAcrossPeerActivityAndResumesOnWorkerChanges(int blockedWorkerId, bool statusChange, bool forceOrchestrator)
+        {
+            using var env = TestEnv.CreateTestEnvWithPausedScheduler(customizeConfig: config =>
+            {
+                config.Distribution.DynamicBuildWorkerSlots = 1;
+                config.Schedule.MaxWorkersPerModule = 1;
+                config.Schedule.ModuleAffinityLoadFactor = 1;
+                config.Schedule.MaxChooseWorkerCpu = 2;
+                config.Schedule.MaxProcesses = 1;
+                config.Schedule.UseHistoricalCpuThrottling = false;
+            });
+            var executionEnvironment = new PipQueueTestExecutionEnvironment(
+                env.Context, env.Configuration, env.PipTable, TestOutputDirectory);
+            using var pipQueue = new PipQueue(LoggingContext, env.Configuration);
+            using var localWorker = new LocalWorker(env.Configuration.Schedule, pipQueue, detoursListener: null, env.Context);
+            using var remoteWorker = new AffinityTestWorker(env.Configuration.Schedule, env.Context);
+            var workers = new List<Worker> { localWorker };
+
+            int peerWorkerId = 1 - blockedWorkerId;
+            int? preferredWorkerId = blockedWorkerId == 0 ? (int?)null : blockedWorkerId;
+            var occupyingPip = createPip("occupying.out", preferredWorkerId);
+            var blockedPip = createPip("blocked.out", preferredWorkerId);
+            var peerPip = createPip("peer.out", peerWorkerId);
+            var assignedWorkers = new bool[env.Configuration.Distribution.RemoteWorkerCount + 1];
+            assignedWorkers[forceOrchestrator ? peerWorkerId : blockedWorkerId] = true;
+            if (forceOrchestrator)
+            {
+                occupyingPip.MustRunOnOrchestrator = true;
+                occupyingPip.PreferredWorkerId = 0;
+                blockedPip.MustRunOnOrchestrator = true;
+                blockedPip.PreferredWorkerId = 0;
+            }
+            var chooseWorker = new ChooseWorkerCpu(
+                LoggingContext,
+                env.Configuration.Schedule,
+                workers,
+                env.Configuration.Distribution.RemoteWorkerCount + 1,
+                pipQueue,
+                SchedulerTestHelper.AssertSuccessGraphBuilding(env),
+                executionEnvironment.State.FileContentManager,
+                new Dictionary<ModuleId, (int, bool[])>
+                {
+                    [blockedPip.Process.Provenance.ModuleId] = (3, assignedWorkers),
+                });
+            // Match scheduler startup: remote workers are registered after ChooseWorkerCpu is constructed.
+            workers.Add(remoteWorker);
+            foreach (var worker in workers)
+            {
+                worker.UpdatePerfInfo(LoggingContext, currentTotalRamMb: 1024, machineAvailableRamMb: 1024,
+                    engineRamMb: 0, engineCpuUsage: null, machineCpuUsage: 0);
+            }
+
+            chooseWorker.SetUpWorkerResourceListeners();
+
+            chooseWorker.UnpauseChooseWorkerQueueIfEnqueuingNewPip(occupyingPip, DispatcherKind.ChooseWorkerCpu);
+            XAssert.AreSame(workers[blockedWorkerId], chooseWorker.ChooseWorker(occupyingPip));
+            chooseWorker.UnpauseChooseWorkerQueueIfEnqueuingNewPip(blockedPip, DispatcherKind.ChooseWorkerCpu);
+
+            // Interleave a healthy queue's wake-up between capturing the blocked pip's sequence and failing acquisition.
+            chooseWorker.UnpauseChooseWorkerQueueIfEnqueuingNewPip(peerPip, DispatcherKind.ChooseWorkerCpu);
+            XAssert.IsNull(chooseWorker.ChooseWorker(blockedPip));
+            XAssert.IsTrue(blockedPip.IsWaitingForWorker);
+            assertParallelDegree(blockedWorkerId, 0);
+            assertParallelDegree(peerWorkerId, env.Configuration.Schedule.MaxChooseWorkerCpu);
+
+            chooseWorker.UnpauseChooseWorkerQueueIfEnqueuingNewPip(blockedPip, DispatcherKind.ChooseWorkerCpu);
+            assertParallelDegree(blockedWorkerId, 0);
+            assertParallelDegree(peerWorkerId, env.Configuration.Schedule.MaxChooseWorkerCpu);
+
+            chooseWorker.TogglePauseChooseWorkerQueue(pause: true, affectedPip: peerPip);
+            assertParallelDegree(peerWorkerId, 0);
+            if (statusChange)
+            {
+                workers[blockedWorkerId].Status = WorkerNodeStatus.Stopping;
+            }
+            else
+            {
+                releaseResources(occupyingPip);
+            }
+
+            // A global resource/status wake-up must invalidate pending pauses for both queues.
+            chooseWorker.TogglePauseChooseWorkerQueue(pause: true, affectedPip: blockedPip);
+            chooseWorker.TogglePauseChooseWorkerQueue(pause: true, affectedPip: peerPip);
+            assertParallelDegree(blockedWorkerId, env.Configuration.Schedule.MaxChooseWorkerCpu);
+            assertParallelDegree(peerWorkerId, env.Configuration.Schedule.MaxChooseWorkerCpu);
+
+            chooseWorker.UnpauseChooseWorkerQueueIfEnqueuingNewPip(blockedPip, DispatcherKind.ChooseWorkerCpu);
+            XAssert.AreSame(workers[statusChange ? peerWorkerId : blockedWorkerId], chooseWorker.ChooseWorker(blockedPip));
+            XAssert.IsFalse(blockedPip.IsWaitingForWorker);
+            releaseResources(blockedPip);
+            if (statusChange)
+            {
+                releaseResources(occupyingPip);
+            }
+
+            ProcessRunnablePip createPip(string outputName, int? workerId)
+            {
+                using var builder = SchedulerTestHelper.CreatePipBuilderWithTag(env, outputName);
+                builder.WorkingDirectory = DirectoryArtifact.CreateWithZeroPartialSealId(env.SourceRoot);
+                builder.AddOutputFile(env.ObjectRoot.Combine(env.PathTable, outputName), FileExistence.Required);
+                XAssert.IsTrue(env.PipConstructionHelper.TryAddProcess(builder, out _, out var process));
+                var runnable = (ProcessRunnablePip)RunnablePip.Create(
+                    LoggingContext, executionEnvironment, process, priority: 0, executionFunc: _ => Task.CompletedTask);
+                runnable.PreferredWorkerId = workerId;
+                return runnable;
+            }
+
+            void assertParallelDegree(int workerId, int expected)
+            {
+                XAssert.AreEqual(expected, pipQueue.GetMaxParallelDegreeByKindForWorker(DispatcherKind.ChooseWorkerCpu, workerId));
+            }
+
+            void releaseResources(ProcessRunnablePip runnable)
+            {
+                runnable.Transition(PipExecutionStep.ExecuteProcess, force: true);
+                runnable.AcquiredResourceWorker.ReleaseResources(runnable, PipExecutionStep.Done);
+            }
+        }
+
+        private sealed class AffinityTestWorker : Worker
+        {
+            public AffinityTestWorker(IScheduleConfiguration scheduleConfig, PipExecutionContext context)
+                : base(workerId: 1, context, scheduleConfig)
+            {
+                TotalProcessSlots = 1;
+                Start();
+            }
+        }
+
         [FactIfSupported(requiresSandbox: true)]
         [SuppressMessage("AsyncUsage", "AsyncFixer02", Justification = "ReadAllText and WriteAllText have async versions in .NET Standard which cannot be used in full framework.")]
         public async Task Stress()

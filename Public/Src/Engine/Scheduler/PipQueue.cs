@@ -222,10 +222,24 @@ namespace BuildXL.Scheduler
         /// <inheritdoc/>
         public int GetMaxParallelDegreeByKind(DispatcherKind kind) => m_queuesByKind[kind].MaxParallelDegree;
 
+        internal int GetMaxParallelDegreeByKindForWorker(DispatcherKind kind, int workerId) =>
+            m_queuesByKind[kind].GetMaxParallelDegreeForWorker(workerId);
+
         /// <summary>
         /// Sets the max parallelism for the given queue
         /// </summary>
         public void SetMaxParallelDegreeByKind(DispatcherKind kind, int maxParallelDegree)
+        {
+            SetMaxParallelDegreeByKind(kind, maxParallelDegree, workerId: null);
+        }
+
+        /// <inheritdoc/>
+        public void SetMaxParallelDegreeByKindForWorker(DispatcherKind kind, int workerId, int maxParallelDegree)
+        {
+            SetMaxParallelDegreeByKind(kind, maxParallelDegree, workerId);
+        }
+
+        private void SetMaxParallelDegreeByKind(DispatcherKind kind, int maxParallelDegree, int? workerId)
         {
             if (maxParallelDegree == 0)
             {
@@ -244,7 +258,11 @@ namespace BuildXL.Scheduler
                 return;
             }
 
-            if (m_queuesByKind[kind].AdjustParallelDegree(maxParallelDegree) && maxParallelDegree > 0)
+            bool changed = workerId.HasValue
+                ? m_queuesByKind[kind].AdjustParallelDegreeForWorker(workerId.Value, maxParallelDegree)
+                : m_queuesByKind[kind].AdjustParallelDegree(maxParallelDegree);
+
+            if (changed && maxParallelDegree > 0)
             {
                 TriggerDispatcher();
             }

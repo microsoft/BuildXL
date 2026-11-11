@@ -261,5 +261,21 @@ namespace BuildXL.Scheduler.WorkDispatcher
 
             return false;
         }
+
+        /// <summary>
+        /// Adjust the max parallel degree of the worker-specific queue. Queues that are not split per worker adjust the whole queue.
+        /// </summary>
+        internal virtual bool AdjustParallelDegreeForWorker(int workerId, int newParallelDegree)
+        {
+            return AdjustParallelDegree(newParallelDegree);
+        }
+
+        /// <summary>
+        /// Gets the max parallel degree of the worker-specific queue. Queues that are not split per worker return the whole queue's value.
+        /// </summary>
+        internal virtual int GetMaxParallelDegreeForWorker(int workerId)
+        {
+            return MaxParallelDegree;
+        }
     }
 }

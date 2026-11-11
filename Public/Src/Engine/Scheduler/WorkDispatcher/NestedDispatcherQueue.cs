@@ -40,6 +40,18 @@ namespace BuildXL.Scheduler.WorkDispatcher
             return true;
         }
 
+        internal override bool AdjustParallelDegreeForWorker(int workerId, int newParallelDegree)
+        {
+            Contract.Requires(workerId >= 0 && workerId < m_dispatcherQueues.Length);
+            return m_dispatcherQueues[workerId].AdjustParallelDegree(newParallelDegree);
+        }
+
+        internal override int GetMaxParallelDegreeForWorker(int workerId)
+        {
+            Contract.Requires(workerId >= 0 && workerId < m_dispatcherQueues.Length);
+            return m_dispatcherQueues[workerId].MaxParallelDegree;
+        }
+
         /// <nodoc/>
         public override int NumAcquiredSlots => m_dispatcherQueues.Sum(a => a.NumAcquiredSlots);
 

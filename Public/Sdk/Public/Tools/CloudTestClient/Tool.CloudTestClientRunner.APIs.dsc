@@ -206,7 +206,14 @@ namespace APIs {
         // When we use per-job drops, we can finalize the session-level drop right before submitting the session creation, since
         // afterwards, each job will have its own drop.
         const dropReadyOutputs = args.usePerJobDrops
-            ? Drop.runner.finalizeDrop(createDropResult, {}, addArtifactsResult ? [addArtifactsResult] : []).outputs
+            ? Drop.runner.finalizeDrop(
+                createDropResult,
+                // There might be other drop upload operations as part of the session creation pip
+                // that are kept out from dropArtifacts (so they stay out of the group-level fingerprinting).
+                // We should not finalize the drop until those operations have completed.
+                { dependencies: args.dependencies || [] }, 
+                addArtifactsResult ? [addArtifactsResult] : []
+                ).outputs
             : addArtifactsResult ? addArtifactsResult.outputs : [];
 
         const outDir = Context.getNewOutputDirectory("cloudtest");

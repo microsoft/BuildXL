@@ -23,11 +23,12 @@ extends:
     settings:
       networkIsolationPolicy: CFSClean,CFSClean2,CFSClean3
     sdl:
-      sourceAnalysisPool:
-        name: Windows-SDL-Agents
-        os: windows
-      policheck:
-        enabled: true
+      enableAllTools: false
+      # Artifact malware and secret scans do not inherit enableAllTools.
+      antimalwareScan:
+        enabled: false
+      spmi:
+        enabled: false
 
     stages:
     # Bootstrap once on Ubuntu 22.04, then fan out validations across all distros.

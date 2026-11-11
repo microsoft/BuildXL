@@ -100,7 +100,7 @@ stages:
   - stage: Build_Distributed${{ parameters.suffix }}
     displayName: ${{ parameters.displayPrefix }}Distributed test
     dependsOn:
-    - Build_Internal${{ parameters.suffix }}
+    - Bootstrap_Internal
     jobs:
     - template: /.azdo/linux/jobs/job-distributed-1espt.yml@self
       parameters:

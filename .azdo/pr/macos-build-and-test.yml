@@ -14,10 +14,10 @@ jobs:
     matrix:
       Debug:
         configurationArgument: ''
-        qualifierArgument: '/q:DebugDotNetCoreMacArm64'
+        qualifierArgument: '/q:DebugDotNetCoreMacArm64Net11'
       Release:
         configurationArgument: '--release'
-        qualifierArgument: '/q:ReleaseDotNetCoreMacArm64'
+        qualifierArgument: '/q:ReleaseDotNetCoreMacArm64Net11'
   pool:
     name: AcesShared
     os: macOS

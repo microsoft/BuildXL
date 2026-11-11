@@ -582,7 +582,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Ref",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -600,7 +600,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Ref",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -609,7 +609,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Ref",
-          "Version": "9.0.22"
+          "Version": "9.0.23"
         }
       }
     },
@@ -618,7 +618,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.linux-x64",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -636,7 +636,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.linux-x64",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -645,7 +645,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.linux-x64",
-          "Version": "9.0.22"
+          "Version": "9.0.23"
         }
       }
     },
@@ -654,7 +654,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.osx-arm64",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -672,7 +672,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.osx-arm64",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -681,7 +681,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.osx-arm64",
-          "Version": "9.0.22"
+          "Version": "9.0.23"
         }
       }
     },
@@ -690,7 +690,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.osx-x64",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -708,7 +708,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.osx-x64",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -717,7 +717,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.osx-x64",
-          "Version": "9.0.22"
+          "Version": "9.0.23"
         }
       }
     },
@@ -726,7 +726,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.win-x64",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -744,7 +744,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.win-x64",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -753,7 +753,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.win-x64",
-          "Version": "9.0.22"
+          "Version": "9.0.23"
         }
       }
     },
@@ -843,7 +843,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Bcl.AsyncInterfaces",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -861,7 +861,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Bcl.Cryptography",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -1590,7 +1590,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.linux-x64",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -1608,7 +1608,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.linux-x64",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -1617,7 +1617,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.linux-x64",
-          "Version": "9.0.22"
+          "Version": "9.0.23"
         }
       }
     },
@@ -1626,7 +1626,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.osx-arm64",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -1644,7 +1644,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.osx-arm64",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -1653,7 +1653,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.osx-arm64",
-          "Version": "9.0.22"
+          "Version": "9.0.23"
         }
       }
     },
@@ -1662,7 +1662,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.osx-x64",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -1680,7 +1680,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.osx-x64",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -1689,7 +1689,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.osx-x64",
-          "Version": "9.0.22"
+          "Version": "9.0.23"
         }
       }
     },
@@ -1698,7 +1698,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.win-x64",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -1716,7 +1716,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.win-x64",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -1725,7 +1725,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.win-x64",
-          "Version": "9.0.22"
+          "Version": "9.0.23"
         }
       }
     },
@@ -1734,7 +1734,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Ref",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -1752,7 +1752,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Ref",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -1761,7 +1761,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Ref",
-          "Version": "9.0.22"
+          "Version": "9.0.23"
         }
       }
     },
@@ -1770,7 +1770,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.linux-x64",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -1788,7 +1788,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.linux-x64",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -1797,7 +1797,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.linux-x64",
-          "Version": "9.0.22"
+          "Version": "9.0.23"
         }
       }
     },
@@ -1806,7 +1806,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.osx-arm64",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -1824,7 +1824,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.osx-arm64",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -1833,7 +1833,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.osx-arm64",
-          "Version": "9.0.22"
+          "Version": "9.0.23"
         }
       }
     },
@@ -1842,7 +1842,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.osx-x64",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -1860,7 +1860,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.osx-x64",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -1869,7 +1869,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.osx-x64",
-          "Version": "9.0.22"
+          "Version": "9.0.23"
         }
       }
     },
@@ -1878,7 +1878,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.win-x64",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -1896,7 +1896,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.win-x64",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -1905,7 +1905,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.win-x64",
-          "Version": "9.0.22"
+          "Version": "9.0.23"
         }
       }
     },
@@ -1923,7 +1923,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.DotNetAppHost",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -1932,7 +1932,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -1941,7 +1941,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.DotNetHostResolver",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -2688,7 +2688,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.CodeDom",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -2715,7 +2715,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Collections.Immutable",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -2859,7 +2859,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Configuration.ConfigurationManager",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -2922,7 +2922,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Diagnostics.EventLog",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -3030,7 +3030,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Formats.Asn1",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -3039,7 +3039,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Formats.Nrbf",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -3147,7 +3147,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.IO.Hashing",
-          "Version": "9.0.22"
+          "Version": "9.0.23"
         }
       }
     },
@@ -3174,7 +3174,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.IO.Pipelines",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -3507,7 +3507,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Reflection.Metadata",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -3525,7 +3525,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Reflection.MetadataLoadContext",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -3552,7 +3552,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Resources.Extensions",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -3795,7 +3795,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Security.Cryptography.Pkcs",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -3813,7 +3813,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Security.Cryptography.ProtectedData",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -3831,7 +3831,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Security.Cryptography.Xml",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -3912,7 +3912,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Text.Encoding.CodePages",
-          "Version": "9.0.22"
+          "Version": "9.0.23"
         }
       }
     },
@@ -3930,7 +3930,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Text.Encodings.Web",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -3939,7 +3939,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Text.Json",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -3975,7 +3975,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Threading.Channels",
-          "Version": "9.0.22"
+          "Version": "9.0.23"
         }
       }
     },
@@ -4011,7 +4011,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Threading.Tasks.Dataflow",
-          "Version": "10.0.14"
+          "Version": "10.0.15"
         }
       }
     },
@@ -4308,7 +4308,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -4317,7 +4317,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -4407,7 +4407,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.osx-arm64.Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -4416,7 +4416,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.osx-arm64.Microsoft.NETCore.DotNetHostResolver",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -4434,7 +4434,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -4443,7 +4443,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -4515,7 +4515,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },
@@ -4524,7 +4524,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver",
-          "Version": "8.0.33"
+          "Version": "8.0.34"
         }
       }
     },

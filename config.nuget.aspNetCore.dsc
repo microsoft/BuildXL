@@ -5,14 +5,14 @@ const aspVersion = "10.0.14";
 
 // Versions used by framework reference packages for reference assemblies
 // and runtime assemblies respectively
-const asp8RefVersion = "8.0.33";
-const asp8RuntimeVersion = "8.0.33";
+const asp8RefVersion = "8.0.34";
+const asp8RuntimeVersion = "8.0.34";
 
-const asp9RefVersion = "9.0.22";
-const asp9RuntimeVersion = "9.0.22";
+const asp9RefVersion = "9.0.23";
+const asp9RuntimeVersion = "9.0.23";
 
-const asp10RefVersion = "10.0.14";
-const asp10RuntimeVersion = "10.0.14";
+const asp10RefVersion = "10.0.15";
+const asp10RuntimeVersion = "10.0.15";
 
 const asp11RefVersion = "11.0.0";
 const asp11RuntimeVersion = "11.0.0";

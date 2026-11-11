@@ -474,6 +474,7 @@ namespace BuildXL.Interop.Unix
         public const string EtcLocalTime    = "/etc/localtime";
         public const string LibLinuxGnu     = "/lib/x86_64-linux-gnu";
         public const string Lib             = "/lib";
+        public const string Lib32           = "/lib32";
         public const string Lib64           = "/lib64";
         public const string Private         = "/private";
         public const string PrivateVar      = "/private/var";
@@ -486,6 +487,7 @@ namespace BuildXL.Interop.Unix
         public const string UsrBin          = "/usr/bin";
         public const string UsrInclude      = "/usr/include";
         public const string UsrLib          = "/usr/lib";
+        public const string UsrLib32        = "/usr/lib32";
         /// <summary>
         /// Contains libraries provided by the OS.
         /// </summary>

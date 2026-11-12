@@ -21,26 +21,6 @@ namespace Cache.NugetPackages {
     const net472CacheLogging = importFrom("BuildXL.Cache.Logging").Library.withQualifier({ targetFramework: "net472", targetRuntime: "win-x64" });
     const netStandardCacheLogging = importFrom("BuildXL.Cache.Logging").Library.withQualifier({ targetFramework: "netstandard2.0", targetRuntime: "win-x64" });
 
-    // Net8
-    const net8WinX64ContentStore = importFrom("BuildXL.Cache.ContentStore").withQualifier({ targetFramework: "net8.0", targetRuntime: "win-x64" });
-    const net8OsxX64ContentStore = importFrom("BuildXL.Cache.ContentStore").withQualifier({ targetFramework: "net8.0", targetRuntime: "osx-x64" });
-    const net8WinX64MemoizationStore = importFrom("BuildXL.Cache.MemoizationStore").withQualifier({ targetFramework: "net8.0", targetRuntime: "win-x64" });
-    const net8OsxX64MemoizationStore = importFrom("BuildXL.Cache.MemoizationStore").withQualifier({ targetFramework: "net8.0", targetRuntime: "osx-x64" });
-    const net8WinX64DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "net8.0", targetRuntime: "win-x64" });
-    const net8OsxX64DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "net8.0", targetRuntime: "osx-x64" });
-    const net8WinX64CacheLogging = importFrom("BuildXL.Cache.Logging").Library.withQualifier({ targetFramework: "net8.0", targetRuntime: "win-x64" });
-    const net8OsxX64CacheLogging = importFrom("BuildXL.Cache.Logging").Library.withQualifier({ targetFramework: "net8.0", targetRuntime: "osx-x64" });
-
-    // Net9
-    const net9WinX64ContentStore = importFrom("BuildXL.Cache.ContentStore").withQualifier({ targetFramework: "net9.0", targetRuntime: "win-x64" });
-    const net9OsxX64ContentStore = importFrom("BuildXL.Cache.ContentStore").withQualifier({ targetFramework: "net9.0", targetRuntime: "osx-x64" });
-    const net9WinX64MemoizationStore = importFrom("BuildXL.Cache.MemoizationStore").withQualifier({ targetFramework: "net9.0", targetRuntime: "win-x64" });
-    const net9OsxX64MemoizationStore = importFrom("BuildXL.Cache.MemoizationStore").withQualifier({ targetFramework: "net9.0", targetRuntime: "osx-x64" });
-    const net9WinX64DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "net9.0", targetRuntime: "win-x64" });
-    const net9OsxX64DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "net9.0", targetRuntime: "osx-x64" });
-    const net9WinX64CacheLogging = importFrom("BuildXL.Cache.Logging").Library.withQualifier({ targetFramework: "net9.0", targetRuntime: "win-x64" });
-    const net9OsxX64CacheLogging = importFrom("BuildXL.Cache.Logging").Library.withQualifier({ targetFramework: "net9.0", targetRuntime: "osx-x64" });
-
     // Net10
     const net10WinX64ContentStore = importFrom("BuildXL.Cache.ContentStore").withQualifier({ targetFramework: "net10.0", targetRuntime: "win-x64" });
     const net10OsxX64ContentStore = importFrom("BuildXL.Cache.ContentStore").withQualifier({ targetFramework: "net10.0", targetRuntime: "osx-x64" });
@@ -79,8 +59,6 @@ namespace Cache.NugetPackages {
     export const contentStoreDistributed : Managed.Assembly[] = [
         net472ContentStore.Distributed.dll,
         netStandardContentStore.Distributed.dll,
-        net8WinX64ContentStore.Distributed.dll,
-        net9WinX64ContentStore.Distributed.dll,
         net10WinX64ContentStore.Distributed.dll,
         net11WinX64ContentStore.Distributed.dll,
     ];
@@ -90,8 +68,6 @@ namespace Cache.NugetPackages {
     export const contentStoreLibrary : Managed.Assembly[] = [
         net472ContentStore.Library.dll,
         netStandardContentStore.Library.dll,
-        net8WinX64ContentStore.Library.dll,
-        net9WinX64ContentStore.Library.dll,
         net10WinX64ContentStore.Library.dll,
         net11WinX64ContentStore.Library.dll,
     ];
@@ -101,8 +77,6 @@ namespace Cache.NugetPackages {
     export const contentStoreGrpc : Managed.Assembly[] = [
         net472ContentStore.Grpc.dll,
         netStandardContentStore.Grpc.dll,
-        net8WinX64ContentStore.Grpc.dll,
-        net9WinX64ContentStore.Grpc.dll,
         net10WinX64ContentStore.Grpc.dll,
         net11WinX64ContentStore.Grpc.dll,
     ];
@@ -112,8 +86,6 @@ namespace Cache.NugetPackages {
     export const contentStoreVsts : Managed.Assembly[] = [
         net472ContentStore.Vsts.dll,
         netStandardContentStore.Vsts.dll,
-        net8WinX64ContentStore.Vsts.dll,
-        net9WinX64ContentStore.Vsts.dll,
         net10WinX64ContentStore.Vsts.dll,
         net11WinX64ContentStore.Vsts.dll,
     ];
@@ -123,8 +95,6 @@ namespace Cache.NugetPackages {
     export const contentStoreVstsInterfaces : Managed.Assembly[] = [
         net472ContentStore.VstsInterfaces.dll,
         netStandardContentStore.VstsInterfaces.dll,
-        net8WinX64ContentStore.VstsInterfaces.dll,
-        net9WinX64ContentStore.VstsInterfaces.dll,
         net10WinX64ContentStore.VstsInterfaces.dll,
         net11WinX64ContentStore.VstsInterfaces.dll,
     ];
@@ -134,8 +104,6 @@ namespace Cache.NugetPackages {
     export const memoizationStoreDistributed : Managed.Assembly[] = [
         net472MemoizationStore.Distributed.dll,
         netStandardMemoizationStore.Distributed.dll,
-        net8WinX64MemoizationStore.Distributed.dll,
-        net9WinX64MemoizationStore.Distributed.dll,
         net10WinX64MemoizationStore.Distributed.dll,
         net11WinX64MemoizationStore.Distributed.dll,
     ];
@@ -145,8 +113,6 @@ namespace Cache.NugetPackages {
     export const memoizationStoreLibrary : Managed.Assembly[] = [
         net472MemoizationStore.Library.dll,
         netStandardMemoizationStore.Library.dll,
-        net8WinX64MemoizationStore.Library.dll,
-        net9WinX64MemoizationStore.Library.dll,
         net10WinX64MemoizationStore.Library.dll,
         net11WinX64MemoizationStore.Library.dll,
     ];
@@ -156,8 +122,6 @@ namespace Cache.NugetPackages {
     export const memoizationStoreVsts : Managed.Assembly[] = [
         net472MemoizationStore.Vsts.dll,
         netStandardMemoizationStore.Vsts.dll,
-        net8WinX64MemoizationStore.Vsts.dll,
-        net9WinX64MemoizationStore.Vsts.dll,
         net10WinX64MemoizationStore.Vsts.dll,
         net11WinX64MemoizationStore.Vsts.dll,
     ];
@@ -167,8 +131,6 @@ namespace Cache.NugetPackages {
     export const memoizationStoreVstsInterfaces : Managed.Assembly[] = [
         net472MemoizationStore.VstsInterfaces.dll,
         netStandardMemoizationStore.VstsInterfaces.dll,
-        net8WinX64MemoizationStore.VstsInterfaces.dll,
-        net9WinX64MemoizationStore.VstsInterfaces.dll,
         net10WinX64MemoizationStore.VstsInterfaces.dll,
         net11WinX64MemoizationStore.VstsInterfaces.dll,
     ];
@@ -178,8 +140,6 @@ namespace Cache.NugetPackages {
     export const buildxlCacheHostServices : Managed.Assembly[] = [
         net472DistributedCacheHost.Service.dll,
         netStandardDistributedCacheHost.Service.dll,
-        net8WinX64DistributedCacheHost.Service.dll,
-        net9WinX64DistributedCacheHost.Service.dll,
         net10WinX64DistributedCacheHost.Service.dll,
         net11WinX64DistributedCacheHost.Service.dll,
     ];
@@ -189,8 +149,6 @@ namespace Cache.NugetPackages {
     export const buildxlCacheHostConfiguration : Managed.Assembly[] = [
         net472DistributedCacheHost.Configuration.dll,
         netStandardDistributedCacheHost.Configuration.dll,
-        net8WinX64DistributedCacheHost.Configuration.dll,
-        net9WinX64DistributedCacheHost.Configuration.dll,
         net10WinX64DistributedCacheHost.Configuration.dll,
         net11WinX64DistributedCacheHost.Configuration.dll,
     ];
@@ -200,8 +158,6 @@ namespace Cache.NugetPackages {
     export const buildxlCacheLogging : Managed.Assembly[] = [
         net472CacheLogging.dll,
         netStandardCacheLogging.dll,
-        net8WinX64CacheLogging.dll,
-        net9WinX64CacheLogging.dll,
         net10WinX64CacheLogging.dll,
         net11WinX64CacheLogging.dll,
     ];
@@ -211,8 +167,6 @@ namespace Cache.NugetPackages {
     export const contentStoreInterfaces : Managed.Assembly[] = [
         net472ContentStore.Interfaces.dll,
         netStandardContentStore.Interfaces.dll,
-        net8WinX64ContentStore.Interfaces.dll,
-        net9WinX64ContentStore.Interfaces.dll,
         net10WinX64ContentStore.Interfaces.dll,
         net11WinX64ContentStore.Interfaces.dll,
     ];
@@ -222,8 +176,6 @@ namespace Cache.NugetPackages {
     export const memoizationStoreInterfaces : Managed.Assembly[] = [
         net472MemoizationStore.Interfaces.dll,
         netStandardMemoizationStore.Interfaces.dll,
-        net8WinX64MemoizationStore.Interfaces.dll,
-        net9WinX64MemoizationStore.Interfaces.dll,
         net10WinX64MemoizationStore.Interfaces.dll,
         net11WinX64MemoizationStore.Interfaces.dll,
     ];
@@ -233,8 +185,6 @@ namespace Cache.NugetPackages {
     export const contentStoreHashing : Managed.Assembly[] = [
         net472ContentStore.Hashing.dll,
         netStandardContentStore.Hashing.dll,
-        net8WinX64ContentStore.Hashing.dll,
-        net9WinX64ContentStore.Hashing.dll,
         net10WinX64ContentStore.Hashing.dll,
         net11WinX64ContentStore.Hashing.dll,
     ];
@@ -244,23 +194,21 @@ namespace Cache.NugetPackages {
     export const contentStoreUtilitiesCore : Managed.Assembly[] = [
         net472ContentStore.UtilitiesCore.dll,
         netStandardContentStore.UtilitiesCore.dll,
-        net8WinX64ContentStore.UtilitiesCore.dll,
-        net9WinX64ContentStore.UtilitiesCore.dll,
         net10WinX64ContentStore.UtilitiesCore.dll,
         net11WinX64ContentStore.UtilitiesCore.dll,
     ];
 
     // BlobLifetimeManager.Library
     export const blobLifetimeManagerLibrary : Managed.Assembly[] = [
-        importFrom("BuildXL.Cache.BlobLifetimeManager").Library.withQualifier({ targetFramework: "net8.0", targetRuntime: "win-x64" }).dll,
         importFrom("BuildXL.Cache.BlobLifetimeManager").Library.withQualifier({ targetFramework: "net10.0", targetRuntime: "win-x64" }).dll,
+        importFrom("BuildXL.Cache.BlobLifetimeManager").Library.withQualifier({ targetFramework: "net11.0", targetRuntime: "win-x64" }).dll,
     ];
 
     // Cache.VerticalStore.Interfaces (BuildXL.Cache.Interfaces)
     // No net472 — VerticalStore.Interfaces is not needed for net472 consumers.
     export const verticalStoreInterfaces : Managed.Assembly[] = [
-        importFrom("BuildXL.Cache.VerticalStore").withQualifier({ targetFramework: "net8.0", targetRuntime: "win-x64" }).Interfaces.dll,
-        importFrom("BuildXL.Cache.VerticalStore").withQualifier({ targetFramework: "net9.0", targetRuntime: "win-x64" }).Interfaces.dll,
+        importFrom("BuildXL.Cache.VerticalStore").withQualifier({ targetFramework: "net10.0", targetRuntime: "win-x64" }).Interfaces.dll,
+        importFrom("BuildXL.Cache.VerticalStore").withQualifier({ targetFramework: "net11.0", targetRuntime: "win-x64" }).Interfaces.dll,
     ];
 
     // BuildCacheResourceHelper
@@ -268,8 +216,6 @@ namespace Cache.NugetPackages {
     export const buildCacheResourceHelper : Managed.Assembly[] = [
         importFrom("BuildXL.Cache.BuildCacheResource").Helper.withQualifier({ targetFramework: "net472", targetRuntime: "win-x64" }).dll,
         importFrom("BuildXL.Cache.BuildCacheResource").Helper.withQualifier({ targetFramework: "netstandard2.0", targetRuntime: "win-x64" }).dll,
-        importFrom("BuildXL.Cache.BuildCacheResource").Helper.withQualifier({ targetFramework: "net8.0", targetRuntime: "win-x64" }).dll,
-        importFrom("BuildXL.Cache.BuildCacheResource").Helper.withQualifier({ targetFramework: "net9.0", targetRuntime: "win-x64" }).dll,
         importFrom("BuildXL.Cache.BuildCacheResource").Helper.withQualifier({ targetFramework: "net10.0", targetRuntime: "win-x64" }).dll,
         importFrom("BuildXL.Cache.BuildCacheResource").Helper.withQualifier({ targetFramework: "net11.0", targetRuntime: "win-x64" }).dll,
     ];

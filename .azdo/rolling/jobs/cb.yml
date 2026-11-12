@@ -39,8 +39,6 @@ jobs:
       additionalFlags: >-
         /q:ReleaseNet472
         /q:DebugNet472
-        /q:DebugNet8
-        /q:ReleaseNet8
         /q:DebugNet10
         /q:ReleaseNet10
         /q:DebugNet11

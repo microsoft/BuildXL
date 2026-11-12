@@ -5,7 +5,7 @@ import * as Managed from "Sdk.Managed";
 import {Transformer} from "Sdk.Transformers";
 
 namespace Core.SBOM {
-    export declare const qualifier: BuildXLSdk.Net8Qualifier;
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     // The SBOM utility tests don't have a conceptual need to be a separate dll, but latest version of SBOM packages are net8.0+ only.
     // TODO: merge these tests back into the regular test utilities dll. CODESYNC: Public\Src\Utilities\UnitTests\Utilities\Test.BuildXL.Utilities.dsc

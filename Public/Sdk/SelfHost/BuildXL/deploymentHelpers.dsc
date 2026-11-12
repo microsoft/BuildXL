@@ -69,7 +69,7 @@ namespace DeploymentHelpers {
         export const enabled = Environment.hasVariable("BUILDXL_DROP_ENABLED") ? Environment.getBooleanValue("BUILDXL_DROP_ENABLED") : false;
 
         /** The runner that preforms the upload */
-        export const runner = enabled ? DropDaemonRunner.withQualifier({configuration: "release", targetFramework: "net8.0", targetRuntime: "win-x64"}).cloudBuildRunner : undefined;
+        export const runner = enabled ? DropDaemonRunner.withQualifier({configuration: "release", targetFramework: Managed.TargetFrameworks.DefaultTargetFramework, targetRuntime: "win-x64"}).cloudBuildRunner : undefined;
 
         /** The settings for this drop */
         const settings = {

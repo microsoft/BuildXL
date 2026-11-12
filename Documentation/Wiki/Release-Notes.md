@@ -2,6 +2,17 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20261108.1 (Release [32529959](https://dev.azure.com/mseng/Domino/_build/results?buildId=32529959&view=results))
+- [Visual Studio] Remove the legacy VS extension, BuildXL MSBuild task, and project generator; `/vs` now uses the SDK-style generator, with `/vsnew` as an alias without the `New` solution-name suffix.
+- Avoid materializing `Artifact.vsoHash`-only dependencies on consuming workers.
+- [Distribution] Honor `/OrchestratorCpuMultiplier` at all worker counts; zero or unset reduces orchestrator slots as workers join unless historical CPU throttling is enabled.
+- [Scheduler] Fix suspended-pip recovery when only services remain active.
+- [Packages] Add a .NET 10 target to the `BlobLifetimeManager` NuGet package.
+- [Drop] Show component detection failure details in `DropDaemon`.
+- [Performance] Reduce DScript workspace memory and file-access manifest allocations.
+- [Diagnostics] Reduce XLG size by compacting directory-membership events.
+- Various bug fixes and improvements.
+
 # 0.1.0-20261030.6 (Release [32417842](https://dev.azure.com/mseng/Domino/_build/results?buildId=32417842&view=results))
 - Fix premature `BigBuffer` capacity overflow during graph construction.
 - Fix preserved-output privatization race.

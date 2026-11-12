@@ -488,7 +488,8 @@ function Log-Error {
 function Mirror-Directory {
     param([string]$src, [string]$dst)
 
-    robocopy /MT /MIR /NJH /NP /NDL /NFL /NC /NS $src $dst /xd BuildXLServerDeploymentCache;
+    # During Windows selfhost development, a DLL can change bytes while retaining its size and preserved last-write timestamp, causing Robocopy to skip it and leave stale deployed content.
+    robocopy /MT /MIR /IS /IT /IM /NJH /NP /NDL /NFL /NC /NS $src $dst /xd BuildXLServerDeploymentCache;
     if ($LastExitCode -ge 8) {
         throw "Robocopy failed with exit code $LastExitCode";
     }

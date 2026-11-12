@@ -12,7 +12,10 @@ configuration:
         - "PullRequestPublished"
         - "PullRequestCommitPublished"
       job:
-          prompt: "/agency Complete a comprehensive review of the current pull request"
           agent:
-              name: "agency"
-              type: Repo
+              name: "agency-code-review"
+              pluginName: "agency-review"
+              type: Company
+          plugins:
+              - name: "agency-review"
+                type: Company

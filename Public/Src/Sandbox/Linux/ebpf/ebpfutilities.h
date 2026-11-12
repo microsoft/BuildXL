@@ -408,7 +408,7 @@ struct
 } tmp_paths SEC(".maps");
 
 // We use one entry per cpu
-// Used by deref_path_info, combine_paths, and argv_to_string
+// Used by deref_path_info and combine_paths
 // The dereference needs two paths, so the size here is PATH_MAX * 2, and the resulting element is logically split in halves
 // More generally, it is very useful to use a PATH_MAX * 2 sized buffer for path-related operations (when two paths are involved, or when
 // a temporary path is kept while operating with another one), as the verifier will be happy with the given boundaries
@@ -419,6 +419,21 @@ struct
     __uint(value_size, PATH_MAX * 2);
     __uint(max_entries, 1);
 } derefpaths SEC(".maps");
+
+// Sleepable exec hooks can block while faulting in user memory, letting another task on the same CPU
+// overwrite per-CPU scratch. Task-local storage keeps each task's capture buffers intact across those reads.
+// Use separate buffers: newer kernels allocate task storage through kmalloc_nolock, which cannot
+// allocate more than 8 KB on x64, including the kernel's local-storage element header.
+struct {
+    __uint(type, BPF_MAP_TYPE_TASK_STORAGE);
+    __uint(map_flags, BPF_F_NO_PREALLOC);
+    // The user-space key is a pidfd, not a PID. Kernel access here uses the
+    // bpf_task_storage_get/delete helpers with a task_struct pointer instead.
+    __type(key, int);
+    __type(value, char[PATH_MAX]);
+} exec_filename_storage SEC(".maps"),
+  exec_arguments_storage SEC(".maps"),
+  exec_temp_storage SEC(".maps");
 
 // Map used to temporarily hold the mount corresponding to follow_link calls
 // The map autocreate is disabled by user side when not needed (i.e., on newer kernels where pick_link BTF is available)
@@ -952,60 +967,135 @@ __attribute__((always_inline)) static inline bool is_non_file(mode_t mode)
 }
 
 /**
- * argv_to_string() - Converts an argv array to a string representation.
+ * State shared by the byte-copy callback when faulting in a user string.
+ * The result is the length including the terminator, a negative read error, or 0 if no terminator was reached.
+ */
+struct user_string_copy_context {
+    const char *source;
+    char *dest;
+    int result;
+};
+
+/**
+ * copy_user_string_byte() - Copies one byte from user memory, handling page faults.
+ *
+ * Returns 1 to stop the loop on a read error or the null terminator, recording the result in ctx.
+ */
+static long copy_user_string_byte(u64 index, struct user_string_copy_context *ctx) {
+    char value;
+    int error = bpf_copy_from_user(&value, sizeof(value), ctx->source + index);
+    if (error) {
+        ctx->result = error;
+        return 1;
+    }
+
+    ctx->dest[index & (PATH_MAX - 1)] = value;
+    if (value == '\0') {
+        ctx->result = index + 1;
+        return 1;
+    }
+
+    return 0;
+}
+
+/**
+ * copy_user_string_sleepable() - Copies a user string from a sleepable hook into task-local storage.
+ *
+ * The fast probe copies without faulting. On failure, copy through the terminator with fault handling,
+ * without reading past a mapped string.
+ */
+static int copy_user_string_sleepable(const char *source, char *dest) {
+    int length = bpf_probe_read_user_str(dest, PATH_MAX, source);
+    if (length > 0) {
+        return length;
+    }
+
+    struct user_string_copy_context ctx = {
+        .source = source,
+        .dest = dest,
+        .result = 0,
+    };
+    int error = bpf_loop(PATH_MAX, copy_user_string_byte, &ctx, 0);
+    return error < 0 ? error : ctx.result;
+}
+
+/**
+ * argv_to_string() - Converts an argv array to a string representation in a sleepable hook.
  * @argv: The argv array to convert. This pointer is in user memory.
  * @dest: The destination buffer to store the resulting string. This pointer is in kernel memory.
+ * @temp: Task-local scratch for copying one argument at a time.
  *
  * Each argument will be separated by a space.
  * Final string is null terminated.
- * NOTE: the destination buffer is assumed to always be PATH_MAX in size.
+ * Returns the length including the terminator, zero for capture limits, or a negative value on a read failure.
+ * Incomplete arguments must not be used to match argument-constrained breakaway rules.
+ * NOTE: dest and temp must each be PATH_MAX-sized task-local buffers, not per-CPU scratch.
  */
-static int argv_to_string(char *const *argv, char* dest)
+// Keep the dynptr in its own BPF stack frame: inlining lets later path reads reuse its
+// slots, which the verifier still marks as a dynptr after the C lifetime has ended.
+__attribute__((noinline)) static int argv_to_string(char *const *argv, char *dest, char *temp)
 {
+    dest[0] = '\0';
     if (!argv) {
-        return 0;
+        return 1;
     }
 
     int index = 0;
-    int remaining_length = PATH_MAX - 1;
 
-    // Using temporary path storage here to read each argument
-    char *temp = bpf_map_lookup_elem(&derefpaths, &index);
-    if (temp == NULL) {
-        return 0;
+    struct bpf_dynptr dest_ptr;
+    int error = bpf_dynptr_from_mem(dest, PATH_MAX, 0, &dest_ptr);
+    if (error) {
+        return error;
     }
 
-    for (int i = 0; i < MAX_ARGV_ARGUMENTS; i++) {
+    // Read one extra pointer so that exactly MAX_ARGV_ARGUMENTS arguments can still be complete.
+    for (int i = 0; i <= MAX_ARGV_ARGUMENTS; i++) {
         char *arg;
         // Get a pointer to the current argument
-        if (bpf_probe_read_user(&arg, sizeof(arg), &argv[i]) != 0) {
-            break;
+        int error = bpf_copy_from_user(&arg, sizeof(arg), &argv[i]);
+        if (error) {
+            return error;
         }
 
-        // Copy string to temporary location starting on the second half of the string
-        long copied_len = bpf_probe_read_user_str(&temp[PATH_MAX], PATH_MAX, arg);
-        if (copied_len <= 0) {
-            break;
+        if (!arg) {
+            // Keep the length strictly below PATH_MAX: exec serialization bounds lengths with PATH_MAX - 1.
+            return index + 1;
         }
 
-        // Copy the string to the first half of the temporary array to concatenate it with the rest of the arguments
-        // We'll add a space here if it's the second argument onwards
+        if (i == MAX_ARGV_ARGUMENTS) {
+            return 0;
+        }
+
+        long copied_len = copy_user_string_sleepable(arg, temp);
+        if (copied_len < 0) {
+            return copied_len;
+        }
+        if (copied_len <= 0 || copied_len >= PATH_MAX) {
+            return 0;
+        }
+
+        int separator_length = i > 0 ? 1 : 0;
+        if (index + separator_length + copied_len >= PATH_MAX) {
+            return 0;
+        }
+
         if (i > 0) {
-            temp[index & (PATH_MAX - 1)] = ' ';
+            dest[index & (PATH_MAX - 1)] = ' ';
             index++;
         }
 
-        // NOTE: this is a kernel str because we are copying from the derefpaths map now
-        long copied_len2 = bpf_probe_read_kernel_str(&temp[index & (PATH_MAX - 1)], PATH_MAX, &temp[PATH_MAX]);
-        index += copied_len2 - 1; // -1 since this an index, not a length
-        if (index >= PATH_MAX - 1) {
-            break;
+        // Keep the bound in bytecode: LLVM can elide the C mask while the verifier loses the range across casts.
+        asm volatile("%[length] &= " XSTR(PATH_MAX - 1) "\n"
+                     : [length] "+r"(copied_len));
+        // Bound offset + length against the whole destination, without an oversized scratch buffer.
+        error = bpf_dynptr_write(&dest_ptr, index, temp, copied_len, 0);
+        if (error) {
+            return error;
         }
+        index += copied_len - 1; // -1 since this an index, not a length
     }
 
-    // Copy the path to the final destination
-    // index + 1 is used here because index is used as a length not an index here
-    return bpf_probe_read_kernel_str(dest, ((index + 1) & (PATH_MAX - 1)), &temp[0]);
+    return 0;
 }
 
 /**
@@ -1022,13 +1112,19 @@ static long breakaway_map_callback(struct bpf_map *map, const uint32_t *key, bre
         return 1;
     }
 
-    char *toolname = &event->exe_path[event->exe_name_start_index & (PATH_MAX - 1)];
-
-    bool exe_match = string_contains(toolname, event->exe_name_len, value->tool, value->tool_len, /* case_sensitive */ true);
-    // Args can be ignored if they weren't specified in the breakaway process map
-     bool args_match = value->arguments[0] == '\0'
-         ? true
-         : string_contains(value->arguments, value->arguments_len, event->args, event->args_len, /* case_sensitive */ !value->args_ignore_case);
+    // Breakaway matches on the executable path atom, so require an exact length match.
+    bool exe_match = event->exe_name_len == value->tool_len
+        && string_contains(event->exe_path, event->exe_name_len, value->tool, value->tool_len, /* case_sensitive */ true, event->exe_name_start_index);
+    if (exe_match && value->arguments[0] != '\0' && event->args_len == 0) {
+        event->requires_uncaptured_args = true;
+    }
+    // Args can be ignored if they weren't specified in the breakaway process map.
+    // An args_len of 0 means argv could not be captured in full (see argv_to_string). A partial capture must never
+    // satisfy an argument-constrained rule, otherwise a process could break away based on a truncated command line.
+    bool args_match = value->arguments[0] == '\0'
+        ? true
+        : event->args_len > 0
+            && string_contains(value->arguments, value->arguments_len, event->args, event->args_len, /* case_sensitive */ !value->args_ignore_case, /* needle_start_index */ 0);
 
     event->needs_breakaway = exe_match && args_match;
 
@@ -1066,6 +1162,7 @@ static long basename_loop_callback(u64 index, exec_event_metadata **ctx) {
  */
 static int process_needs_breakaway(exec_event_metadata *event, pid_t runner_pid) {
     event->needs_breakaway = false;
+    event->requires_uncaptured_args = false;
 
     // The path that we have is the full path to the executable
     // Breakaway processes match with the executable path atom so we need to find the basename
@@ -1082,6 +1179,10 @@ static int process_needs_breakaway(exec_event_metadata *event, pid_t runner_pid)
 
     // Check if the process needs to breakaway
     bpf_for_each_map_elem(breakaway_processes, breakaway_map_callback, &event, 0);
+
+    if (!event->needs_breakaway && event->requires_uncaptured_args) {
+        report_ring_buffer_error(runner_pid, "[ERROR] Cannot evaluate argument-constrained breakaway rule: argument capture limit exceeded.");
+    }
 
     return 0;
 }
@@ -1740,8 +1841,12 @@ __attribute__((always_inline)) static void submit_exec(
         return;
     }
 
-    // Write the args to the dynamic structure
-    if (bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata) + sizeof(int) + exe_path_length, args, args_length & (PATH_MAX - 1), 0))
+    // LLVM can remove a C mask based on caller bounds that the verifier no longer knows.
+    // Keep the 64-bit bound immediately before the helper that reads the argument buffer.
+    u64 args_copy_length = args_length;
+    asm volatile("%[length] &= " XSTR(PATH_MAX - 1) "\n"
+                 : [length] "+r"(args_copy_length));
+    if (bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata) + sizeof(int) + exe_path_length, args, args_copy_length, 0))
     {
         report_ring_buffer_error(runner_pid, "[ERROR] Unable to write args to dynptr");
         bpf_ringbuf_discard_dynptr(&ptr, 0);

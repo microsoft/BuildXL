@@ -379,8 +379,13 @@ typedef struct exec_event_metadata {
     int exe_path_len;
     int exe_name_start_index;
     int exe_name_len;
+    // Length of `args` including the terminator, or 0 when the complete argv could not be captured.
+    // A value of 0 must never be treated as a usable command line: breakaway rules that constrain
+    // arguments have to reject it rather than match against a truncated string.
     int args_len;
     bool needs_breakaway;
+    // An executable-name match requires arguments that could not be captured in full.
+    bool requires_uncaptured_args;
 } exec_event_metadata;
 
 typedef struct ebpf_event_debug {

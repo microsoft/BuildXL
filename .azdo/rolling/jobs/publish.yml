@@ -267,4 +267,9 @@ jobs:
       displayName: Force push to GitHub master SSH
       inputs:
         filePath: Shared/Scripts/github/PushToGHWithDeployKey.ps1
-        arguments: '"$(Github-DeployKey-PrivateKey)" "$(Github-DeployKey-PublicKey)" "$(Build.SourcesDirectory)\Shared\Scripts\github\known_hosts"'
+        arguments: '-knownHostsSecureFilePath "$(Build.SourcesDirectory)\Shared\Scripts\github\known_hosts"'
+      # Pass the keys through the environment rather than arguments so shell argument
+      # validation (https://aka.ms/ado/75787) doesn't alter their special characters.
+      env:
+        GITHUB_DEPLOYKEY_PRIVATEKEY: $(Github-DeployKey-PrivateKey)
+        GITHUB_DEPLOYKEY_PUBLICKEY: $(Github-DeployKey-PublicKey)

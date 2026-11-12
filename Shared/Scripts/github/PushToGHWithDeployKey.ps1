@@ -1,11 +1,14 @@
 Param(
  [Parameter(mandatory=$true)]
- [String]$privateKey,
- [Parameter(mandatory=$true)]
- [String]$publicKey,
- [Parameter(mandatory=$true)]
- [String]$knownHostsSecureFilePath
+ [String]$knownHostsSecureFilePath,
+ # Keys default to environment variables so secrets are not passed as command-line arguments.
+ [String]$privateKey = $env:GITHUB_DEPLOYKEY_PRIVATEKEY,
+ [String]$publicKey = $env:GITHUB_DEPLOYKEY_PUBLICKEY
 )
+
+if ([string]::IsNullOrEmpty($privateKey) -or [string]::IsNullOrEmpty($publicKey)) {
+    Write-Error "The GitHub deploy keys were not provided. Set GITHUB_DEPLOYKEY_PRIVATEKEY and GITHUB_DEPLOYKEY_PUBLICKEY." -ErrorAction Stop
+}
 
 # Creates a backup of a given file
 function Backup-File {

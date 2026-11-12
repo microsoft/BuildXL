@@ -15,6 +15,7 @@ namespace ConsoleLogger {
         generateLogs: true,
         embeddedResources: [{resX: f`Strings.resx`}],
         references: [
+            importFrom("BuildXL.Engine").Processes.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Engine").ViewModel.dll,
             importFrom("BuildXL.Pips").dll,

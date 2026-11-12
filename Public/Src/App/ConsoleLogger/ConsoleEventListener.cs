@@ -239,6 +239,18 @@ namespace BuildXL
         }
 
         /// <inheritdoc />
+        protected override void OnAlways(EventWrittenEventArgs eventData)
+        {
+            if (eventData.EventId == (int)BuildXL.Processes.Tracing.LogEventId.PipProcessAzureDevOpsResultsPublish)
+            {
+                m_console.WriteOutputLine(MessageLevel.Info, (string)eventData.Payload[2]);
+                return;
+            }
+
+            base.OnAlways(eventData);
+        }
+
+        /// <inheritdoc />
         protected override void OnInformational(EventWrittenEventArgs eventData)
         {
             switch (eventData.EventId)

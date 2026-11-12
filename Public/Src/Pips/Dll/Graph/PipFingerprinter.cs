@@ -356,6 +356,12 @@ namespace BuildXL.Pips.Graph
                 fingerprinter.Add(nameof(Process.RequiresAdmin), 1);
             }
 
+            // Preserve existing fingerprints when test-result publishing is disabled.
+            if (process.EnableAzureDevOpsTestResultsPublishing)
+            {
+                fingerprinter.Add(nameof(Process.EnableAzureDevOpsTestResultsPublishing), 1);
+            }
+
             AddPipData(fingerprinter, nameof(Process.Arguments), process.Arguments);
             if (process.ResponseFileData.IsValid)
             {

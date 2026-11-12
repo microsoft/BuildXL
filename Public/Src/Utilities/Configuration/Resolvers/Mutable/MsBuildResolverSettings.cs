@@ -42,6 +42,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Environment = resolverSettings.Environment;
             GlobalProperties = resolverSettings.GlobalProperties;
             LogVerbosity = resolverSettings.LogVerbosity;
+            EnableAzureDevOpsTestResultsPublishing = resolverSettings.EnableAzureDevOpsTestResultsPublishing;
             EnableBinLogTracing = resolverSettings.EnableBinLogTracing;
             EnableEngineTracing = resolverSettings.EnableEngineTracing;
             KeepProjectGraphFile = resolverSettings.KeepProjectGraphFile;
@@ -100,6 +101,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public string LogVerbosity { get; set; }
+
+        /// <inheritdoc/>
+        public bool? EnableAzureDevOpsTestResultsPublishing { get; set; }
 
         /// <inheritdoc/>
         public bool? EnableBinLogTracing { get; set; }

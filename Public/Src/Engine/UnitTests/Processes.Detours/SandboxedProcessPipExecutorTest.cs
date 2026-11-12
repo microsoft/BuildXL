@@ -22,6 +22,7 @@ using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
+using HintType = BuildXL.Pips.Operations.Process.HintType;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 #pragma warning disable AsyncFixer02
@@ -2242,6 +2243,89 @@ namespace Test.BuildXL.Processes.Detours
             VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.Succeeded);
             XAssert.AreEqual(expectedInjectedRuntimeMs, result.InjectedProcessRuntimeMs);
             AssertWarningEventLogged(expectedWarningEventId);
+        }
+
+        [Theory]
+        [InlineData("##vso[results.publish type=VSTest;]", true, true, false)]
+        [InlineData(" \t ##vso[results.publish type=VSTest;]", true, true, false)]
+        [InlineData("  1> ##vso[results.publish type=VSTest;]", true, true, false)]
+        [InlineData("12>##vso[results.publish type=VSTest;]", true, true, false)]
+        [InlineData(" 12:3>\t##vso[results.publish type=VSTest;]", true, true, false)]
+        [InlineData("##vso[results.publish type=VSTest;]", false, false, false)]
+        [InlineData("##vso[task.setvariable variable=Unexpected;]value", true, false, false)]
+        [InlineData("warning: captured child output: ##vso[results.publish type=VSTest;resultFiles=results.trx;]", true, false, true)]
+        [InlineData("\"##vso[results.publish type=VSTest;]\"", true, false, true)]
+        [InlineData(" 1> warning: ##vso[results.publish type=VSTest;]", true, false, true)]
+        [InlineData("> ##vso[results.publish type=VSTest;]", true, false, true)]
+        [InlineData("1:> ##vso[results.publish type=VSTest;]", true, false, true)]
+        [InlineData("1:2:3> ##vso[results.publish type=VSTest;]", true, false, true)]
+        [InlineData("##vso[results.publishOther type=VSTest;]", true, false, true)]
+        [InlineData("##vso[results.publish type=VSTest;", true, false, true)]
+        [InlineData("##vso[results.publish type=VSTest;]\ranything", true, false, true)]
+        [InlineData("anything\n##vso[results.publish type=VSTest;]", true, false, true)]
+        [InlineData("##vso[results.publish type=VSTest;]\0anything", true, false, true)]
+        [InlineData("##vso[results.publish type=VSTest;]##vso[task.setvariable variable=Unexpected;]value", true, false, true)]
+        public async Task BuildXLHintValidatesTestResultsPublishCommands(string line, bool enablePublishing, bool expectedPublish, bool expectedWarning)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var processor = new BuildXLHintProcessor(
+                enablePublishing ? HintType.AzureDevOpsTestResults : HintType.None, LoggingContext, 1, "test pip");
+            bool notForwarded = false;
+            EventListener.NestedLoggerHandler += (eventData, message) =>
+            {
+                if (eventData.EventId == (int)ProcessesLogEventId.PipProcessAzureDevOpsResultsPublish)
+                {
+                    notForwarded = (eventData.Keywords & global::BuildXL.Utilities.Instrumentation.Common.Keywords.NotForwardedToOrchestrator) != 0;
+                }
+            };
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var info = new SandboxedProcessInfo(context.PathTable, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false, loggingContext: LoggingContext);
+                await processor.UpdateObserversWithHintScanning(info);
+                info.StandardOutputObserver?.Invoke(line);
+            }
+
+            var messages = EventListener.GetLogMessagesForEventId((int)ProcessesLogEventId.PipProcessAzureDevOpsResultsPublish).ToArray();
+            XAssert.AreEqual(expectedPublish ? 1 : 0, messages.Length);
+            if (expectedPublish)
+            {
+                XAssert.IsTrue(notForwarded);
+                XAssert.IsTrue(messages[0].EndsWith(line.Substring(line.IndexOf("##vso[", StringComparison.Ordinal)), StringComparison.Ordinal));
+            }
+
+            if (expectedWarning)
+            {
+                AssertWarningEventLogged(ProcessesLogEventId.PipProcessBuildXLHintUnrecognized);
+                XAssert.IsTrue(EventListener.GetLogMessagesForEventId((int)ProcessesLogEventId.PipProcessBuildXLHintUnrecognized)
+                    .All(message => !message.Contains("##vso[")));
+            }
+
+            XAssert.AreEqual(enablePublishing ? line.Replace("##vso[", "##vsoSANITIZED[") : line, processor.SanitizeOutputForLogging(line));
+        }
+
+        [Theory]
+        [InlineData(HintType.None, null, false)]
+        [InlineData(HintType.BuildXL, 7000L, false)]
+        [InlineData(HintType.AzureDevOpsTestResults, null, true)]
+        [InlineData(HintType.BuildXL | HintType.AzureDevOpsTestResults, 7000L, true)]
+        public async Task BuildXLHintTypesAreIndependent(HintType hintTypes, long? expectedRuntimeMs, bool expectedPublish)
+        {
+            const string Command = "##vso[results.publish type=VSTest;]";
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var processor = new BuildXLHintProcessor(hintTypes, LoggingContext, 1, "test pip");
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var info = new SandboxedProcessInfo(context.PathTable, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false, loggingContext: LoggingContext);
+                await processor.UpdateObserversWithHintScanning(info);
+                info.StandardOutputObserver?.Invoke("##bxl[runtimeSecs]=7");
+                info.StandardErrorObserver?.Invoke(Command);
+            }
+
+            XAssert.AreEqual(expectedRuntimeMs, processor.GetInjectedProcessRuntime(canceled: false));
+            XAssert.AreEqual(expectedPublish ? 1 : 0,
+                EventListener.GetLogMessagesForEventId((int)ProcessesLogEventId.PipProcessAzureDevOpsResultsPublish).Length);
+            XAssert.AreEqual(expectedPublish ? Command.Replace("##vso[", "##vsoSANITIZED[") : Command, processor.SanitizeOutputForLogging(Command));
         }
 
         /// <summary>

@@ -889,7 +889,7 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "The process emitted a '##bxl' hint line that is not recognized and will be ignored: '{hintLine}'.")]
+            Message = EventConstants.PipPrefix + "The process emitted a BuildXL runtime hint or Azure DevOps test-results publishing command that is not recognized and will be ignored: '{hintLine}'.")]
         public abstract void PipProcessBuildXLHintUnrecognized(
             LoggingContext context,
             long pipSemiStableHash,
@@ -909,6 +909,19 @@ namespace BuildXL.Processes.Tracing
             string pipDescription,
             long acceptedValueMs,
             long duplicateValueMs);
+
+        [GeneratedEvent(
+            (int)LogEventId.PipProcessAzureDevOpsResultsPublish,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.LogAlways,
+            Keywords = (int)(Keywords.UserMessage | Keywords.NotForwardedToOrchestrator),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Publishing test results: {command}")]
+        public abstract void PipProcessAzureDevOpsResultsPublish(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string command);
 
         [GeneratedEvent(
             (int)LogEventId.PipProcessResponseFileCreationFailed,

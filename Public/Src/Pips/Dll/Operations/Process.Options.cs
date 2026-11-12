@@ -193,6 +193,31 @@ namespace BuildXL.Pips.Operations
             /// <c>##bxl</c> marker.
             /// </summary>
             EnableBuildXLHintScanning = 1 << 23,
+
+            /// <summary>
+            /// When set, forwards Azure DevOps test-result publishing commands from process output to the local console.
+            /// </summary>
+            EnableAzureDevOpsTestResultsPublishing = 1 << 24,
+        }
+
+        /// <summary>
+        /// Independently selectable kinds of hints to scan for in process output.
+        /// </summary>
+        [Flags]
+        public enum HintType
+        {
+            /// <nodoc />
+            None = 0,
+
+            /// <summary>
+            /// BuildXL runtime hints starting with <c>##bxl</c>.
+            /// </summary>
+            BuildXL = 1 << 0,
+
+            /// <summary>
+            /// Azure DevOps <c>##vso[results.publish</c> commands.
+            /// </summary>
+            AzureDevOpsTestResults = 1 << 1,
         }
     }
 }

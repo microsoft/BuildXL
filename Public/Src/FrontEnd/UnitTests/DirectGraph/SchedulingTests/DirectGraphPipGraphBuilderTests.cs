@@ -599,6 +599,7 @@ namespace Test.BuildXL.FrontEnd.DirectGraph
                 Process.Options.ProducesPathIndependentOutputs // no frontend sets it
                 | Process.Options.HasPreserveOutputAllowlist // DScript's unsafe preserveOutputAllowlist, not on the wire
                 | Process.Options.DependsOnWindowsProgramData // DScript has no setting for it
+                | Process.Options.EnableAzureDevOpsTestResultsPublishing // not yet exposed by DirectGraph
                 | Process.Options.BypassFingerprintSalt; // explicitly not public in DScript
 
             ulong operationId = 0;

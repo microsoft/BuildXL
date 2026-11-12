@@ -62,6 +62,12 @@ It is always advised to explicitly specify these environment variables to avoid 
 
 *enableBinLogTracing*. This option enables binlog tracing in MSBuild, and the `msbuild.binlog` file is going to be placed in the log directory.
 
+*enableAzureDevOpsTestResultsPublishing*. Defaults to `false`. Set to `true` to forward `##vso[results.publish ...]` commands
+from project output to the executing machine's console, including on distributed workers. Only indentation or an MSBuild numeric
+prefix (such as `1>` or `1:2>`) may precede the command. The test target must create the result files and emit the command, and an
+Azure Pipelines agent on that machine must capture the console output. Other Azure DevOps commands are not forwarded.
+This option affects the process fingerprint. Publishing commands are not replayed on cache hits.
+
 *enableTransitiveProjectReferences*. This option allows projects to access the transitive closure of its references. Enabling this option
 can affect the build performance particularly in the distributed builds where all possible inputs must be available before the project is
 executed. Unfortunately, many existing MSBuild repositories rely on this assumption.

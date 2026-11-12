@@ -87,6 +87,12 @@ namespace BuildXL.Utilities.Configuration
         string LogVerbosity { get; }
 
         /// <summary>
+        /// Enables Azure DevOps test-result publishing from project output.
+        /// Defaults to false.
+        /// </summary>
+        bool? EnableAzureDevOpsTestResultsPublishing { get; }
+
+        /// <summary>
         /// When true, an msbuild.binlog is generated for each MSBuild project alongside
         /// any existing logs.
         /// </summary>

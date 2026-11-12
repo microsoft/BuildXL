@@ -162,6 +162,12 @@ namespace Transformer {
          */
         scanForBuildXLHints?: boolean;
 
+        /**
+         * Enables forwarding of Azure DevOps test-result publishing commands to the executing machine's console.
+         * Independent of BuildXL runtime hints. Defaults to false.
+         */
+        enableAzureDevOpsTestResultsPublishing?: boolean;
+
         /** Set outputs to remain writable */
         keepOutputsWritable?: boolean;
 

@@ -961,6 +961,20 @@ namespace BuildXL.Pips.Operations
         public bool EnableBuildXLHintScanning => (ProcessOptions & Options.EnableBuildXLHintScanning) != 0;
 
         /// <summary>
+        /// Whether Azure DevOps test-result publishing commands are forwarded to the executing machine's console.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public bool EnableAzureDevOpsTestResultsPublishing => (ProcessOptions & Options.EnableAzureDevOpsTestResultsPublishing) != 0;
+
+        /// <summary>
+        /// The kinds of hints enabled for this process. Publishing test results requires its own explicit opt-in.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public HintType EnabledHintTypes =>
+            (EnableBuildXLHintScanning ? HintType.BuildXL : HintType.None) |
+            (EnableAzureDevOpsTestResultsPublishing ? HintType.AzureDevOpsTestResults : HintType.None);
+
+        /// <summary>
         /// What policy to apply when merging redirected outputs back
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]

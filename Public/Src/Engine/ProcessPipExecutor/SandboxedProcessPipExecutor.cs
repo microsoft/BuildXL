@@ -399,7 +399,7 @@ namespace BuildXL.ProcessPipExecutor
                 m_errorRegexTask = RegexFactory.GetRegexAsync(expandedDescriptor);
             }
 
-            m_buildXLHintProcessor = new BuildXLHintProcessor(pip.EnableBuildXLHintScanning, loggingContext, pip.SemiStableHash, m_pipDescription);
+            m_buildXLHintProcessor = new BuildXLHintProcessor(pip.EnabledHintTypes, loggingContext, pip.SemiStableHash, m_pipDescription);
 
             m_excludeReportAccessMask = ~FileAccessPolicy.ReportAccess;
             if (!m_sandboxConfig.MaskUntrackedAccesses)
@@ -4760,6 +4760,7 @@ namespace BuildXL.ProcessPipExecutor
             outputToLog = (standardOutEmpty ? string.Empty : standardOut)
                 + (!standardOutEmpty && !standardErrorEmpty ? Environment.NewLine : string.Empty)
                 + (standardErrorEmpty ? string.Empty : standardError);
+            outputToLog = m_buildXLHintProcessor.SanitizeOutputForLogging(outputToLog);
 
             // If the messages were filtered or truncated, log stdout/stderr files in log directory.
             // Add extra message to guide user to find the files.
@@ -5071,6 +5072,7 @@ namespace BuildXL.ProcessPipExecutor
                     string outputToLog = (stdOutEmpty ? string.Empty : stdOut) +
                         (!stdOutEmpty && !stdErrorEmpty ? Environment.NewLine : string.Empty) +
                         (stdErrorEmpty ? string.Empty : stdError);
+                    outputToLog = m_buildXLHintProcessor.SanitizeOutputForLogging(outputToLog);
 
                     await Task.Run(
                         () => Logger.Log.PipProcessOutput(

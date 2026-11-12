@@ -110,6 +110,22 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         }
 
         [Theory]
+        [InlineData("enableAzureDevOpsTestResultsPublishing: true", true)]
+        [InlineData("enableAzureDevOpsTestResultsPublishing: false", false)]
+        [InlineData("", false)]
+        public void BuildXLHintPublishingIsOptIn(string configArguments, bool expectedPublishing)
+        {
+            var config = Build(configArguments)
+                .AddSpec(R("TestProject.proj"), CreateHelloWorldProject())
+                .PersistSpecsAndGetConfiguration();
+
+            var process = RunEngineAndRetrieveProcess(config);
+
+            Assert.Equal(expectedPublishing ? Process.HintType.AzureDevOpsTestResults : Process.HintType.None, process.EnabledHintTypes);
+            Assert.False(process.EnableBuildXLHintScanning);
+        }
+
+        [Theory]
         [InlineData("enableEngineTracing: true", BuildEnvironmentConstants.MsBuildDebug)]
         [InlineData("enableEngineTracing: true", BuildEnvironmentConstants.MsBuildDebugPath)]
         public void ResolverConfigurationIsPropagatedToMSBuildEnvironment(string configArguments, string expectedEnvironmentVariable)

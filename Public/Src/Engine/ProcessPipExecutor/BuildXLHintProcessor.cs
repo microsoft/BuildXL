@@ -8,12 +8,14 @@ using System.Threading.Tasks;
 using BuildXL.Processes;
 using BuildXL.Processes.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
+using HintType = BuildXL.Pips.Operations.Process.HintType;
 
 namespace BuildXL.ProcessPipExecutor
 {
     /// <summary>
     /// Scans a process' standard output and standard error for BuildXL hint lines of the form <c>##bxl[&lt;key&gt;]=value</c>
-    /// and turns recognized hints into scheduling information for the pip.
+    /// and turns recognized hints into scheduling information for the pip. Also forwards Azure DevOps test result
+    /// publishing commands to the console on the executing machine.
     /// </summary>
     /// <remarks>
     /// The hint grammar is intentionally generic so new hint kinds can be added without changing the scanning machinery; today
@@ -34,6 +36,11 @@ namespace BuildXL.ProcessPipExecutor
         /// </summary>
         private const string BuildXLRuntimeHintKey = "runtimeSecs";
 
+        private const string AzureDevOpsCommandPrefix = "##vso[";
+        private const string AzureDevOpsResultsPublishPrefix = AzureDevOpsCommandPrefix + "results.publish";
+
+        private static readonly char[] s_invalidCommandCharacters = { '\r', '\n', '\0' };
+
         /// <summary>
         /// Generic pattern for a BuildXL hint line: <c>##bxl[&lt;key&gt;]=&lt;value&gt;</c>. The key and value are captured so
         /// the observer can dispatch on the key. Kept intentionally broad so new hint kinds can be added without changing
@@ -44,6 +51,7 @@ namespace BuildXL.ProcessPipExecutor
         private readonly LoggingContext m_loggingContext;
         private readonly long m_pipSemiStableHash;
         private readonly string m_pipDescription;
+        private readonly HintType m_hintTypes;
 
         private readonly Task<Regex> m_regexTask;
         private Regex m_regex;
@@ -55,16 +63,17 @@ namespace BuildXL.ProcessPipExecutor
         private long? m_standardErrorInjectedRuntimeMs;
 
         /// <summary>
-        /// Creates a hint processor. When <paramref name="enableBuildXLHintScanning"/> is false the processor is inert: it
-        /// installs no observers and never produces an injected runtime.
+        /// Creates a processor for the selected <paramref name="hintTypes"/>. When none are selected, the processor
+        /// installs no observers.
         /// </summary>
-        public BuildXLHintProcessor(bool enableBuildXLHintScanning, LoggingContext loggingContext, long pipSemiStableHash, string pipDescription)
+        public BuildXLHintProcessor(HintType hintTypes, LoggingContext loggingContext, long pipSemiStableHash, string pipDescription)
         {
             m_loggingContext = loggingContext;
             m_pipSemiStableHash = pipSemiStableHash;
             m_pipDescription = pipDescription;
+            m_hintTypes = hintTypes;
 
-            if (enableBuildXLHintScanning)
+            if ((hintTypes & HintType.BuildXL) != 0)
             {
                 // Obtained through the same cached factory used for warning/error regexes.
                 m_regexTask = RegexFactory.GetRegexAsync(s_buildXLHintRegexDescriptor);
@@ -74,23 +83,26 @@ namespace BuildXL.ProcessPipExecutor
         /// <summary>
         /// When hint scanning is enabled, augments the standard output and standard error observers already configured on
         /// <paramref name="info"/> (e.g. the warning observer) so a single streaming pass over each stream also feeds the
-        /// <c>##bxl</c> hint scanner. When scanning is disabled the observers are left untouched.
+        /// selected hint scanners. When scanning is disabled the observers are left untouched.
         /// </summary>
         public async Task UpdateObserversWithHintScanning(SandboxedProcessInfo info)
         {
-            if (m_regexTask == null)
+            if (m_hintTypes == HintType.None)
             {
                 return;
             }
 
             // The hint pattern is a fixed, internally-defined constant, so this is not expected to throw. It is awaited here
             // (before the process starts streaming) so the compiled regex is ready by the time the observers run.
-            m_regex = await m_regexTask;
+            if (m_regexTask != null)
+            {
+                m_regex = await m_regexTask;
+            }
 
             // Give each stream its own field so the observers never share mutable state and can run lock-free on their
             // respective reader threads. The two results are reconciled in GetInjectedProcessRuntime after the process completes.
-            info.StandardOutputObserver = CombineObservers(info.StandardOutputObserver, line => ObserveBuildXLHint(line, ref m_standardOutputInjectedRuntimeMs));
-            info.StandardErrorObserver = CombineObservers(info.StandardErrorObserver, line => ObserveBuildXLHint(line, ref m_standardErrorInjectedRuntimeMs));
+            info.StandardOutputObserver = CombineObservers(info.StandardOutputObserver, line => ObserveHint(line, ref m_standardOutputInjectedRuntimeMs));
+            info.StandardErrorObserver = CombineObservers(info.StandardErrorObserver, line => ObserveHint(line, ref m_standardErrorInjectedRuntimeMs));
         }
 
         /// <summary>
@@ -109,6 +121,14 @@ namespace BuildXL.ProcessPipExecutor
             // Each stream accumulated independently; merge the two results here.
             return ReconcileBuildXLHints(m_standardOutputInjectedRuntimeMs, m_standardErrorInjectedRuntimeMs);
         }
+
+        /// <summary>
+        /// When publishing is enabled, prevents Azure DevOps commands from executing via logged or forwarded pip output.
+        /// Rejected hints can also contain command markers, which the agent recognizes anywhere in a line.
+        /// The captured stdout/stderr files are left unchanged.
+        /// </summary>
+        public string SanitizeOutputForLogging(string output) =>
+            (m_hintTypes & HintType.AzureDevOpsTestResults) == 0 ? output : output.Replace(AzureDevOpsCommandPrefix, "##vsoSANITIZED[");
 
         /// <summary>
         /// Combines two output observers into a single <see cref="Action{String}"/> that invokes each one in
@@ -132,20 +152,30 @@ namespace BuildXL.ProcessPipExecutor
         }
 
         /// <summary>
-        /// Per-line observer that scans for <c>##bxl</c> hint lines while the process streams its output and, for a
+        /// Per-line observer that scans for enabled hints while the process streams its output and, for a
         /// <c>##bxl[runtimeSecs]=value</c> hint, records the running time to inject as the pip's execution time into the
         /// supplied per-stream <paramref name="injectedRuntimeMs"/> (the hint value is expressed in whole seconds and
         /// converted to milliseconds here).
         /// </summary>
-        private void ObserveBuildXLHint(string line, ref long? injectedRuntimeMs)
+        private void ObserveHint(string line, ref long? injectedRuntimeMs)
         {
-            if (m_regex == null || string.IsNullOrEmpty(line))
+            if (string.IsNullOrEmpty(line))
             {
                 return;
             }
 
             // The marker is rare, so use a cheap prefix check to skip the regex on the vast majority of output lines.
             if (!line.StartsWith(BuildXLHintPrefix, StringComparison.Ordinal))
+            {
+                if ((m_hintTypes & HintType.AzureDevOpsTestResults) != 0)
+                {
+                    ObserveAzureDevOpsResultsPublish(line);
+                }
+
+                return;
+            }
+
+            if (m_regex == null)
             {
                 return;
             }
@@ -154,7 +184,7 @@ namespace BuildXL.ProcessPipExecutor
             if (!match.Success)
             {
                 // Starts with the marker but is not a well-formed hint line.
-                Logger.Log.PipProcessBuildXLHintUnrecognized(m_loggingContext, m_pipSemiStableHash, m_pipDescription, line);
+                Logger.Log.PipProcessBuildXLHintUnrecognized(m_loggingContext, m_pipSemiStableHash, m_pipDescription, SanitizeOutputForLogging(line));
                 return;
             }
 
@@ -163,14 +193,14 @@ namespace BuildXL.ProcessPipExecutor
             if (!string.Equals(key, BuildXLRuntimeHintKey, StringComparison.Ordinal))
             {
                 // Well-formed hint but an unknown key. Other hint kinds may be supported in the future; for now, warn and ignore.
-                Logger.Log.PipProcessBuildXLHintUnrecognized(m_loggingContext, m_pipSemiStableHash, m_pipDescription, line);
+                Logger.Log.PipProcessBuildXLHintUnrecognized(m_loggingContext, m_pipSemiStableHash, m_pipDescription, SanitizeOutputForLogging(line));
                 return;
             }
 
             if (!long.TryParse(match.Groups["value"].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long runtimeSecs))
             {
                 // Value does not parse as an integer number of seconds; treat as an unrecognized hint.
-                Logger.Log.PipProcessBuildXLHintUnrecognized(m_loggingContext, m_pipSemiStableHash, m_pipDescription, line);
+                Logger.Log.PipProcessBuildXLHintUnrecognized(m_loggingContext, m_pipSemiStableHash, m_pipDescription, SanitizeOutputForLogging(line));
                 return;
             }
 
@@ -192,6 +222,36 @@ namespace BuildXL.ProcessPipExecutor
             }
 
             injectedRuntimeMs = runtimeMs;
+        }
+
+        private void ObserveAzureDevOpsResultsPublish(string line)
+        {
+            int commandStart = line.IndexOf(AzureDevOpsCommandPrefix, StringComparison.Ordinal);
+            if (commandStart < 0)
+            {
+                return;
+            }
+
+            string command = line.Substring(commandStart);
+            if (!command.StartsWith(AzureDevOpsResultsPublishPrefix, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            int prefixLength = AzureDevOpsResultsPublishPrefix.Length;
+            // Only indentation or MSBuild's numeric N> / N:M> prefix may precede a command.
+            if ((commandStart > 0 && !Regex.IsMatch(line.Substring(0, commandStart), @"\A[ \t]*(?:[0-9]+(?::[0-9]+)?>[ \t]*)?\z")) ||
+                command.Length <= prefixLength ||
+                (command[prefixLength] != ' ' && command[prefixLength] != ']') ||
+                command.IndexOf(']', prefixLength) < 0 ||
+                line.IndexOfAny(s_invalidCommandCharacters) >= 0 ||
+                command.IndexOf(AzureDevOpsCommandPrefix, prefixLength, StringComparison.Ordinal) >= 0)
+            {
+                Logger.Log.PipProcessBuildXLHintUnrecognized(m_loggingContext, m_pipSemiStableHash, m_pipDescription, SanitizeOutputForLogging(line));
+                return;
+            }
+
+            Logger.Log.PipProcessAzureDevOpsResultsPublish(m_loggingContext, m_pipSemiStableHash, m_pipDescription, command);
         }
 
         /// <summary>

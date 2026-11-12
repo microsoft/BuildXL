@@ -1065,6 +1065,8 @@ namespace Test.BuildXL.Scheduler
             bool disableFullReparsePointResolving = source.Vary(p => p.DisableFullReparsePointResolving);
             bool bypassFingerprintSalt = source.Vary(p => p.BypassFingerprintSalt);
             bool requireGlobalDependencies = source.Vary(p => p.RequireGlobalDependencies);
+            bool enableBuildXLHintScanning = source.Vary(p => p.EnableBuildXLHintScanning);
+            bool enableAzureDevOpsTestResultsPublishing = source.Vary(p => p.EnableAzureDevOpsTestResultsPublishing);
             var allowedUndeclaredSourceReadScopes = source.Vary(p => p.AllowedUndeclaredSourceReadScopes);
             var allowedUndeclaredSourceReadPaths = source.Vary(p => p.AllowedUndeclaredSourceReadPaths);
             var allowedUndeclaredSourceReadRegexes = source.Vary(p => p.AllowedUndeclaredSourceReadRegexes);
@@ -1123,6 +1125,16 @@ namespace Test.BuildXL.Scheduler
             if (requireGlobalDependencies)
             {
                 options |= Process.Options.RequireGlobalDependencies;
+            }
+
+            if (enableBuildXLHintScanning)
+            {
+                options |= Process.Options.EnableBuildXLHintScanning;
+            }
+
+            if (enableAzureDevOpsTestResultsPublishing)
+            {
+                options |= Process.Options.EnableAzureDevOpsTestResultsPublishing;
             }
 
             return new Process(

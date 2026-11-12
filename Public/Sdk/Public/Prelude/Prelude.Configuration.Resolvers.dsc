@@ -279,6 +279,12 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
     logVerbosity?: "quiet" | "minimal" | "normal" | "detailed" | "diagnostic";
 
     /**
+     * Enables Azure DevOps test-result publishing from project output.
+     * Defaults to false.
+     */
+    enableAzureDevOpsTestResultsPublishing?: boolean;
+
+    /**
      * Controls whether MSBuild binlog tracing should be enabled for the build.
      * The binlog is placed in the logs directory for each MSBuild project as 'msbuild.binlog'.
      * WARNING: This option increases build I/O and should only be used temporarily to avoid

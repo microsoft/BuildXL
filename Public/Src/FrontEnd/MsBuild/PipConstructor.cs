@@ -551,6 +551,11 @@ namespace BuildXL.FrontEnd.MsBuild
             // Allow the pip to consume global dependencies like passthrough environment variables and untracked scopes.
             processBuilder.Options |= Process.Options.RequireGlobalDependencies;
 
+            if (m_resolverSettings.EnableAzureDevOpsTestResultsPublishing == true)
+            {
+                processBuilder.Options |= Process.Options.EnableAzureDevOpsTestResultsPublishing;
+            }
+
             // By default the double write policy is to allow same content double writes and safe rewrites.
             // Otherwise we honor the double write policy specified in the resolver configuration
             processBuilder.RewritePolicy |= m_resolverSettings.DoubleWritePolicy.HasValue 

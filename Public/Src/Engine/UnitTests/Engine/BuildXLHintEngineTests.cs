@@ -9,6 +9,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
+using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
@@ -144,6 +145,49 @@ namespace Test.BuildXL.Engine
                 + $"priority than the non-injected pips. Injected: {injectedPriority}, non-injected: {plainPriority0} and {plainPriority1}.");
         }
 
+        [Theory]
+        [InlineData(Process.HintType.AzureDevOpsTestResults, false, 0)]
+        [InlineData(Process.HintType.AzureDevOpsTestResults, false, 1)]
+        [InlineData(Process.HintType.AzureDevOpsTestResults, true, 0)]
+        [InlineData(Process.HintType.AzureDevOpsTestResults, true, 1)]
+        [InlineData(Process.HintType.None, false, 0)]
+        [InlineData(Process.HintType.BuildXL, false, 0)]
+        [InlineData(Process.HintType.BuildXL, false, 1)]
+        [InlineData(Process.HintType.BuildXL | Process.HintType.AzureDevOpsTestResults, false, 0)]
+        public void TestResultsPublishCommandIsScannedDuringExecution(Process.HintType hintTypes, bool standardError, int exitCode)
+        {
+            const string Command = "##vso[results.publish type=VSTest;resultFiles=results.trx;failTaskOnFailedTests=false;]";
+            bool enablePublishing = (hintTypes & Process.HintType.AzureDevOpsTestResults) != 0;
+            var spec = GetSpec(GetPipExpression(
+                "result", "testResultsOut.txt", injectedRuntimeSecs: null, scanForBuildXLHints: (hintTypes & Process.HintType.BuildXL) != 0, disableCacheLookup: false,
+                outputLine: Command, exitCode: exitCode, writeToStandardError: standardError, enableAzureDevOpsTestResultsPublishing: enablePublishing));
+            AddModule("Module0", ("spec0.dsc", spec), placeInRoot: true);
+            ConfigureInMemoryCache(new TestCache());
+
+            RunEngine(expectSuccess: exitCode == 0);
+
+            if (exitCode != 0)
+            {
+                AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessError);
+                XAssert.AreEqual(!enablePublishing,
+                    EventListener.GetLogMessagesForEventId((int)global::BuildXL.Processes.Tracing.LogEventId.PipProcessError)
+                        .Any(message => message.Contains("##vso[")));
+            }
+            else
+            {
+                // Cache hits must not replay a publishing command.
+                RunEngine();
+                AssertVerboseEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.ProcessPipCacheHit);
+            }
+
+            var messages = EventListener.GetLogMessagesForEventId((int)global::BuildXL.Processes.Tracing.LogEventId.PipProcessAzureDevOpsResultsPublish).ToArray();
+            XAssert.AreEqual(enablePublishing ? 1 : 0, messages.Length);
+            if (enablePublishing)
+            {
+                XAssert.IsTrue(messages[0].EndsWith(Command, StringComparison.Ordinal));
+            }
+        }
+
         /// <summary>
         /// Wraps one or more pip expressions (see <see cref="GetPipExpression"/>) into a complete, self-contained
         /// DScript spec: the transformer import, the object-root mount, and the shared <c>execute</c> helper.
@@ -171,14 +215,21 @@ const outDir = Context.getNewOutputDirectory('hint');
         /// <param name="injectedRuntimeSecs">When set, the runtime (in whole seconds) to emit as a <c>##bxl[runtimeSecs]</c> hint; when null, no hint is emitted.</param>
         /// <param name="scanForBuildXLHints">Whether to enable <c>##bxl</c> hint scanning on the pip.</param>
         /// <param name="disableCacheLookup">Whether to mark the pip uncacheable so it always re-executes.</param>
-        private string GetPipExpression(string variableName, string outputFileName, long? injectedRuntimeSecs, bool scanForBuildXLHints, bool disableCacheLookup)
+        private string GetPipExpression(
+            string variableName, string outputFileName, long? injectedRuntimeSecs, bool scanForBuildXLHints, bool disableCacheLookup,
+            string outputLine = null, int exitCode = 0, bool writeToStandardError = false, bool enableAzureDevOpsTestResultsPublishing = false)
         {
-            var shellCommand = GetShellCommand(injectedRuntimeSecs);
+            var shellCommand = GetShellCommand(injectedRuntimeSecs, outputLine, writeToStandardError);
 
             var options = new List<string>();
             if (scanForBuildXLHints)
             {
                 options.Add("scanForBuildXLHints: true,");
+            }
+
+            if (enableAzureDevOpsTestResultsPublishing)
+            {
+                options.Add("enableAzureDevOpsTestResultsPublishing: true,");
             }
 
             if (disableCacheLookup)
@@ -194,7 +245,7 @@ const outDir = Context.getNewOutputDirectory('hint');
     arguments: [
         {{ value: {{ value: '{shellCommand}', kind: ArgumentKind.rawText }}}},
         {{ value: {{ value: ' {(OperatingSystemHelper.IsLinuxOS ? "| tee -a" : ">")} ', kind: ArgumentKind.rawText }}}},
-        {{ value: {{ path: p`${{outDir}}/{outputFileName}`, kind: ArtifactKind.output }}}}{ClosingQuoteIfNeeded()}
+        {{ value: {{ path: p`${{outDir}}/{outputFileName}`, kind: ArtifactKind.output }}}}{ClosingQuoteIfNeeded(exitCode)}
         ],
     outputs: [],
     {optionsBlock}
@@ -207,11 +258,13 @@ const outDir = Context.getNewOutputDirectory('hint');
         /// redirected into the declared output file, leaving the hint on the console. On Unix the caller appends
         /// <c>| tee -a</c>, which writes the (single) hint echo to both the console and the declared output file.
         /// </summary>
-        private static string GetShellCommand(long? injectedRuntimeSecs)
+        private static string GetShellCommand(long? injectedRuntimeSecs, string outputLine, bool writeToStandardError)
         {
+            var line = outputLine ?? (injectedRuntimeSecs.HasValue ? $"##bxl[runtimeSecs]={injectedRuntimeSecs.Value}" : null);
+            var redirection = writeToStandardError ? "1>&2 " : string.Empty;
             if (OperatingSystemHelper.IsUnixOS)
             {
-                var hint = injectedRuntimeSecs.HasValue ? $"echo \\\\#\\\\#bxl[runtimeSecs]={injectedRuntimeSecs.Value} " : "echo hi ";
+                var hint = line != null ? $"{redirection}echo {line.Replace("#", @"\\#").Replace(";", @"\\;")} " : "echo hi ";
                 return $"-c \"{hint}";
             }
             else
@@ -219,20 +272,20 @@ const outDir = Context.getNewOutputDirectory('hint');
                 // The hint echo goes to the console (scanned for the '##bxl' hint); the trailing 'echo hi', which the caller
                 // redirects with '>', writes the declared output file. cmd binds '>' to the last command only, so the hint
                 // stays on the console. (cmd has no 'tee', so unlike Unix we cannot write the hint itself to both.)
-                var hint = injectedRuntimeSecs.HasValue ? $"echo ##bxl[runtimeSecs]={injectedRuntimeSecs.Value} & " : string.Empty;
+                var hint = line != null ? $"{redirection}echo {line}& " : string.Empty;
                 return $"/D /C {hint}echo hi ";
             }
         }
 
         /// <summary>
-        /// On Unix the shell command opens a quote that must be closed with an extra raw-text argument; on Windows no
-        /// closing quote is needed.
+        /// Closes the Unix shell command's quote and optionally exits with a failure code on either platform.
         /// </summary>
-        private static string ClosingQuoteIfNeeded()
+        private static string ClosingQuoteIfNeeded(int exitCode)
         {
-            return OperatingSystemHelper.IsUnixOS
-                ? @", {value: {value: '""', kind: ArgumentKind.rawText}}"
-                : string.Empty;
+            string suffix = OperatingSystemHelper.IsUnixOS
+                ? (exitCode == 0 ? "\"" : $"; exit {exitCode}\"")
+                : (exitCode == 0 ? string.Empty : $" & exit /b {exitCode}");
+            return suffix.Length == 0 ? string.Empty : $@", {{value: {{value: '{suffix}', kind: ArgumentKind.rawText}}}}";
         }
     }
 }

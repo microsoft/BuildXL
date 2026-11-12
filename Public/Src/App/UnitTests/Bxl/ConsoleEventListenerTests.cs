@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Threading;
 using BuildXL;
@@ -21,6 +22,29 @@ namespace Test.BuildXL
 {
     public class ConsoleEventListenerTests
     {
+        [Theory]
+        [InlineData(true, true)]
+        [InlineData(true, false)]
+        [InlineData(false, true)]
+        [InlineData(false, false)]
+        public void BuildXLHintPublishesTestResultsVerbatimOnEveryRole(bool notWorker, bool optimizeForAzureDevOps)
+        {
+            const string Command = "##vso[results.publish type=VSTest;resultFiles=results.trx;failTaskOnFailedTests=false;]";
+            using (var console = new MockConsole())
+            using (var listener = new ConsoleEventListener(
+                Events.Log, console, DateTime.UtcNow, false, CancellationToken.None,
+                notWorker: notWorker, level: EventLevel.Warning, optimizeForAzureDevOps: optimizeForAzureDevOps))
+            {
+                listener.RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+
+                global::BuildXL.Processes.Tracing.Logger.Log.PipProcessAzureDevOpsResultsPublish(
+                    new LoggingContext("Test"), 1, "test pip", Command);
+
+                Assert.Equal(Command, Assert.Single(console.Messages));
+                console.ValidateCall(MessageLevel.Info, Command);
+            }
+        }
+
         [Fact]
         public void ConsoleEventListenerBasicTest()
         {

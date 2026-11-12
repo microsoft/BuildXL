@@ -75,6 +75,7 @@ namespace BuildXL.Processes.Tracing
 
         PipProcessBuildXLHintUnrecognized = 96,
         PipProcessBuildXLHintDuplicateRuntime = 97,
+        PipProcessAzureDevOpsResultsPublish = 98,
 
         PipProcessDisallowedFileAccessAllowlistedCacheable = 264,
         PipProcessDisallowedFileAccessAllowlistedNonCacheable = 269,

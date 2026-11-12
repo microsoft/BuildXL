@@ -102,6 +102,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeUnsafe;
         private SymbolAtom m_executeIsLight;
         private SymbolAtom m_scanForBuildXLHints;
+        private SymbolAtom m_enableAzureDevOpsTestResultsPublishing;
         private SymbolAtom m_executeDoubleWritePolicy;
         private SymbolAtom m_executeSourceRewritePolicy;
         private SymbolAtom m_executeAllowUndeclaredSourceReads;
@@ -258,6 +259,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeUnsafe = Symbol("unsafe");
             m_executeIsLight = Symbol("isLight");
             m_scanForBuildXLHints = Symbol("scanForBuildXLHints");
+            m_enableAzureDevOpsTestResultsPublishing = Symbol("enableAzureDevOpsTestResultsPublishing");
             m_executeDoubleWritePolicy = Symbol("doubleWritePolicy");
             m_executeSourceRewritePolicy = Symbol("sourceRewritePolicy");
             m_executeAllowUndeclaredSourceReads = Symbol("allowUndeclaredSourceReads");
@@ -677,6 +679,11 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (Converter.ExtractOptionalBoolean(obj, m_scanForBuildXLHints) == true)
             {
                 processBuilder.Options |= Process.Options.EnableBuildXLHintScanning;
+            }
+
+            if (Converter.ExtractOptionalBoolean(obj, m_enableAzureDevOpsTestResultsPublishing) == true)
+            {
+                processBuilder.Options |= Process.Options.EnableAzureDevOpsTestResultsPublishing;
             }
 
             // Double write policy

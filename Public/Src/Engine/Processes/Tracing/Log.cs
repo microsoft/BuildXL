@@ -1181,6 +1181,15 @@ namespace BuildXL.Processes.Tracing
         public abstract void LinuxSandboxReportedBinaryRequiringPTrace(LoggingContext context, string pipDescription, string exePath);
 
         [GeneratedEvent(
+            (int)LogEventId.LinuxProcessIoAccountingUnavailable,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Process I/O accounting is unavailable; I/O counters will be zero. CPU and memory sampling remain enabled.")]
+        public abstract void LinuxProcessIoAccountingUnavailable(LoggingContext context);
+
+        [GeneratedEvent(
             (int)LogEventId.PTraceSandboxLaunchedForPip,
             EventLevel = Level.Verbose,
             EventGenerators = EventGenerators.LocalOnly,

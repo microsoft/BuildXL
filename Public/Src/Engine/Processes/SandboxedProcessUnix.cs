@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -35,6 +36,7 @@ namespace BuildXL.Processes
     public sealed class SandboxedProcessUnix : UnsandboxedProcess
     {
         private static readonly ObjectPool<HashSet<int>> s_observedProcessIdsPool = Pools.CreateSetPool<int>();
+        private static readonly ConditionalWeakTable<LoggingContext.SessionInfo, Lazy<bool>> s_ioAccountingDiagnostics = new();
 
         private readonly SandboxedProcessReports m_reports;
 
@@ -240,6 +242,21 @@ namespace BuildXL.Processes
             {
                 m_memoryCounters = UpdateResourceUsage(snapshots, m_processResourceUsage!, m_workingSet);
             }
+
+            LogUnavailableIoAccounting(m_loggingContext, Interop.Unix.Process.IsProcessIoAccountingAvailable);
+        }
+
+        internal static void LogUnavailableIoAccounting(LoggingContext loggingContext, bool? isAvailable)
+        {
+            if (isAvailable == false)
+            {
+                // Session-scoped state also handles multiple builds in a long-lived server.
+                _ = s_ioAccountingDiagnostics.GetValue(loggingContext.Session, _ => new Lazy<bool>(() =>
+                {
+                    Logger.Log.LinuxProcessIoAccountingUnavailable(loggingContext);
+                    return true;
+                })).Value;
+            }
         }
 
         /// <summary>
@@ -248,7 +265,7 @@ namespace BuildXL.Processes
         /// </summary>
         /// <returns>The peak and average live-tree working set across recorded samples, in bytes.</returns>
         internal static ProcessMemoryCounters UpdateResourceUsage(
-            IEnumerable<Process.ProcessResourceUsage?> snapshots,
+            IEnumerable<Process.ProcessResourceUsageSample?> snapshots,
             Dictionary<string, Process.ProcessResourceUsage> processResourceUsage,
             Aggregation workingSet)
         {
@@ -260,8 +277,16 @@ namespace BuildXL.Processes
                 if (snapshot.HasValue)
                 {
                     // Retain exited processes for cumulative CPU and I/O accounting, not for memory samples.
-                    var update = snapshot.Value;
+                    var update = snapshot.Value.Usage;
                     var key = $"{update.ProcessId}-{update.Name}";
+                    // I/O may be missing or inaccessible; retain the process's last observed counters.
+                    if (!snapshot.Value.HasIoCounters && processResourceUsage.TryGetValue(key, out var previous))
+                    {
+                        update.DiskReadOps = previous.DiskReadOps;
+                        update.DiskBytesRead = previous.DiskBytesRead;
+                        update.DiskWriteOps = previous.DiskWriteOps;
+                        update.DiskBytesWritten = previous.DiskBytesWritten;
+                    }
                     processResourceUsage[key] = update;
 
                     if (observedProcessIds.Add(update.ProcessId))

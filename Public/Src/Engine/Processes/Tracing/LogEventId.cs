@@ -184,5 +184,6 @@ namespace BuildXL.Processes.Tracing
         ExcessiveFileAccessReports = 14309,
         EBPFDaemonRetrying = 14310,
         EBPFDaemonRetriesExhausted = 14311,
+        LinuxProcessIoAccountingUnavailable = 14312,
     }
 }

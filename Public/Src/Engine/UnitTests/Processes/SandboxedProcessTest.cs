@@ -17,6 +17,7 @@ using BuildXL.Processes;
 using BuildXL.Processes.Internal;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Win32.SafeHandles;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities;
@@ -26,6 +27,7 @@ using static BuildXL.Utilities.Core.FormattableStringEx;
 using FileUtilities = BuildXL.Native.IO.FileUtilities;
 using ProcessDumperEvent = BuildXL.Processes.Tracing.LogEventId;
 using ProcessResourceUsage = BuildXL.Interop.Unix.Process.ProcessResourceUsage;
+using ProcessResourceUsageSample = BuildXL.Interop.Unix.Process.ProcessResourceUsageSample;
 #pragma warning disable AsyncFixer02
 
 namespace Test.BuildXL.Processes
@@ -1998,6 +2000,30 @@ namespace Test.BuildXL.Processes
             // jobObject will throw if it is double-disposed.
         }
 
+        [Fact]
+        public void UnavailableIoAccountingIsLoggedOncePerBuild()
+        {
+            SandboxedProcessUnix.LogUnavailableIoAccounting(LoggingContext, isAvailable: null);
+            SandboxedProcessUnix.LogUnavailableIoAccounting(LoggingContext, isAvailable: true);
+            AssertVerboseEventLogged(ProcessDumperEvent.LinuxProcessIoAccountingUnavailable, count: 0);
+
+            Parallel.For(0, 20, _ =>
+                SandboxedProcessUnix.LogUnavailableIoAccounting(new LoggingContext(LoggingContext, "pip"), isAvailable: false));
+            AssertVerboseEventLogged(ProcessDumperEvent.LinuxProcessIoAccountingUnavailable, count: 1);
+
+            var nextBuild = new LoggingContext("next build");
+            SandboxedProcessUnix.LogUnavailableIoAccounting(nextBuild, isAvailable: false);
+            AssertVerboseEventLogged(ProcessDumperEvent.LinuxProcessIoAccountingUnavailable, count: 1);
+            SandboxedProcessUnix.LogUnavailableIoAccounting(LoggingContext, isAvailable: false);
+            AssertVerboseEventLogged(ProcessDumperEvent.LinuxProcessIoAccountingUnavailable, count: 0);
+            AssertWarningCount();
+        }
+
+        private static ProcessResourceUsageSample? CreateResourceUsageSample(ProcessResourceUsage? usage)
+        {
+            return usage.HasValue ? new ProcessResourceUsageSample(usage.Value, hasIoCounters: true) : null;
+        }
+
         [Theory]
         [InlineData(1)]
         [InlineData(5)]
@@ -2044,7 +2070,7 @@ namespace Test.BuildXL.Processes
             ProcessMemoryCounters memoryCounters = default;
             foreach (var sample in samples)
             {
-                memoryCounters = SandboxedProcessUnix.UpdateResourceUsage(sample, processResourceUsage, workingSet);
+                memoryCounters = SandboxedProcessUnix.UpdateResourceUsage(sample.Select(CreateResourceUsageSample), processResourceUsage, workingSet);
             }
 
             // Assert
@@ -2093,7 +2119,7 @@ namespace Test.BuildXL.Processes
             ProcessMemoryCounters memoryCounters = default;
             foreach (var sample in samples)
             {
-                memoryCounters = SandboxedProcessUnix.UpdateResourceUsage(sample, processResourceUsage, workingSet);
+                memoryCounters = SandboxedProcessUnix.UpdateResourceUsage(sample.Select(CreateResourceUsageSample), processResourceUsage, workingSet);
             }
 
             // Assert
@@ -2128,15 +2154,81 @@ namespace Test.BuildXL.Processes
             var unreadableProcessSample = new ProcessResourceUsage?[] { null };
 
             // Act
-            SandboxedProcessUnix.UpdateResourceUsage(sample, processResourceUsage, workingSet);
-            SandboxedProcessUnix.UpdateResourceUsage(emptySample, processResourceUsage, workingSet);
-            var memoryCounters = SandboxedProcessUnix.UpdateResourceUsage(unreadableProcessSample, processResourceUsage, workingSet);
+            SandboxedProcessUnix.UpdateResourceUsage(sample.Select(CreateResourceUsageSample), processResourceUsage, workingSet);
+            SandboxedProcessUnix.UpdateResourceUsage(emptySample.Select(CreateResourceUsageSample), processResourceUsage, workingSet);
+            var memoryCounters = SandboxedProcessUnix.UpdateResourceUsage(unreadableProcessSample.Select(CreateResourceUsageSample), processResourceUsage, workingSet);
 
             // Assert
             XAssert.AreEqual(ExpectedPeakWorkingSetBytes, memoryCounters.PeakWorkingSet);
             XAssert.AreEqual(ExpectedAverageWorkingSetBytes, memoryCounters.AverageWorkingSet);
             XAssert.AreEqual(ExpectedSampleCount, workingSet.Count);
             XAssert.AreEqual(ExpectedRetainedProcessCount, processResourceUsage.Count);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void UnavailableIoCountersPreservePreviousMeasurements(bool hasPreviousSample)
+        {
+            var processResourceUsage = new Dictionary<string, ProcessResourceUsage>();
+            var workingSet = new Aggregation();
+            var previous = new ProcessResourceUsage
+            {
+                ProcessId = 1,
+                Name = "process",
+                UserTimeMs = 10,
+                SystemTimeMs = 20,
+                WorkingSetSize = 1024,
+                DiskReadOps = 3,
+                DiskBytesRead = 4096,
+                DiskWriteOps = 5,
+                DiskBytesWritten = 8192,
+            };
+            if (hasPreviousSample)
+            {
+                SandboxedProcessUnix.UpdateResourceUsage(
+                    new ProcessResourceUsageSample?[] { new ProcessResourceUsageSample(previous, hasIoCounters: true) },
+                    processResourceUsage,
+                    workingSet);
+            }
+
+            var update = new ProcessResourceUsage
+            {
+                ProcessId = previous.ProcessId,
+                Name = previous.Name,
+                UserTimeMs = 30,
+                SystemTimeMs = 40,
+                WorkingSetSize = 2048,
+            };
+            var memoryCounters = SandboxedProcessUnix.UpdateResourceUsage(
+                new ProcessResourceUsageSample?[] { new ProcessResourceUsageSample(update, hasIoCounters: false) },
+                processResourceUsage,
+                workingSet);
+
+            var retained = processResourceUsage["1-process"];
+            XAssert.AreEqual(update.UserTimeMs, retained.UserTimeMs);
+            XAssert.AreEqual(update.SystemTimeMs, retained.SystemTimeMs);
+            XAssert.AreEqual(update.WorkingSetSize, retained.WorkingSetSize);
+            XAssert.AreEqual(update.WorkingSetSize, memoryCounters.PeakWorkingSet);
+            XAssert.AreEqual(hasPreviousSample ? previous.DiskReadOps : 0UL, retained.DiskReadOps);
+            XAssert.AreEqual(hasPreviousSample ? previous.DiskBytesRead : 0UL, retained.DiskBytesRead);
+            XAssert.AreEqual(hasPreviousSample ? previous.DiskWriteOps : 0UL, retained.DiskWriteOps);
+            XAssert.AreEqual(hasPreviousSample ? previous.DiskBytesWritten : 0UL, retained.DiskBytesWritten);
+
+            update.DiskReadOps = 7;
+            update.DiskBytesRead = 16384;
+            update.DiskWriteOps = 9;
+            update.DiskBytesWritten = 32768;
+            SandboxedProcessUnix.UpdateResourceUsage(
+                new ProcessResourceUsageSample?[] { new ProcessResourceUsageSample(update, hasIoCounters: true) },
+                processResourceUsage,
+                workingSet);
+
+            retained = processResourceUsage["1-process"];
+            XAssert.AreEqual(update.DiskReadOps, retained.DiskReadOps);
+            XAssert.AreEqual(update.DiskBytesRead, retained.DiskBytesRead);
+            XAssert.AreEqual(update.DiskWriteOps, retained.DiskWriteOps);
+            XAssert.AreEqual(update.DiskBytesWritten, retained.DiskBytesWritten);
         }
 
         [FactIfSupported(requiresEBPFEnabled: true)]

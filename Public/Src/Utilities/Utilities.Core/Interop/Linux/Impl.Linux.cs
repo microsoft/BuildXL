@@ -39,6 +39,12 @@ namespace BuildXL.Interop.Unix
         private const string ProcIoPath = "/io";
 
         private static long TicksPerSecond;
+        private static readonly Lazy<bool> s_hasProcessIoAccounting = CreateProcessIoAccountingProbe(ProcPath);
+
+        internal static bool? IsProcessIoAccountingAvailable => s_hasProcessIoAccounting.IsValueCreated ? s_hasProcessIoAccounting.Value : (bool?)null;
+
+        internal static Lazy<bool> CreateProcessIoAccountingProbe(string procPath) =>
+            new Lazy<bool>(() => HasProcessIoAccounting(procPath), LazyThreadSafetyMode.PublicationOnly);
 
         /// <summary>
         /// glibc 2.34 consolidated libpthread into the libc shared object.
@@ -382,29 +388,64 @@ namespace BuildXL.Interop.Unix
         }
 
         /// <summary>
-        /// Gets resource consumption data for a specific process, throws if the underlying ProcFS structures are not present or malformed.
+        /// Detects kernel I/O accounting using the current process, which cannot disappear during the probe.
         /// </summary>
-        private static ProcessResourceUsage? CreateProcessResourceUsageForPid(int pid)
+        internal static bool HasProcessIoAccounting(string procPath)
         {
             try
             {
-                var firstLine = File.ReadAllLines($"{ProcPath}/{pid}/{ProcStatPath}").FirstOrDefault();
+                // Probe the current process so a sampled process exiting cannot disable I/O accounting globally.
+                File.ReadAllLines($"{procPath}/self/{ProcIoPath}");
+                return true;
+            }
+            catch (FileNotFoundException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Gets resource consumption data, or null if required ProcFS data is unavailable.
+        /// Kernel I/O availability is cached unless overridden for tests.
+        /// </summary>
+        internal static ProcessResourceUsageSample? CreateProcessResourceUsageForPid(int pid, string procPath = ProcPath, bool? hasIoAccounting = null)
+        {
+            try
+            {
+                var firstLine = File.ReadAllLines($"{procPath}/{pid}/{ProcStatPath}").FirstOrDefault();
                 var splits = firstLine.Split(new[] { ' ' }).ToArray();
                 var utimeMs = ((ulong)TicksToTimeSpan(double.Parse(splits[13])).TotalMilliseconds);
                 var stimeMs = ((ulong)TicksToTimeSpan(double.Parse(splits[14])).TotalMilliseconds);
 
-                string[] lines = System.IO.File.ReadAllLines($"{ProcPath}/{pid}/{ProcIoPath}");
+                var statusLines = File.ReadAllLines($"{procPath}/{pid}/{ProcStatusPath}");
+                string workingSetSize = statusLines.FirstOrDefault(line => line.StartsWith("VmRSS:"));
+                string peakWorkingSetSize = statusLines.FirstOrDefault(line => line.StartsWith("VmHWM:"));
+                string name = statusLines.FirstOrDefault(line => line.StartsWith("Name:"));
+
+                string[] lines = Array.Empty<string>();
+                bool hasIoCounters = false;
+                if (hasIoAccounting ?? s_hasProcessIoAccounting.Value)
+                {
+                    try
+                    {
+                        lines = File.ReadAllLines($"{procPath}/{pid}/{ProcIoPath}");
+                        hasIoCounters = true;
+                    }
+                    catch (IOException ex) when (ex is FileNotFoundException || ex is DirectoryNotFoundException)
+                    {
+                        // The process may have exited after its stat/status files were read.
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        // Reading another process's I/O counters requires ptrace access.
+                    }
+                }
                 string readOps = lines.FirstOrDefault(line => line.StartsWith("syscr:"));
                 string bytesRead = lines.FirstOrDefault(line => line.StartsWith("read_bytes:"));
                 string writeOps = lines.FirstOrDefault(line => line.StartsWith("syscw:"));
                 string bytesWritten = lines.FirstOrDefault(line => line.StartsWith("write_bytes:"));
 
-                lines = System.IO.File.ReadAllLines($"{ProcPath}/{pid}/{ProcStatusPath}");
-                string workingSetSize = lines.FirstOrDefault(line => line.StartsWith("VmRSS:"));
-                string peakWorkingSetSize = lines.FirstOrDefault(line => line.StartsWith("VmHWM:"));
-                string name = lines.FirstOrDefault(line => line.StartsWith("Name:"));
-
-                return new ProcessResourceUsage()
+                var usage = new ProcessResourceUsage()
                 {
                     UserTimeMs = utimeMs,
                     SystemTimeMs = stimeMs,
@@ -417,6 +458,7 @@ namespace BuildXL.Interop.Unix
                     ProcessId = pid,
                     Name = name.Split(new[] { '\t' }, StringSplitOptions.RemoveEmptyEntries)[1],
                 };
+                return new ProcessResourceUsageSample(usage, hasIoCounters);
             }
 #pragma warning disable
             catch (Exception)
@@ -426,7 +468,7 @@ namespace BuildXL.Interop.Unix
 #pragma warning restore
         }
 
-        internal static IEnumerable<ProcessResourceUsage?> GetResourceUsageForProcessTree(int processId, bool includeChildren)
+        internal static IEnumerable<ProcessResourceUsageSample?> GetResourceUsageForProcessTree(int processId, bool includeChildren)
         {
             var stack = new Stack<int>();
             stack.Push(processId);
@@ -454,8 +496,8 @@ namespace BuildXL.Interop.Unix
         internal static int GetProcessMemoryUsageSnapshot(int pid, ref ProcessResourceUsage buffer, long bufferSize, bool includeChildProcesses)
         {
             var resourceUsage = GetResourceUsageForProcessTree(pid, includeChildProcesses);
-            buffer.WorkingSetSize = resourceUsage.Where(u => u.HasValue).Aggregate(0UL, (acc, usage) => acc + usage.Value.WorkingSetSize);
-            buffer.PeakWorkingSetSize = resourceUsage.Where(u => u.HasValue).Aggregate(0UL, (acc, usage) => acc + usage.Value.PeakWorkingSetSize);
+            buffer.WorkingSetSize = resourceUsage.Where(u => u.HasValue).Aggregate(0UL, (acc, usage) => acc + usage.Value.Usage.WorkingSetSize);
+            buffer.PeakWorkingSetSize = resourceUsage.Where(u => u.HasValue).Aggregate(0UL, (acc, usage) => acc + usage.Value.Usage.PeakWorkingSetSize);
 
             return 0;
         }

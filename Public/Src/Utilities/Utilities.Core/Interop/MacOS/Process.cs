@@ -80,6 +80,29 @@ namespace BuildXL.Interop.Unix
         }
 
         /// <summary>
+        /// A managed resource sample with availability information kept outside the native interop layout.
+        /// </summary>
+        public readonly struct ProcessResourceUsageSample
+        {
+            /// <summary>
+            /// The available CPU, memory, and I/O measurements.
+            /// </summary>
+            public ProcessResourceUsage Usage { get; }
+
+            /// <summary>
+            /// Whether the sample includes current I/O counters.
+            /// </summary>
+            public bool HasIoCounters { get; }
+
+            /// <nodoc />
+            public ProcessResourceUsageSample(ProcessResourceUsage usage, bool hasIoCounters)
+            {
+                Usage = usage;
+                HasIoCounters = hasIoCounters;
+            }
+        }
+
+        /// <summary>
         /// Represents the different signals that can be sent to a process.
         /// </summary>
         /// <remarks>
@@ -130,9 +153,14 @@ namespace BuildXL.Interop.Unix
         /// Returns a collection of process resource usage information for a process tree rooted at the given process id, snapshotting the complete process tree at the time of the call.
         /// </summary>
         /// <param name="pid">The process id of the root of the tree</param>
-        public static IEnumerable<ProcessResourceUsage?> GetResourceUsageForProcessTree(int pid) => IsMacOS
+        public static IEnumerable<ProcessResourceUsageSample?> GetResourceUsageForProcessTree(int pid) => IsMacOS
             ? throw new NotImplementedException()
             : Impl_Linux.GetResourceUsageForProcessTree(pid, includeChildren: true);
+
+        /// <summary>
+        /// Whether process I/O accounting is available, or null until the Linux capability probe succeeds.
+        /// </summary>
+        public static bool? IsProcessIoAccountingAvailable => IsMacOS ? true : Impl_Linux.IsProcessIoAccountingAvailable;
 
         /// <summary>
         /// Retrieve the (immediate) child processes of the given process

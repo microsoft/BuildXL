@@ -134,6 +134,52 @@ namespace BuildXL.Utilities.Configuration.Mutable
         }
 
         /// <nodoc />
+        public DiscriminatingUnion<DirectoryArtifact, RelativePath> Remap(DiscriminatingUnion<DirectoryArtifact, RelativePath> directoryUnion)
+        {
+            DiscriminatingUnion<DirectoryArtifact, RelativePath> remappedPath = null;
+
+            if (directoryUnion != null)
+            {
+                var directoryValue = directoryUnion.GetValue();
+                remappedPath = new DiscriminatingUnion<DirectoryArtifact, RelativePath>();
+
+                if (directoryValue is DirectoryArtifact directory)
+                {
+                    remappedPath.SetValue(Remap(directory));
+                }
+                else if (directoryValue is RelativePath relativePath)
+                {
+                    remappedPath.SetValue(Remap(relativePath));
+                }
+            }
+
+            return remappedPath;
+        }
+
+        /// <nodoc />
+        public DiscriminatingUnion<PathAtom, IBreakawayChildProcess> Remap(DiscriminatingUnion<PathAtom, IBreakawayChildProcess> processUnion)
+        {
+            DiscriminatingUnion<PathAtom, IBreakawayChildProcess> remappedProcess = null;
+
+            if (processUnion != null)
+            {
+                var processValue = processUnion.GetValue();
+                remappedProcess = new DiscriminatingUnion<PathAtom, IBreakawayChildProcess>();
+
+                if (processValue is PathAtom processName)
+                {
+                    remappedProcess.SetValue(Remap(processName));
+                }
+                else if (processValue is IBreakawayChildProcess process)
+                {
+                    remappedProcess.SetValue(new BreakawayChildProcess(process, this));
+                }
+            }
+
+            return remappedProcess;
+        }
+
+        /// <nodoc />
         public DiscriminatingUnion<FileArtifact, PathAtom> Remap(DiscriminatingUnion<FileArtifact, PathAtom> fileUnion)
         {
             DiscriminatingUnion<FileArtifact, PathAtom> remappedPath = null;

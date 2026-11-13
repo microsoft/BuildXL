@@ -28,6 +28,9 @@ jobs:
       baseline:
         baselineFile: $(Build.SourcesDirectory)\.config\guardian\.gdnbaselines
       binskim:
+        ${{ if eq(parameters.packagePrefix, 'BuildXL-experimental') }}:
+          enabled: false
+          justificationForDisabling: 'Experimental packages are for developer validation; official releases retain BinSkim analysis.'
         scanOutputDirectoryOnly: true
         preReleaseVersion: '4.3.1'
         # Only scan the releases directory, buildxl binaries are in releases directory.

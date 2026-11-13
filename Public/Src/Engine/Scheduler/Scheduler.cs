@@ -2016,7 +2016,9 @@ namespace BuildXL.Scheduler
             {
                 Task simulatorTask = null;
 
-                if (!IsDistributedWorker && m_configuration.Schedule.SchedulerSimulator)
+                // When the schedule is terminating, the simulator would fail: it needs the performance info of all scheduled pips,
+                // but the pips that never became runnable have none.
+                if (!IsDistributedWorker && m_configuration.Schedule.SchedulerSimulator && !IsTerminating)
                 {
                     var simulator = new SchedulerSimulator(
                         m_loggingContext,

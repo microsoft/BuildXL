@@ -91,6 +91,18 @@ namespace Test.BuildXL.Scheduler.DynamicGraph
             base.SurvivingChildProcessesNotReportedOnCancelation();
         }
 
+        [Fact(Skip = "The synthetic machine-performance hook accepts only the static Scheduler type.")]
+        public override void ServiceShutdownPipIsNotRunWhenBuildIsCancelled()
+        {
+            base.ServiceShutdownPipIsNotRunWhenBuildIsCancelled();
+        }
+
+        [Fact(Skip = "The synthetic machine-performance hook accepts only the static Scheduler type.")]
+        public override void ServicePipFailuresNotReportedWhenCancelledDuringShutdown()
+        {
+            base.ServicePipFailuresNotReportedWhenCancelledDuringShutdown();
+        }
+
         [Theory(Skip = "The inherited theory includes RealAndPipGraph, which is unsupported by the dynamic scheduler.")]
         public override void FullGraphDirectoryEnumerationsExcludeUntrackedScopes(
             global::BuildXL.Utilities.Configuration.FileSystemMode fileSystemMode)

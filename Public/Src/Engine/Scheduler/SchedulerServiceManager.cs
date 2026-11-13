@@ -152,6 +152,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// For all service pips found in <see cref="m_startedServices"/> executes their shutdown pips
         /// using the same executor/environment that was used to start the service.
+        /// If cancellation was requested, the shutdown pips are not executed because the services have already been killed.
         /// </summary>
         internal async Task<bool> ShutdownStartedServices(bool isCancellationRequested)
         {
@@ -166,6 +167,18 @@ namespace BuildXL.Scheduler
                 // Notify anything waiting for startup completion that the service was not started successfully
                 // This call will no-op if startup completion has already been signaled
                 serviceTracking.StartupCompletion.TrySetResult(false);
+
+                // When a cancellation token is triggered, the service processes are killed (i.e., there is nothing to shutdown).
+                // Also, because the token is triggered, the shutdown process would be killed almost immediately after it started,
+                // which in turn would cause a failure to be reported. To avoid wrong error bucket classification, do not run
+                // the shutdown pip and ignore service pip failures in such cases.
+                if (isCancellationRequested)
+                {
+                    await serviceTracking.ServiceExecutionCompletion;
+                    Interlocked.Increment(ref m_totalServicePipsCompleted);
+                    Interlocked.Decrement(ref m_runningServicesCount);
+                    return true;
+                }
 
                 var serviceProcess = HydrateServiceStartOrShutdownProcess(pipId);
                 var shutdownProcess = HydrateServiceStartOrShutdownProcess(serviceProcess.ShutdownProcessPipId);
@@ -192,11 +205,10 @@ namespace BuildXL.Scheduler
 
                 var shutdownFailed = serviceShutdownResult.Status.IndicatesFailure();
                 var serviceFailed = serviceExecutionResult.Status.IndicatesFailure();
-                // When a cancellation token is triggered, the service processes are killed (i.e., there is nothing to shutdown).
-                // Also, because the token is triggered, the shutdown process will be killed almost immediately after it started,
-                // which in turn will cause IndicatesFailure to return true. To avoid wrong error bucket classification, ignore
-                // service pip / shutdown pip failures in such cases.
-                if (isCancellationRequested)
+                // The build might also be cancelled while the services are shutting down (e.g., when a distributed worker reaches its timeout).
+                // The cancellation kills the shutdown and service processes, so ignore their failures for the same reason as above.
+                var environment = serviceTracking.Environment;
+                if (environment.Context.CancellationToken.IsCancellationRequested || environment.SchedulerCancellationToken.IsCancellationRequested)
                 {
                     return true;
                 }

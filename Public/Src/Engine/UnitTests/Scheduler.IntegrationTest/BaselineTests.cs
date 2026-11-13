@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using BuildXL.Ipc.Common;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
@@ -2463,6 +2464,96 @@ namespace IntegrationTest.BuildXL.Scheduler
             var result = RunScheduler(testHooks: testHook, updateStatusTimerEnabled: true, cancellationToken: tokenSource.Token).AssertFailure();
             AllowErrorEventLoggedAtLeastOnce(global::BuildXL.App.Tracing.LogEventId.CancellationRequested);
             result.AssertPipResultStatus((processA.Process.PipId, PipResultStatus.Canceled));
+        }
+
+        [Fact]
+        public virtual void ServiceShutdownPipIsNotRunWhenBuildIsCancelled()
+        {
+            var shutdownBuilder = CreatePipBuilder(new[] { Operation.WriteFile(CreateOutputFileArtifact()) });
+            shutdownBuilder.ServiceKind = ServicePipKind.ServiceShutdown;
+            var shutdown = SchedulePipBuilder(shutdownBuilder);
+
+            // The service runs until it is killed.
+            var serviceBuilder = CreatePipBuilder(new[] { Operation.WriteFile(CreateOutputFileArtifact()), Operation.Block() });
+            serviceBuilder.ServiceKind = ServicePipKind.Service;
+            serviceBuilder.ShutDownProcessPipId = shutdown.Process.PipId;
+            serviceBuilder.ServiceMoniker = IpcMoniker.CreateNew();
+            var service = SchedulePipBuilder(serviceBuilder);
+
+            var clientOutput = CreateOutputFileArtifact();
+            var clientBuilder = CreatePipBuilder(new[] { Operation.WriteFile(clientOutput) });
+            clientBuilder.AddServicePipDependency(service.Process.PipId);
+            SchedulePipBuilder(clientBuilder);
+
+            // Keeps the build running until it is cancelled.
+            CreateAndSchedulePipBuilder(new[] { Operation.Block(), Operation.WriteFile(CreateOutputFileArtifact()) });
+
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            var testHook = new SchedulerTestHooks()
+            {
+                ServicePipReportedReady = true,
+                GenerateSyntheticMachinePerfInfo = (loggingContext, scheduler) =>
+                {
+                    // Cancel the build after the client has run, i.e., while the service is up.
+                    if (!tokenSource.IsCancellationRequested && File.Exists(ArtifactToString(clientOutput)))
+                    {
+                        global::BuildXL.App.Tracing.Logger.Log.CancellationRequested(loggingContext, immediateTerminationKeystroke: "ctrl-c");
+                        tokenSource.Cancel();
+                    }
+
+                    return new PerformanceCollector.MachinePerfInfo();
+                },
+            };
+
+            RunScheduler(testHooks: testHook, updateStatusTimerEnabled: true, cancellationToken: tokenSource.Token).AssertFailure();
+            AllowErrorEventLoggedAtLeastOnce(global::BuildXL.App.Tracing.LogEventId.CancellationRequested);
+
+            // The cancellation killed the service, so there is nothing to shut down.
+            AssertVerboseEventLogged(LogEventId.ServicePipShuttingDown, count: 0);
+        }
+
+        [Fact]
+        public virtual void ServicePipFailuresNotReportedWhenCancelledDuringShutdown()
+        {
+            // The shutdown pip runs until it is killed.
+            var shutdownOutput = CreateOutputFileArtifact();
+            var shutdownBuilder = CreatePipBuilder(new[] { Operation.WriteFile(shutdownOutput), Operation.Block() });
+            shutdownBuilder.ServiceKind = ServicePipKind.ServiceShutdown;
+            var shutdown = SchedulePipBuilder(shutdownBuilder);
+
+            // The service runs until it is killed.
+            var serviceBuilder = CreatePipBuilder(new[] { Operation.WriteFile(CreateOutputFileArtifact()), Operation.Block() });
+            serviceBuilder.ServiceKind = ServicePipKind.Service;
+            serviceBuilder.ShutDownProcessPipId = shutdown.Process.PipId;
+            serviceBuilder.ServiceMoniker = IpcMoniker.CreateNew();
+            var service = SchedulePipBuilder(serviceBuilder);
+
+            var clientBuilder = CreatePipBuilder(new[] { Operation.WriteFile(CreateOutputFileArtifact()) });
+            clientBuilder.AddServicePipDependency(service.Process.PipId);
+            SchedulePipBuilder(clientBuilder);
+
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            var testHook = new SchedulerTestHooks()
+            {
+                ServicePipReportedReady = true,
+                GenerateSyntheticMachinePerfInfo = (loggingContext, scheduler) =>
+                {
+                    // Cancel the build while the service is shutting down.
+                    if (!tokenSource.IsCancellationRequested && File.Exists(ArtifactToString(shutdownOutput)))
+                    {
+                        global::BuildXL.App.Tracing.Logger.Log.CancellationRequested(loggingContext, immediateTerminationKeystroke: "ctrl-c");
+                        tokenSource.Cancel();
+                    }
+
+                    return new PerformanceCollector.MachinePerfInfo();
+                },
+            };
+
+            RunScheduler(testHooks: testHook, updateStatusTimerEnabled: true, cancellationToken: tokenSource.Token).AssertFailure();
+            AllowErrorEventLoggedAtLeastOnce(global::BuildXL.App.Tracing.LogEventId.CancellationRequested);
+
+            // The shutdown started before the cancellation, which then killed the shutdown and service pips.
+            AssertVerboseEventLogged(LogEventId.ServicePipShuttingDown, count: 1);
         }
 
         [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]

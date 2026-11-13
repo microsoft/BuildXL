@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Linq;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration.Mutable;
 
@@ -23,12 +24,12 @@ namespace BuildXL.Utilities.Configuration.Resolvers.Mutable
         /// <nodoc />
         public UntrackingResolverSettings(IResolverSettings template, IUntrackingSettings untrackingTemplate, PathRemapper pathRemapper) : base(template, pathRemapper)
         {
-            UntrackedDirectoryScopes = untrackingTemplate.UntrackedDirectoryScopes;
-            UntrackedFiles = untrackingTemplate.UntrackedFiles;
-            UntrackedDirectories = untrackingTemplate.UntrackedDirectories;
-            UntrackedGlobalDirectoryScopes = untrackingTemplate.UntrackedGlobalDirectoryScopes;
-            ChildProcessesToBreakawayFromSandbox = untrackingTemplate.ChildProcessesToBreakawayFromSandbox;
-            AllowedSurvivingChildProcesses = untrackingTemplate.AllowedSurvivingChildProcesses;
+            UntrackedDirectoryScopes = untrackingTemplate.UntrackedDirectoryScopes?.Select(pathRemapper.Remap).ToList();
+            UntrackedFiles = untrackingTemplate.UntrackedFiles?.Select(pathRemapper.Remap).ToList();
+            UntrackedDirectories = untrackingTemplate.UntrackedDirectories?.Select(pathRemapper.Remap).ToList();
+            UntrackedGlobalDirectoryScopes = untrackingTemplate.UntrackedGlobalDirectoryScopes?.Select(pathRemapper.Remap).ToList();
+            ChildProcessesToBreakawayFromSandbox = untrackingTemplate.ChildProcessesToBreakawayFromSandbox?.Select(pathRemapper.Remap).ToList();
+            AllowedSurvivingChildProcesses = untrackingTemplate.AllowedSurvivingChildProcesses?.Select(pathRemapper.Remap).ToList();
         }
 
         /// <inheritdoc />

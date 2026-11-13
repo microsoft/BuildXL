@@ -24,6 +24,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using HintType = BuildXL.Pips.Operations.Process.HintType;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+using static BuildXL.Processes.SandboxedProcessFactory;
 
 #pragma warning disable AsyncFixer02
 
@@ -1766,6 +1767,8 @@ namespace Test.BuildXL.Processes.Detours
         public async Task PipChildProcessSurvives()
         {
             var context = BuildXLContext.CreateInstanceForTesting();
+            long succeededBefore = Counters.GetCounterValue(SandboxedProcessCounters.PipExecutionsSucceededWithUninitializedChildExitCodes);
+            long failedBefore = Counters.GetCounterValue(SandboxedProcessCounters.PipExecutionsFailedWithUninitializedChildExitCodes);
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
@@ -1811,7 +1814,9 @@ namespace Test.BuildXL.Processes.Detours
                     new SandboxConfiguration
                     {
                         FileAccessIgnoreCodeCoverage = true,
-                        SurvivingPipProcessChildrenDumpDirectory = dumpDir.Combine(context.PathTable, LogFileExtensions.SurvivingPipProcessChildrenDumpDirectory)
+                        SurvivingPipProcessChildrenDumpDirectory = dumpDir.Combine(context.PathTable, LogFileExtensions.SurvivingPipProcessChildrenDumpDirectory),
+                        LogProcesses = true,
+                        LogProcessData = true,
                     },
                     pip,
                     null,
@@ -1829,12 +1834,16 @@ namespace Test.BuildXL.Processes.Detours
                 "DX0064");  // ProcessesLogEventId.PipProcessChildrenSurvivedKilled
             XAssert.IsTrue(numChildrenSurvivedErrors >= 1 && numChildrenSurvivedErrors <= 3, $"Child processes: {numChildrenSurvivedErrors}");
             AssertVerboseEventLogged(ProcessesLogEventId.DumpSurvivingPipProcessChildrenStatus, count: numChildrenSurvivedErrors, allowMore: true);
+            XAssert.AreEqual(succeededBefore, Counters.GetCounterValue(SandboxedProcessCounters.PipExecutionsSucceededWithUninitializedChildExitCodes));
+            XAssert.AreEqual(failedBefore, Counters.GetCounterValue(SandboxedProcessCounters.PipExecutionsFailedWithUninitializedChildExitCodes));
         }
 
         [Fact]
         public async Task PipChildProcessSurvivesButAllowed()
         {
             var context = BuildXLContext.CreateInstanceForTesting();
+            long succeededBefore = Counters.GetCounterValue(SandboxedProcessCounters.PipExecutionsSucceededWithUninitializedChildExitCodes);
+            long failedBefore = Counters.GetCounterValue(SandboxedProcessCounters.PipExecutionsFailedWithUninitializedChildExitCodes);
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
@@ -1882,7 +1891,9 @@ namespace Test.BuildXL.Processes.Detours
 
                 var sandboxConfiguration = new SandboxConfiguration
                 {
-                    FileAccessIgnoreCodeCoverage = true
+                    FileAccessIgnoreCodeCoverage = true,
+                    LogProcesses = true,
+                    LogProcessData = true,
                 };
 
                 SandboxedProcessPipExecutionResult result = await RunProcess(
@@ -1895,6 +1906,9 @@ namespace Test.BuildXL.Processes.Detours
 
                 XAssert.AreEqual(SandboxedProcessPipExecutionStatus.Succeeded, result.Status);
             }
+
+            XAssert.AreEqual(succeededBefore, Counters.GetCounterValue(SandboxedProcessCounters.PipExecutionsSucceededWithUninitializedChildExitCodes));
+            XAssert.AreEqual(failedBefore, Counters.GetCounterValue(SandboxedProcessCounters.PipExecutionsFailedWithUninitializedChildExitCodes));
         }
 
         [Fact]

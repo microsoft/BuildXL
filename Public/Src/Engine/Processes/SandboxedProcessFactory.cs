@@ -351,6 +351,18 @@ namespace BuildXL.Processes
             /// </summary>
             [CounterType(CounterType.Numeric)]
             FileAccessManifestPathIndexSizeGreaterThan262144Count,
+
+            /// <summary>
+            /// Successful execution attempts not killed by BuildXL, with at least one reported child whose exit code remained uninitialized.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            PipExecutionsSucceededWithUninitializedChildExitCodes,
+
+            /// <summary>
+            /// Failed, non-canceled execution attempts not killed by BuildXL, with at least one reported child whose exit code remained uninitialized.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            PipExecutionsFailedWithUninitializedChildExitCodes,
         }
 
         /// <summary>

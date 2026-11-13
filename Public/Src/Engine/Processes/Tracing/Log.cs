@@ -649,7 +649,8 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Pip had unclean exit. Canceled: {canceled}, Error code {errorCode}, Killed: {killed}, # Surviving child errors: {numSurvivingChildErrors}")]
+            Message = EventConstants.PipPrefix + "Pip had unclean exit. Canceled: {canceled}, Error code {errorCode}, Killed: {killed}, # Surviving child errors: {numSurvivingChildErrors}" +
+                ", # Child processes with uninitialized exit code: {numChildProcessesWithUninitializedExitCode}")]
         public abstract void PipExitedUncleanly(
             LoggingContext context,
             long pipSemiStableHash,
@@ -657,7 +658,8 @@ namespace BuildXL.Processes.Tracing
             bool canceled,
             int errorCode,
             bool killed,
-            int numSurvivingChildErrors);
+            int numSurvivingChildErrors,
+            int numChildProcessesWithUninitializedExitCode);
 
         [GeneratedEvent(
             (int)LogEventId.PipRetryDueToExitedWithAzureWatsonExitCode,

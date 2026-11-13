@@ -161,6 +161,8 @@ namespace BuildXL.ProcessPipExecutor
 
         private int m_numWarnings;
 
+        private int m_numChildProcessesWithUninitializedExitCode = -1;
+
         private TimeSpan m_timeout;
 
         private readonly FileAccessPolicy m_excludeReportAccessMask;
@@ -1389,12 +1391,49 @@ namespace BuildXL.ProcessPipExecutor
                         explicitlyReportedFileAccessProcessor);
             LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseProcessingSandboxProcessResult, DateTime.UtcNow.Subtract(start));
 
-            return ValidateSandboxCommunication(
+            executionResult = ValidateSandboxCommunication(
                 result,
                 executionResult,
                 lastMessageCount,
                 lastConfirmedMessageCount,
                 isMessageCountSemaphoreCreated);
+
+            ReportUninitializedChildExitCodes(m_numChildProcessesWithUninitializedExitCode, result.Killed, executionResult.Status, Counters);
+
+            return executionResult;
+        }
+
+        internal static int CountUninitializedChildExitCodes(IReadOnlyList<ReportedProcess> reportedProcesses, uint rootProcessId)
+        {
+            // -1 means the count is unavailable; 0 means it was measured and no child had an uninitialized exit code.
+            return reportedProcesses == null || reportedProcesses.Count == 0
+                ? -1
+                : reportedProcesses.Count(p => p.ProcessId != rootProcessId && p.ExitCode == ExitCodes.UninitializedProcessExitCode);
+        }
+
+        internal static void ReportUninitializedChildExitCodes(
+            int count,
+            bool killed,
+            SandboxedProcessPipExecutionStatus status,
+            CounterCollection<SandboxedProcessCounters> counters)
+        {
+            // BuildXL termination skips Detours' exit reporting, so uninitialized exit codes are expected even for allowed surviving children.
+            if (killed
+                || count <= 0
+                || status == SandboxedProcessPipExecutionStatus.Canceled
+                || status == SandboxedProcessPipExecutionStatus.PreparationFailed)
+            {
+                return;
+            }
+
+            if (status == SandboxedProcessPipExecutionStatus.Succeeded)
+            {
+                counters.IncrementCounter(SandboxedProcessCounters.PipExecutionsSucceededWithUninitializedChildExitCodes);
+            }
+            else
+            {
+                counters.IncrementCounter(SandboxedProcessCounters.PipExecutionsFailedWithUninitializedChildExitCodes);
+            }
         }
 
         private void AugmentWithTrustedAccessesFromDeclaredArtifacts(SandboxedProcessResult result, Process process, IDirectoryArtifactContext directoryContext, ExplicitlyReportedFileAccessProcessor explicitlyReportedFileAccessProcessor)
@@ -1804,6 +1843,23 @@ namespace BuildXL.ProcessPipExecutor
             ReportedProcess azWatsonDeadProcess = m_sandboxConfig.RetryOnAzureWatsonExitCode && OperatingSystemHelper.IsWindowsOS
                 ? result.Processes?.FirstOrDefault(p => p.ExitCode == AzureWatsonExitCode)
                 : null;
+
+            // Without process-data collection, normally exited children retain an uninitialized exit code.
+            // Unix exit reports do not populate ReportedProcess.ExitCode, so the sentinel is not diagnostic there.
+            if (OperatingSystemHelper.IsWindowsOS
+                && m_fileAccessManifest.LogProcessData
+                && !m_fileAccessManifest.DisableDetours
+                && m_fileAccessManifest.MonitorChildProcesses
+                && (m_detoursListener == null ||
+                    (m_detoursListener.GetMessageHandlingFlags() & MessageHandlingFlags.FileAccessCollect) != 0))
+            {
+                // Detours reports the root before it can create children. External wrappers expose their own PID, not that root's PID.
+                uint rootProcessId = process is ExternalSandboxedProcess
+                    ? result.Processes?.FirstOrDefault()?.ProcessId ?? 0
+                    : (uint)process.ProcessId;
+                m_numChildProcessesWithUninitializedExitCode = CountUninitializedChildExitCodes(result.Processes, rootProcessId);
+            }
+
             bool exitedSuccessfullyAndGracefully = !canceled && exitedWithSuccessExitCode;
             bool exitedWithRetryAbleUserError = m_pip.RetryExitCodes.Contains(result.ExitCode) && m_remainingUserRetryCount > 0;
             long maxDetoursHeapSize = process.GetDetoursMaxHeapSize() + result.DetoursMaxHeapSize;
@@ -1966,7 +2022,8 @@ namespace BuildXL.ProcessPipExecutor
                     canceled,
                     result.ExitCode,
                     result.Killed,
-                    numSurvivingChildErrors);
+                    numSurvivingChildErrors,
+                    m_numChildProcessesWithUninitializedExitCode);
             }
 
             // Observe that in some cases stderr reports to have length, but it is zero. Make sure that length > 0 to conclude stderr was written.

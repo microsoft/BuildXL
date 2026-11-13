@@ -4,6 +4,7 @@
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using BuildXL.Processes;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
 using System;
@@ -15,6 +16,7 @@ using System.IO.Pipes;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Processes.Internal;
+using static BuildXL.Processes.SandboxedProcessFactory;
 
 namespace Test.BuildXL.Processes
 {
@@ -22,6 +24,56 @@ namespace Test.BuildXL.Processes
     {
         public SandboxedProcessReportsTest(ITestOutputHelper output) : base(output)
         {
+        }
+
+        [Theory]
+        [InlineData(SandboxedProcessPipExecutionStatus.Succeeded, false)]
+        [InlineData(SandboxedProcessPipExecutionStatus.ExecutionFailed, false)]
+        [InlineData(SandboxedProcessPipExecutionStatus.FileAccessMonitoringFailed, false)]
+        [InlineData(SandboxedProcessPipExecutionStatus.Canceled, false)]
+        [InlineData(SandboxedProcessPipExecutionStatus.Succeeded, true)]
+        [InlineData(SandboxedProcessPipExecutionStatus.ExecutionFailed, true)]
+        public void ReportUninitializedChildProcessExitCodes(SandboxedProcessPipExecutionStatus status, bool killed)
+        {
+            const uint RootProcessId = 123;
+            var counters = new CounterCollection<SandboxedProcessCounters>();
+            var child = new ReportedProcess(124, "child.exe") { ExitCode = 0 };
+            var grandchild = new ReportedProcess(125, 124, "grandchild.exe", string.Empty) { ExitCode = 0 };
+            var processes = new[]
+            {
+                child,
+                new ReportedProcess(RootProcessId, "root.exe"),
+                new ReportedProcess(126, "clean.exe") { ExitCode = 0 },
+                grandchild,
+                new ReportedProcess(127, "crashed.exe") { ExitCode = 0xDEAD },
+            };
+
+            int report(IReadOnlyList<ReportedProcess> reportedProcesses)
+            {
+                int count = SandboxedProcessPipExecutor.CountUninitializedChildExitCodes(reportedProcesses, RootProcessId);
+                SandboxedProcessPipExecutor.ReportUninitializedChildExitCodes(count, killed, status, counters);
+                return count;
+            }
+
+            XAssert.AreEqual(-1, report(null));
+            XAssert.AreEqual(-1, report(Array.Empty<ReportedProcess>()));
+            XAssert.AreEqual(0, report(processes));
+            XAssert.AreEqual(0L, counters.GetCounterValue(SandboxedProcessCounters.PipExecutionsSucceededWithUninitializedChildExitCodes));
+            XAssert.AreEqual(0L, counters.GetCounterValue(SandboxedProcessCounters.PipExecutionsFailedWithUninitializedChildExitCodes));
+
+            child.ExitCode = ExitCodes.UninitializedProcessExitCode;
+            grandchild.ExitCode = ExitCodes.UninitializedProcessExitCode;
+            XAssert.AreEqual(2, report(processes));
+
+            bool succeeded = !killed && status == SandboxedProcessPipExecutionStatus.Succeeded;
+            bool failed = !killed && !succeeded && status != SandboxedProcessPipExecutionStatus.Canceled;
+            XAssert.AreEqual(succeeded ? 1L : 0L, counters.GetCounterValue(SandboxedProcessCounters.PipExecutionsSucceededWithUninitializedChildExitCodes));
+            XAssert.AreEqual(failed ? 1L : 0L, counters.GetCounterValue(SandboxedProcessCounters.PipExecutionsFailedWithUninitializedChildExitCodes));
+            child.ExitCode = 0;
+            grandchild.ExitCode = 0;
+            XAssert.AreEqual(0, report(processes));
+            XAssert.AreEqual(succeeded ? 1L : 0L, counters.GetCounterValue(SandboxedProcessCounters.PipExecutionsSucceededWithUninitializedChildExitCodes));
+            XAssert.AreEqual(failed ? 1L : 0L, counters.GetCounterValue(SandboxedProcessCounters.PipExecutionsFailedWithUninitializedChildExitCodes));
         }
 
         [Fact]

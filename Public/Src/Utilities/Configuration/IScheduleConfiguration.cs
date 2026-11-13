@@ -301,7 +301,7 @@ namespace BuildXL.Utilities.Configuration
 
         /// <summary>
         /// Scales orchestrator process slots to reserve CPU capacity for worker coordination.
-        /// Zero or null automatically reduces slots as worker count grows, unless historical CPU throttling is enabled.
+        /// Zero or null automatically reduces slots with five or more available remote workers, unless historical CPU throttling is enabled.
         /// </summary>
         double? OrchestratorCpuMultiplier { get; }
 

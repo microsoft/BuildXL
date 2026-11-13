@@ -28,14 +28,13 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Theory]
-        [InlineData(true, null)]
-        [InlineData(true, 0.0)]
-        [InlineData(true, 0.7)]
-        [InlineData(true, 1.0)]
-        [InlineData(false, null)]
-        [InlineData(false, 0.0)]
-        [InlineData(false, 0.7)]
-        public void ExplicitLimitControlsCpuDispatcher(bool historical, double? multiplier)
+        [InlineData(null, 4, 20, false)]
+        [InlineData(null, 5, 10, false)]
+        [InlineData(0.0, 4, 20, false)]
+        [InlineData(0.7, 4, 14, false)]
+        [InlineData(null, 4, 20, true)]
+        [InlineData(0.7, 4, 14, true)]
+        public void ExplicitLimitControlsCpuDispatcher(double? multiplier, int remotes, int expected, bool historical)
         {
             var configuration = new ConfigurationImpl();
             configuration.Schedule.MaxProcesses = 20;
@@ -46,7 +45,11 @@ namespace Test.BuildXL.Scheduler
             using var queue = new PipQueue(LoggingContext, configuration);
             XAssert.AreEqual(semaphoreOnly ? int.MaxValue : 20, queue.GetMaxParallelDegreeByKind(DispatcherKind.CPU));
 
-            foreach (int slots in new[] { 14, 4, 0, 20 })
+            int localSlots = global::BuildXL.Scheduler.Scheduler.CalculateLocalWorkerProcessSlots(
+                configuration.Schedule.EffectiveMaxProcesses, remotes, multiplier);
+            XAssert.AreEqual(expected, localSlots);
+
+            foreach (int slots in new[] { localSlots, 4, 0, 20 })
             {
                 queue.SetMaxParallelDegreeByKind(DispatcherKind.CPU, slots);
                 XAssert.AreEqual(

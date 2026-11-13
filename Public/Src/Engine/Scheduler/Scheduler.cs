@@ -473,8 +473,6 @@ namespace BuildXL.Scheduler
         private void AdjustLocalWorkerSlots()
         {
             int availableRemoteWorkersCount = AvailableRemoteWorkersCount;
-            int targetProcessSlots = m_scheduleConfiguration.EffectiveMaxProcesses;
-
             bool hasExplicitMultiplier = m_scheduleConfiguration.OrchestratorCpuMultiplier is > 0;
             if (m_scheduleConfiguration.UseHistoricalCpuThrottling && !hasExplicitMultiplier)
             {
@@ -483,18 +481,26 @@ namespace BuildXL.Scheduler
                 return;
             }
 
-            // A positive explicit multiplier scales local process slots regardless of worker count (e.g., 0.7 keeps 70%).
-            // Otherwise, each available remote worker reduces local slots by 10 percentage points, down to 10% with nine or more.
-            // The resulting slot count is truncated to an integer.
-            double multiplier = m_scheduleConfiguration.OrchestratorCpuMultiplier is double configuredMultiplier && configuredMultiplier > 0
-                ? configuredMultiplier
-                : Math.Max(0.1, 1 - (availableRemoteWorkersCount / 10.0));
-            int newProcessSlots = (int)(targetProcessSlots * multiplier);
+            int newProcessSlots = CalculateLocalWorkerProcessSlots(
+                m_scheduleConfiguration.EffectiveMaxProcesses,
+                availableRemoteWorkersCount,
+                m_scheduleConfiguration.OrchestratorCpuMultiplier);
 
             LocalWorker.AdjustTotalProcessSlots(newProcessSlots);
 
             int totalProcessSlots = Workers.Where(w => w.IsAvailable).Sum(w => w.TotalProcessSlots);
             PipQueue.SetTotalProcessSlots(totalProcessSlots);
+        }
+
+        internal static int CalculateLocalWorkerProcessSlots(int targetProcessSlots, int availableRemoteWorkersCount, double? configuredMultiplier)
+        {
+            // Positive overrides apply at every worker count. Automatic mode preserves full local capacity below five remotes.
+            double multiplier = configuredMultiplier is > 0
+                ? configuredMultiplier.Value
+                : availableRemoteWorkersCount < 5
+                    ? 1
+                    : Math.Max(0.1, 1 - (availableRemoteWorkersCount / 10.0));
+            return (int)(targetProcessSlots * multiplier);
         }
 
         /// <summary>

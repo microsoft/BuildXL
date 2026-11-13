@@ -18,7 +18,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Fix preserved-output privatization race.
 - [EBPF] Fix zero process duration and inflated CPU usage reporting.
 - [CloudTest SDK] Add opt-in per-job input drops with `usePerJobDrops`.
-- [Diagnostics] Add opt-in fingerprint-store queue drain timeout with `BuildXLFingerprintStoreDrainTimeout=1`.
+- [Diagnostics] Add a configurable fingerprint-store queue drain timeout, defaulting to 10 minutes. Configure with `/fingerprintStoreDrainTimeoutMinutes:<minutes>`
 - [Drop] Default the drop session ID to the related session ID.
 - [Security] Update .NET runtimes to 8.0.33, 9.0.22, and 10.0.14, Node.js to 24.22.1, and QTest to the Brotli-patched 26.10.26 build.
 - Various bug fixes and improvements.

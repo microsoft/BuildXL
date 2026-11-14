@@ -22,7 +22,7 @@ See [Pip Usage ML](../../Documentation/Wiki/Advanced-Features/Pip-Usage-ML.md) f
 
 The production pipeline:
 
-1. Authenticates pip to the internal `CloudBuild-Repo` Azure Artifacts feed before restoring dependencies, avoiding direct public PyPI access.
+1. Authenticates pip to the internal `CloudBuild-Repo` Azure Artifacts feed before bootstrapping Python and restoring dependencies, so Python setup's pip upgrade also avoids direct public PyPI access.
 2. Uses a retryable Azure CLI task with scoped Kusto identity to select and prepare completed builds in the requested UTC window.
 3. Retains a deterministic, time-distributed sample of builds across the requested window independently for each codebase.
 4. Encodes shared disk-backed training, validation, and test arrays on the training agent.
@@ -40,10 +40,13 @@ Quality observations remain informational, and deployment still requires an expl
 
 ## Local Validation
 
+PowerShell validation requires Pester 5.7.1. The pipeline downloads this version from the shared `Domino_PublicPackages` feed instead of using the agent image's older bundled Pester.
+
 From this directory:
 
 ```powershell
 python -m pip install -c constraints.txt -e .
 python -m unittest discover -s tests -p 'test_*.py' -v
+Import-Module Pester -RequiredVersion 5.7.1
 Invoke-Pester scripts/Invoke-PipUsageTraining.Tests.ps1
 ```

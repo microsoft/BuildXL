@@ -115,16 +115,17 @@ extends:
             steps:
               - checkout: self
 
-              - task: UsePythonVersion@0
-                displayName: "Use Python $(pythonVersion)"
-                inputs:
-                  versionSpec: "$(pythonVersion)"
-
+              # Python setup upgrades pip, so authenticate the internal index before bootstrapping Python.
               - task: PipAuthenticate@1
                 displayName: "Authenticate pip to CloudBuild-Repo"
                 inputs:
                   artifactFeeds: "CloudBuild-Repo"
                   onlyAddExtraIndex: false
+
+              - task: UsePythonVersion@0
+                displayName: "Use Python $(pythonVersion)"
+                inputs:
+                  versionSpec: "$(pythonVersion)"
 
               - script: |
                   python -m pip install --no-input --disable-pip-version-check -c constraints.txt -e .
@@ -136,6 +137,16 @@ extends:
                 displayName: "Run Pip Usage Python tests"
                 workingDirectory: "$(toolRoot)"
 
+              - task: DownloadPackage@1
+                displayName: "Download Pester 5.7.1"
+                inputs:
+                  packageType: nuget
+                  feed: "Domino/Domino_PublicPackages"
+                  definition: Pester
+                  version: "5.7.1"
+                  downloadPath: '$(Agent.TempDirectory)\pester'
+                  extract: true
+
               - task: PowerShell@2
                 displayName: "Validate Pip Usage training"
                 inputs:
@@ -143,6 +154,7 @@ extends:
                   pwsh: true
                   workingDirectory: "$(Build.SourcesDirectory)"
                   script: |
+                    Import-Module '$(Agent.TempDirectory)\pester\tools\Pester.psd1' -Force -ErrorAction Stop
                     Invoke-Pester -Path .\Private\ML\scripts\Invoke-PipUsageTraining.Tests.ps1 -CI -Output Detailed
 
               - task: NuGetToolInstaller@1

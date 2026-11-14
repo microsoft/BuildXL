@@ -192,7 +192,12 @@ namespace APIs {
         else {
             const dropToCreate = <DropToCreate>args.drop;
             // Let's use just one day of retention for the drop, since this is used just to communicate artifacts to the CT session.
-            const dropConfig = Object.merge<Drop.DropOperationArguments>(Drop.DropDaemonRunner.getDefaultDropConfig(dropToCreate.name, dropToCreate.service), {retentionDays: 1});
+            const dropConfig = Object.merge<Drop.DropOperationArguments>(
+                Drop.DropDaemonRunner.getDefaultDropConfig(dropToCreate.name, dropToCreate.service), 
+                {
+                    retentionDays: 1,
+                    useSharedConcurrencyLimiter: true
+                });
             createDropResult = Drop.runner.createDrop(dropConfig);
         }
 

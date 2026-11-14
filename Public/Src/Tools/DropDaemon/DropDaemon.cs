@@ -201,12 +201,20 @@ namespace Tool.DropDaemon
             DefaultValue = DropConfig.DefaultBatchSizeForAssociate,
         });
 
-        internal static readonly IntOption MaxParallelUploads = RegisterConfigOption(new IntOption("maxParallelUploads")
+        internal static readonly IntOption MaxParallelUploads = RegisterDaemonConfigOption(new IntOption("maxParallelUploads")
         {
             ShortName = "mpu",
-            HelpText = "Maximum number of uploads to issue to drop service in parallel",
+            HelpText = "Maximum concurrent association/upload batches per drop, or across all drops when useSharedConcurrencyLimiter is enabled at daemon startup",
             IsRequired = false,
             DefaultValue = DropConfig.DefaultMaxParallelUploads,
+        });
+
+        internal static readonly BoolOption UseSharedConcurrencyLimiter = RegisterDaemonConfigOption(new BoolOption("useSharedConcurrencyLimiter")
+        {
+            ShortName = "scl",
+            HelpText = "Use one FIFO association/upload batch queue for all drops. Startup maxParallelUploads fixes its concurrency; later drop values are ignored.",
+            IsRequired = false,
+            DefaultValue = false,
         });
 
         internal static readonly IntOption NagleTimeMillis = RegisterConfigOption(new IntOption("nagleTimeMillis")
@@ -688,13 +696,23 @@ namespace Tool.DropDaemon
         public DropServiceConfig DropServiceConfig { get; }
 
         /// <summary>
+        /// Shared FIFO association/upload batch queue for all drops
+        /// </summary>
+        /// <remarks>
+        /// When shared concurrency limiting is disabled, this property is null.
+        /// </remarks>
+        public SharedUploadQueue SharedUploadQueue { get; }
+
+        /// <summary>
         /// Creates DropServiceConfig using the values specified on the ConfiguredCommand
         /// </summary>        
         public static DropServiceConfig CreateDropServiceConfig(ConfiguredCommand conf)
         {
             return new DropServiceConfig(bsiFileLocation: conf.Get(BsiFileLocation),
                 makeCatToolPath: conf.Get(MakeCatToolPath),
-                esrpManifestSignToolPath: conf.Get(EsrpManifestSignToolPath));
+                esrpManifestSignToolPath: conf.Get(EsrpManifestSignToolPath),
+                useSharedConcurrencyLimiter: conf.Get(UseSharedConcurrencyLimiter),
+                maxParallelUploads: conf.Get(MaxParallelUploads));
         }
 
         /// <summary>
@@ -714,6 +732,13 @@ namespace Tool.DropDaemon
                    client)
         {
             DropServiceConfig = serviceConfig;
+            SharedUploadQueue = serviceConfig?.UseSharedConcurrencyLimiter == true ? new SharedUploadQueue(serviceConfig.MaxParallelUploads) : null;
+            
+            if (SharedUploadQueue != null)
+            {
+                Logger.Info($"Using a shared FIFO association/upload queue with concurrency {SharedUploadQueue.MaxParallelUploads}.");
+            }
+
             m_sbomGenerator = new SbomGenerator(logger: new SBOMLoggingWrapper(Logger));
             m_sbomGenerationOutputDirectory = !string.IsNullOrWhiteSpace(daemonConfig?.LogDir) ? daemonConfig.LogDir : Path.GetTempPath();
             m_logFileNameCounter = 0;
@@ -1554,6 +1579,8 @@ namespace Tool.DropDaemon
                 kvp.Value.lazyVsoClientTask.Value.Result.Dispose();
             }
 
+            SharedUploadQueue?.Dispose();
+
             foreach (var dropLogger in m_dropSpecificLoggers.Values)
             {
                 if (dropLogger.IsValueCreated)
@@ -2213,7 +2240,7 @@ namespace Tool.DropDaemon
         {
             return Task.Run(() =>
             {
-                return (IDropClient)new VsoClient(logger, apiClient, daemonConfig, dropConfig);
+                return (IDropClient)new VsoClient(logger, apiClient, daemonConfig, dropConfig, SharedUploadQueue);
             });
         }
 

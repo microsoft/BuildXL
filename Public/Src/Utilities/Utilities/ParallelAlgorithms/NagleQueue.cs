@@ -17,7 +17,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
     /// <summary>
     /// Interface for batch processing items based on time or a number of items.
     /// </summary>
-    public interface INagleQueue<T> : IAsyncDisposable, IDisposable
+    public interface INagleQueue<T> : IWorkQueue<T>
     {
         /// <summary>
         /// Suspends processing data until the resulting object is disposed.
@@ -28,11 +28,6 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// Starts the processing.
         /// </summary>
         void Start();
-
-        /// <summary>
-        /// Adds an <paramref name="item"/> for asynchronous processing.
-        /// </summary>
-        void Enqueue(T item);
 
         /// <summary>
         /// Adds <paramref name="items"/> for asynchronous processing.

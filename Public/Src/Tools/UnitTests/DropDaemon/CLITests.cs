@@ -78,6 +78,8 @@ namespace Test.Tool.DropDaemon
         public static IEnumerable<object[]> ValidCommandLinesTestData()
         {
             yield return new object[] { "start", new Option[0], new string[0] };
+            yield return new object[] { "start", new Option[] { UseSharedConcurrencyLimiter, MaxParallelUploads }, new[] { "true", "3" } };
+            yield return new object[] { "start-nodrop", new Option[] { UseSharedConcurrencyLimiter, MaxParallelUploads }, new[] { "true", "3" } };
             yield return new object[] { "start", new Option[] { EnableCloudBuildIntegration, Verbose }, new[] { "true", "false" } };
             yield return new object[] { "start", new Option[] { DropNameOption, DropEndpoint }, new[] { "mydrop", "http://xyz" } };
             yield return new object[] { "create", new Option[] { DropNameOption, DropEndpoint }, new[] { "mydrop", "http://xyz" } };
@@ -95,6 +97,44 @@ namespace Test.Tool.DropDaemon
             yield return new object[] { "stop", new[] { DropNameOption }, new[] { "mydrop" } };
             yield return new object[] { "addartifacts", new Option[] { IpcServerMonikerRequired, Directory, DirectoryId, RelativeDirectoryDropPath, DirectoryContentFilter, DirectoryRelativePathReplace, DropNameOption, DropEndpoint }, new[] { "moniker_string", @"c:\dir", "123:1:12345", "/remote/", ".*", "##", "mydrop", "http://xyz" } };
             yield return new object[] { "addartifacts", new Option[] { IpcServerMonikerRequired, File, FileId, HashOptional, RelativeDropPath, DropNameOption, DropEndpoint }, new[] { "moniker_string", @"c:\dir\f.txt", "id1", "123:1:12345", "/remote/f.txt", "mydrop", "http://xyz" } };
+        }
+
+        /// <nodoc/>
+        [Theory]
+        [InlineData("start", false, null)]
+        [InlineData("start", true, 3)]
+        [InlineData("start", true, null)]
+        [InlineData("start-nodrop", true, null)]
+        [InlineData("create --name test --service http://xyz", false, null)]
+        [InlineData("create --name test --service http://xyz", true, 3)]
+        [InlineData("create --name test --service http://xyz", true, null)]
+        public void SharedConcurrencySettingsAreCapturedAtStartup(string commandLine, bool enabled, int? maxParallelUploads)
+        {
+            string options = enabled ? " --useSharedConcurrencyLimiter true" : string.Empty;
+            if (maxParallelUploads.HasValue)
+            {
+                options += $" --maxParallelUploads {maxParallelUploads.Value}";
+            }
+
+            var serviceConfig = CreateDropServiceConfig(ParseArgs(commandLine + options));
+            int expectedLimit = maxParallelUploads ?? DropConfig.DefaultMaxParallelUploads;
+
+            Assert.Equal(enabled, serviceConfig.UseSharedConcurrencyLimiter);
+            Assert.Equal(expectedLimit, serviceConfig.MaxParallelUploads);
+
+            string moniker = IpcProvider.RenderConnectionString(IpcMoniker.CreateNew());
+            var daemonConfig = new DaemonConfig(VoidLogger.Instance, moniker: moniker);
+            using var daemon = new global::Tool.DropDaemon.DropDaemon(UnixParser.Instance, daemonConfig, serviceConfig);
+            if (enabled)
+            {
+                var dropConfig = CreateDropConfig(ParseArgs("create --name later --service http://xyz --maxParallelUploads 96 --useSharedConcurrencyLimiter false"));
+                Assert.Equal(96, dropConfig.MaxParallelUploads);
+                Assert.Equal(expectedLimit, daemon.SharedUploadQueue.MaxParallelUploads);
+            }
+            else
+            {
+                Assert.Null(daemon.SharedUploadQueue);
+            }
         }
 
         [Theory]

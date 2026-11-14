@@ -47,7 +47,7 @@ namespace Tool.DropDaemon
         private readonly IDropServiceClient m_dropClient;
         private readonly CancellationTokenSource m_cancellationSource;
         private readonly Client m_bxlApiClient;
-        private readonly NagleQueue<AddFileItem> m_nagleQueue;
+        private readonly IWorkQueue<AddFileItem> m_nagleQueue;
         private readonly CounterCollection<DropClientCounter> m_counters;
 
         /// <summary>
@@ -98,6 +98,15 @@ namespace Tool.DropDaemon
 
         /// <nodoc />
         public VsoClient(IIpcLogger logger, Client bxlApiClient, DaemonConfig daemonConfig, DropConfig dropConfig)
+            : this(logger, bxlApiClient, daemonConfig, dropConfig, sharedUploadQueue: null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a client that submits batches to <paramref name="sharedUploadQueue"/> when provided,
+        /// or uses its own execution queue otherwise.
+        /// </summary>
+        public VsoClient(IIpcLogger logger, Client bxlApiClient, DaemonConfig daemonConfig, DropConfig dropConfig, SharedUploadQueue sharedUploadQueue)
         {
             Contract.Requires(daemonConfig != null);
             Contract.Requires(dropConfig != null);
@@ -123,11 +132,13 @@ namespace Tool.DropDaemon
                 operationTimeout: daemonConfig.OperationTimeoutMinutes,
                 maxOperationRetryCount: daemonConfig.MaxOperationRetries);
 
-            m_nagleQueue = NagleQueue<AddFileItem>.Create(
-                maxDegreeOfParallelism: m_config.MaxParallelUploads,
-                batchSize: m_config.BatchSize,
-                interval: m_config.NagleTime,
-                processBatch: ProcessAddFilesAsync);
+            m_nagleQueue = sharedUploadQueue != null
+                ? sharedUploadQueue.CreateBatcher<AddFileItem>(ProcessAddFilesAsync, m_config.BatchSize, m_config.NagleTime)
+                : NagleQueue<AddFileItem>.Create(
+                    maxDegreeOfParallelism: m_config.MaxParallelUploads,
+                    batchSize: m_config.BatchSize,
+                    interval: m_config.NagleTime,
+                    processBatch: ProcessAddFilesAsync);
         }
 
         /// <summary>
@@ -349,9 +360,10 @@ namespace Tool.DropDaemon
         /// <inheritdoc/>
         public void Dispose()
         {
+            // Draining may flush pending batches that still need the SDK client and cancellation token source.
+            m_nagleQueue.Dispose();
             m_dropClient.Dispose();
             m_cancellationSource.Dispose();
-            m_nagleQueue.Dispose();
         }
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose client", Justification = "Caller is responsible for disposing it")]

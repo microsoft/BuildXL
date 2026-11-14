@@ -452,6 +452,8 @@ export namespace DropDaemonRunner {
 
             // DaemonSettings
             maxConcurrentClients: args.maxConcurrentClients,
+            useSharedConcurrencyLimiter: args.useSharedConcurrencyLimiter,
+            maxParallelUploads: args.maxParallelUploads,
             enableCloudBuildIntegration: args.enableCloudBuildIntegration,
             verbose: args.verbose,
 
@@ -511,6 +513,7 @@ export namespace DropDaemonRunner {
                 Cmd.option("--batchSize ", args.batchSize),
                 Cmd.option("--maxConcurrentClients ", args.maxConcurrentClients),
                 Cmd.option("--maxParallelUploads ", args.maxParallelUploads),
+                Cmd.flag("--useSharedConcurrencyLimiter", args.useSharedConcurrencyLimiter),
                 Cmd.option("--nagleTimeMillis ", args.nagleTimeMillis),
                 Cmd.option("--retentionDays ", args.retentionDays),
                 Cmd.option("--maxConnectRetries ", args.maxConnectRetries),

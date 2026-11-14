@@ -41,7 +41,7 @@ export interface DropConnectionSettings {
     /** Maximum time in milliseconds before triggering a batch 'associate' request. */
     nagleTimeMillis?: number;
     
-    /** Maximum number of uploads to issue to drop service in parallel. */
+    /** Maximum active association/upload batches per drop, unless the daemon-wide shared limiter is enabled. */
     maxParallelUploads?: number;
     
     /** Enable drop telemetry. */
@@ -78,6 +78,16 @@ export interface DropSettings extends DropConnectionSettings {
 export interface DaemonSettings {
     /** Maximum number of clients DropDaemon should process concurrently. */
     maxConcurrentClients?: number;
+
+    /** Use one daemon-wide FIFO queue for ready association/upload batches. Defaults to false.
+     *  Files are still batched separately per drop. Finalization runs outside this queue.
+     *  Set at service start (including the first create that starts the service); later values are ignored. */
+    useSharedConcurrencyLimiter?: boolean;
+
+    /** Maximum active association/upload batches across all drops when the shared limiter is enabled.
+     *  Fixed by the first service start/create; later per-drop values are ignored in shared mode.
+     *  When disabled, the existing DropConnectionSettings.maxParallelUploads remains per drop. */
+    maxParallelUploads?: number;
     
     /** Whether DropDaemon should send ETW events about the progress of drop
      *  operations for the purpose of integration with CloudBuild. */

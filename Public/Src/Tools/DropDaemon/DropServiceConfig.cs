@@ -23,6 +23,16 @@ namespace Tool.DropDaemon
         ///     Represents the Path to EsrpManifestSign.exe for Build Manifest Catalog Signing.
         /// </summary>
         public string EsrpManifestSignToolPath { get; }
+
+        /// <summary>
+        /// Whether all destinations share one association/upload execution queue. Defaults to false.
+        /// </summary>
+        public bool UseSharedConcurrencyLimiter { get; }
+
+        /// <summary>
+        /// Shared batch concurrency, fixed when the daemon starts. Later drop settings do not resize it.
+        /// </summary>
+        public int MaxParallelUploads { get; }
         #endregion
 
         // ==================================================================================================
@@ -32,11 +42,15 @@ namespace Tool.DropDaemon
         /// <nodoc/>
         public DropServiceConfig(string bsiFileLocation = null,
             string makeCatToolPath = null,
-            string esrpManifestSignToolPath = null)
+            string esrpManifestSignToolPath = null,
+            bool useSharedConcurrencyLimiter = false,
+            int? maxParallelUploads = null)
         {
             BsiFileLocation = bsiFileLocation ?? string.Empty;
             MakeCatToolPath = makeCatToolPath ?? string.Empty;
             EsrpManifestSignToolPath = esrpManifestSignToolPath ?? string.Empty;
+            UseSharedConcurrencyLimiter = useSharedConcurrencyLimiter;
+            MaxParallelUploads = maxParallelUploads ?? DropConfig.DefaultMaxParallelUploads;
         }
     }
 }

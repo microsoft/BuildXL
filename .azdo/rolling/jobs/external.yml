@@ -146,8 +146,6 @@ jobs:
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     os: windows
     image: Windows-SDL-Image-Vanilla-Win2025
-    demands:
-    - ImageVersionOverride -equals 145.0.0
   strategy:
     matrix:
       ${{ each qualifier in parameters.QualifiersToBuild }}:

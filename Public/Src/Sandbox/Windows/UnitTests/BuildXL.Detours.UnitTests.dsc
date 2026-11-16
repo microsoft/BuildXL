@@ -14,6 +14,7 @@ namespace UnitTests {
     export declare const qualifier: BuildXLSdk.PlatformDependentQualifier;
 
     export const test = Context.getCurrentHost().os === "win" && BoostTest.test({
+        skipTestRun: qualifier.configuration === "debug" && Environment.getFlag("[BuildXL.Sandbox.Windows.UnitTests]skipDebugDetoursRun"),
         outputFileName: PathAtom.create("DetoursUnitTests.exe"),
         sources: globR(d`.`, "*.cpp"),
         includes: [

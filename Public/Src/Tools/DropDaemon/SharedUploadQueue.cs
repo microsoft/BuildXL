@@ -47,7 +47,10 @@ namespace Tool.DropDaemon
         /// and must not be used beyond that point.
         /// </param>
         /// <param name="batchSize">Maximum number of items accumulated before submitting a batch.</param>
-        /// <param name="interval">Partial-batch flush interval, or <see cref="Timeout.InfiniteTimeSpan"/> to disable timed flushing.</param>
+        /// <param name="interval">
+        /// Maximum wait from the first buffered item before flushing a partial batch.
+        /// Zero flushes immediately; <see cref="Timeout.InfiniteTimeSpan"/> disables timed flushing.
+        /// </param>
         public Batcher<T> CreateBatcher<T>(Func<List<T>, Task> processBatch, int batchSize, TimeSpan interval)
         {
             return new Batcher<T>(m_queue, processBatch, batchSize, interval);
@@ -77,7 +80,7 @@ namespace Tool.DropDaemon
             private readonly Func<List<T>, Task> m_processBatch;
             private readonly int m_batchSize;
             private readonly TimeSpan m_interval;
-            private readonly Timer m_timer;
+            private readonly ITimer m_timer;
             private readonly TaskCompletionSource<bool> m_completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             private List<T> m_items;
             private int m_pendingBatches;
@@ -88,16 +91,25 @@ namespace Tool.DropDaemon
             /// Creates a destination batcher that submits ready batches to <paramref name="queue"/>.
             /// </summary>
             public Batcher(ActionBlockSlim<Func<Task>> queue, Func<List<T>, Task> processBatch, int batchSize, TimeSpan interval)
+                : this(queue, processBatch, batchSize, interval, TimeProvider.System)
+            {
+            }
+
+            internal Batcher(ActionBlockSlim<Func<Task>> queue, Func<List<T>, Task> processBatch, int batchSize, TimeSpan interval, TimeProvider timeProvider)
             {
                 ArgumentOutOfRangeException.ThrowIfNegativeOrZero(batchSize);
+                long intervalMilliseconds = (long)interval.TotalMilliseconds;
+                if (intervalMilliseconds < Timeout.Infinite || intervalMilliseconds >= uint.MaxValue)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(interval));
+                }
 
                 m_queue = queue;
                 m_processBatch = processBatch;
                 m_batchSize = batchSize;
                 m_interval = interval;
                 m_items = RentBatch();
-                m_timer = new Timer(_ => Flush(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-                m_timer.Change(m_interval, Timeout.InfiniteTimeSpan);
+                m_timer = timeProvider.CreateTimer(_ => Flush(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             }
 
             /// <inheritdoc />
@@ -114,6 +126,10 @@ namespace Tool.DropDaemon
                     if (m_items.Count >= m_batchSize)
                     {
                         PublishBatch();
+                    }
+                    else if (m_items.Count == 1)
+                    {
+                        m_timer.Change(m_interval, Timeout.InfiniteTimeSpan);
                     }
                 }
             }
@@ -154,7 +170,6 @@ namespace Tool.DropDaemon
                     if (!m_closed)
                     {
                         PublishBatch();
-                        m_timer.Change(m_interval, Timeout.InfiniteTimeSpan);
                     }
                 }
             }
@@ -164,6 +179,11 @@ namespace Tool.DropDaemon
                 if (m_items.Count == 0)
                 {
                     return;
+                }
+
+                if (!m_closed)
+                {
+                    m_timer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                 }
 
                 var batch = m_items;

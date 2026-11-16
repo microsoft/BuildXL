@@ -66,6 +66,17 @@ namespace Test.Tool.DropDaemon
         }
 
         /// <nodoc/>
+        [Theory]
+        [InlineData(-2L)]
+        [InlineData((long)uint.MaxValue)]
+        public void InvalidTimerIntervalIsRejectedBeforeEnqueue(long intervalMillis)
+        {
+            using var queue = new SharedUploadQueue(maxParallelUploads: 1);
+            Assert.Throws<ArgumentOutOfRangeException>(() => queue.CreateBatcher<int>(
+                _ => Task.CompletedTask, batchSize: 2, interval: TimeSpan.FromMilliseconds(intervalMillis)));
+        }
+
+        /// <nodoc/>
         [Fact]
         public async Task EmptyBatcherCanBeDrainedRepeatedly()
         {
@@ -363,6 +374,59 @@ namespace Test.Tool.DropDaemon
 
         /// <nodoc/>
         [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        public async Task TimerIsArmedOnlyWhileAPartialBatchIsBuffered(int intervalMillis)
+        {
+            var executor = ActionBlockSlim.CreateWithAsyncAction<Func<Task>>(1, work => work());
+            var timeProvider = new ManualTimeProvider();
+            var release = NewSignal();
+            var batches = new List<int[]>();
+            var batcher = new SharedUploadQueue.Batcher<int>(executor, async batch =>
+            {
+                await release.Task;
+                batches.Add(batch.ToArray());
+            }, batchSize: 2, interval: TimeSpan.FromMilliseconds(intervalMillis), timeProvider);
+
+            try
+            {
+                Assert.False(timeProvider.Timer.IsArmed);
+                batcher.Enqueue(1);
+                Assert.True(timeProvider.Timer.IsArmed);
+                timeProvider.Timer.Fire();
+                Assert.False(timeProvider.Timer.IsArmed);
+
+                batcher.Enqueue(2);
+                Assert.True(timeProvider.Timer.IsArmed);
+                batcher.Enqueue(3);
+                Assert.False(timeProvider.Timer.IsArmed);
+
+                batcher.Enqueue(4);
+                Assert.True(timeProvider.Timer.IsArmed);
+                timeProvider.Timer.Fire();
+                Assert.False(timeProvider.Timer.IsArmed);
+
+                Task drain = batcher.DisposeAsync().AsTask();
+                Assert.True(timeProvider.Timer.IsDisposed);
+                Assert.False(drain.IsCompleted);
+                release.SetResult(true);
+                await drain;
+                Assert.Equal(new[] { 1 }, batches[0]);
+                Assert.Equal(new[] { 2, 3 }, batches[1]);
+                Assert.Equal(new[] { 4 }, batches[2]);
+                Assert.Equal(3, batches.Count);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await batcher.DisposeAsync();
+                executor.Complete();
+                await executor.Completion;
+            }
+        }
+
+        /// <nodoc/>
+        [Theory]
         [InlineData(false, false)]
         [InlineData(true, false)]
         [InlineData(false, true)]
@@ -411,6 +475,61 @@ namespace Test.Tool.DropDaemon
         private static TaskCompletionSource<bool> NewSignal()
         {
             return new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        private sealed class ManualTimeProvider : TimeProvider
+        {
+            public ManualTimer Timer { get; private set; }
+
+            public override ITimer CreateTimer(TimerCallback callback, object state, TimeSpan dueTime, TimeSpan period)
+            {
+                Timer = new ManualTimer(callback, state);
+                Timer.Change(dueTime, period);
+                return Timer;
+            }
+        }
+
+        private sealed class ManualTimer : ITimer
+        {
+            private readonly TimerCallback m_callback;
+            private readonly object m_state;
+
+            public bool IsArmed { get; private set; }
+
+            public bool IsDisposed { get; private set; }
+
+            public ManualTimer(TimerCallback callback, object state)
+            {
+                m_callback = callback;
+                m_state = state;
+            }
+
+            public bool Change(TimeSpan dueTime, TimeSpan period)
+            {
+                Assert.False(IsDisposed);
+                Assert.Equal(Timeout.InfiniteTimeSpan, period);
+                IsArmed = dueTime != Timeout.InfiniteTimeSpan;
+                return true;
+            }
+
+            public void Fire()
+            {
+                Assert.True(IsArmed);
+                IsArmed = false;
+                m_callback(m_state);
+            }
+
+            public void Dispose()
+            {
+                IsDisposed = true;
+                IsArmed = false;
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                Dispose();
+                return default;
+            }
         }
 
         private sealed class PooledItem

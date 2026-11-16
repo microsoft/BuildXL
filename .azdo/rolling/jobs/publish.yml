@@ -260,8 +260,7 @@ jobs:
     displayName: Force Push BuildXL.Internal to GitHub Main
     timeoutInMinutes: 180
     # Only force push the main branch
-    # Temporarily disable force pushing from rolling builds.
-    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), false)
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
     pool:
       name: BuildXL-DevOpsAgents-Selfhost-BuildCache
       os: windows

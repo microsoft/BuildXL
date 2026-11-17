@@ -140,6 +140,40 @@ scheduling them. Run the utilities benchmarks with:
 cmd /c "bxl.cmd Test.BuildXL.Utilities.Benchmarks.dsc /p:[Sdk.BuildXL]runBenchmarks=1 /q:ReleaseNet10 /server-"
 ```
 
+### Writing tests
+
+Keep new tests few and focused on behavior the change introduces or fixes:
+
+- Cover changes with both unit and integration tests, keeping a balance
+  between them. Use unit tests for targeted low-level validations (an
+  algorithm, a parser, a tricky edge case). Rely on integration tests (for
+  example, scheduler or end-to-end tests that run a build) to validate the
+  high-level glue between components. Do not write a unit test for every minor
+  detail or code path; prefer a smaller number of integration tests that
+  exercise the change as a whole.
+- Group cases that exercise the same logic with different inputs into a single
+  theory (`[Theory]` with `[InlineData]`/`[MemberData]`) instead of writing
+  near-duplicate `[Fact]` methods.
+- Do not add tests for trivial plumbing. For example, when adding a new
+  argument or option, do not add a test that only checks it is accepted or
+  parsed if other new tests already depend on it working.
+- Do not write tests that restate the implementation or only check constants,
+  defaults, or trivial accessors.
+
+### Test runs during review iterations
+
+Tests are slow, so do not rerun them after every review tweak:
+
+1. For the initial set of changes, including tests, build and run the relevant
+   tests to verify everything works.
+2. Then tell the user that you will wait for their review and will not rerun
+   tests until they say they are done reviewing or iterating.
+3. While iterating on review feedback, apply the requested changes without
+   rerunning tests. After each such change, remind the user that tests were not
+   rerun.
+4. When the user says review is complete, run the relevant tests again before
+   considering the work done.
+
 ## Code conventions
 
 Follow `.editorconfig` and nearby code. In C#:
@@ -189,3 +223,19 @@ subst-looking error — that failure is a signal to stop and ask the user, not t
 invent a drive-letter or `-NoSubst` workaround. When diagnosing which worktree
 owns the subst mapping, use the absolute path of the running `RunInSubst.exe`,
 and report it rather than acting on it.
+
+## Improving these instructions
+
+When the user says a set of changes is ready to merge, or you know a PR has been
+sent for it, review whether these team-wide instructions should change:
+
+1. Reread these instructions and any related files under `.github/`.
+2. Inspect the user's available Copilot memories.
+3. Revisit the interactions for this set of changes, looking for corrections,
+   repeated feedback, workarounds, or conventions the user had to explain.
+4. Keep only patterns that apply team-wide beyond the current change. Skip
+   task-specific details, personal preferences, and anything already covered.
+
+If you find a worthwhile update, briefly describe it and offer to make it in a
+separate PR. Do not add it to the current change, and do not edit these
+instructions without the user's approval.

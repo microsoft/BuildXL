@@ -258,6 +258,7 @@ jobs:
 - ${{ if eq(parameters.isRollingBuild, true) }}:
   - job: GitHubForcePush
     displayName: Force Push BuildXL.Internal to GitHub Main
+    continueOnError: true
     timeoutInMinutes: 180
     # Only force push the main branch
     condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))

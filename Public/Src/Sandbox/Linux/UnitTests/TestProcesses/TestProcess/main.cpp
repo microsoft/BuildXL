@@ -4,7 +4,6 @@
 #include <errno.h>
 #include <iostream>
 #include <sys/mman.h>
-#include <sys/syscall.h>
 #include <unistd.h>
 #include "syscalltests.hpp"
 
@@ -91,83 +90,6 @@ int ExecReportsCorrectExecutableAndArgumentsFailed() {
     // expecting execv to fail here
     return EXIT_SUCCESS;
 }
-
-// Arrange filename, argv, and argument text on separate memfd-backed pages, then discard their PTEs.
-// The bytes remain valid, but sandbox capture must fault them in rather than rely only on no-fault reads.
-// Normally the string spans two pages; terminatorAtPageEnd instead puts its NUL just before a guard page
-// to catch over-reading. unreadableArgument points directly into that guard page to exercise a real EFAULT.
-// Successful exec replaces this process with echo; the managed test checks output and argument-based breakaway.
-static int ExecWithArgumentsRequiringPageFaults(bool useExecveat, bool terminatorAtPageEnd, bool unreadableArgument = false)
-{
-    const long pageSize = sysconf(_SC_PAGESIZE);
-    if (pageSize <= 0)
-    {
-        return EXIT_FAILURE;
-    }
-
-    int fd = memfd_create("exec-arguments", MFD_CLOEXEC);
-    if (fd < 0)
-    {
-        return EXIT_FAILURE;
-    }
-
-    const size_t mappingSize = 5 * pageSize;
-    if (ftruncate(fd, mappingSize) != 0)
-    {
-        close(fd);
-        return EXIT_FAILURE;
-    }
-
-    auto memory = static_cast<char *>(mmap(nullptr, mappingSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
-    if (memory == MAP_FAILED)
-    {
-        close(fd);
-        return EXIT_FAILURE;
-    }
-
-    const char message[] = "hello world";
-    char *filename = memory + pageSize;
-    char *argument = terminatorAtPageEnd
-        ? memory + 4 * pageSize - sizeof(message)
-        : memory + 3 * pageSize - 4;
-    strcpy(filename, "/bin/echo");
-    memcpy(argument, message, sizeof(message));
-    auto arguments = reinterpret_cast<char **>(memory);
-    arguments[0] = filename;
-    arguments[1] = unreadableArgument ? memory + 4 * pageSize : argument;
-    arguments[2] = nullptr;
-    char *environment[] = {nullptr};
-
-    // Keep file-backed contents but remove their PTEs. The syscall must fault in the filename,
-    // argv vector, and argument pages independently. The final page catches reads past a terminator.
-    if (mprotect(memory + 4 * pageSize, pageSize, PROT_NONE) != 0 ||
-        madvise(memory, 4 * pageSize, MADV_DONTNEED) != 0)
-    {
-        munmap(memory, mappingSize);
-        close(fd);
-        return EXIT_FAILURE;
-    }
-
-    if (useExecveat)
-    {
-        syscall(SYS_execveat, AT_FDCWD, filename, arguments, environment, 0);
-    }
-    else
-    {
-        execve(filename, arguments, environment);
-    }
-
-    int error = errno;
-    munmap(memory, mappingSize);
-    close(fd);
-    return unreadableArgument && error == EFAULT ? EXIT_SUCCESS : EXIT_FAILURE;
-}
-
-int ExecveWithArgumentsRequiringPageFaults() { return ExecWithArgumentsRequiringPageFaults(false, false); }
-int ExecveatWithArgumentsRequiringPageFaults() { return ExecWithArgumentsRequiringPageFaults(true, false); }
-int ExecveWithTerminatorAtPageEnd() { return ExecWithArgumentsRequiringPageFaults(false, true); }
-int ExecveatWithTerminatorAtPageEnd() { return ExecWithArgumentsRequiringPageFaults(true, true); }
-int ExecveWithUnreadableArguments() { return ExecWithArgumentsRequiringPageFaults(false, false, true); }
 
 int OpenAtHandlesInvalidFd()
 {
@@ -376,11 +298,6 @@ int main(int argc, char **argv)
     IF_COMMAND(FileDescriptorAccessesFullyResolvesPath);
     IF_COMMAND(ExecReportsCorrectExecutableAndArgumentsSuccess);
     IF_COMMAND(ExecReportsCorrectExecutableAndArgumentsFailed);
-    IF_COMMAND(ExecveWithArgumentsRequiringPageFaults);
-    IF_COMMAND(ExecveatWithArgumentsRequiringPageFaults);
-    IF_COMMAND(ExecveWithTerminatorAtPageEnd);
-    IF_COMMAND(ExecveatWithTerminatorAtPageEnd);
-    IF_COMMAND(ExecveWithUnreadableArguments);
     IF_COMMAND(OpenAtHandlesInvalidFd);
     IF_COMMAND(AccessLongPath);
     IF_COMMAND(ReadLinkOnDirectoryIsRead);

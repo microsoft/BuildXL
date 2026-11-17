@@ -12,7 +12,6 @@ using Xunit;
 using BuildXL.Native.IO;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using Test.BuildXL.TestUtilities;
 
 namespace Test.BuildXL.Processes
@@ -49,64 +48,7 @@ namespace Test.BuildXL.Processes
         public void ChildProcessCanBreakawayWhenConfiguredWindows(FileAccessManifest.BreakawayChildProcess breakawayChildProcess, string commandArgs)
             => ChildProcessCanBreakawayWhenConfiguredHelper(breakawayChildProcess, commandArgs);
 
-        [TheoryIfSupported(requiresEBPFEnabled: true)]
-        [InlineData(4094, false)]
-        [InlineData(4094, true)]
-        [InlineData(4095, false)]
-        [InlineData(4095, true)]
-        [InlineData(4096, false)]
-        [InlineData(4096, true)]
-        [InlineData(4097, false)]
-        [InlineData(4097, true)]
-        [InlineData(8192, false)]
-        [InlineData(8192, true)]
-        public void BreakawayWithArgumentsAtCaptureBoundary(int capturedLength, bool constrainArguments)
-        {
-            const string marker = "marker ";
-            string executable = CreateFileArtifactWithName(InfiniteWaiterToolName, TestDeploymentDir).Path.ToString(Context.PathTable);
-            // argv capture includes argv[0], a separating space and the terminating null.
-            string arguments = marker + new string('x', capturedLength - Encoding.UTF8.GetByteCount(executable) - marker.Length - 2);
-            var rule = new FileAccessManifest.BreakawayChildProcess(InfiniteWaiterToolName, constrainArguments ? "marker" : null);
-
-            ChildProcessCanBreakawayWhenConfiguredHelper(
-                rule, arguments,
-                expectedBreakaway: !constrainArguments || capturedLength < 4096,
-                expectIncompleteArguments: constrainArguments && capturedLength >= 4096);
-        }
-
-        [TheoryIfSupported(requiresEBPFEnabled: true)]
-        [InlineData(126, false)]
-        [InlineData(126, true)]
-        [InlineData(127, false)]
-        [InlineData(127, true)]
-        [InlineData(128, false)]
-        [InlineData(128, true)]
-        public void BreakawayWithTooManyArguments(int argumentCount, bool constrainArguments)
-        {
-            string arguments = string.Join(" ", Enumerable.Repeat("marker", argumentCount));
-            var rule = new FileAccessManifest.BreakawayChildProcess(InfiniteWaiterToolName, constrainArguments ? "marker" : null);
-
-            // MAX_ARGV_ARGUMENTS is 128, including argv[0]. A captured prefix must not satisfy the rule.
-            ChildProcessCanBreakawayWhenConfiguredHelper(
-                rule, arguments,
-                expectedBreakaway: !constrainArguments || argumentCount < 128,
-                expectIncompleteArguments: constrainArguments && argumentCount >= 128);
-        }
-
-        [TheoryIfSupported(requiresEBPFEnabled: true)]
-        [InlineData("prefix")]
-        [InlineData("suffix")]
-        public void BreakawayRequiresExactExecutableName(string extra)
-        {
-            string toolName = extra == "prefix" ? extra + InfiniteWaiterToolName : InfiniteWaiterToolName + extra;
-            ChildProcessCanBreakawayWhenConfiguredHelper(new FileAccessManifest.BreakawayChildProcess(toolName), expectedBreakaway: false);
-        }
-
-        private void ChildProcessCanBreakawayWhenConfiguredHelper(
-            FileAccessManifest.BreakawayChildProcess breakawayChildProcess = null,
-            string commandArgs = null,
-            bool? expectedBreakaway = null,
-            bool expectIncompleteArguments = false)
+        private void ChildProcessCanBreakawayWhenConfiguredHelper(FileAccessManifest.BreakawayChildProcess breakawayChildProcess = null, string commandArgs = null)
         {
             // Skip this test if running on .NET Framework with vstest
             // Reason: when this is the case and code coverage is turned on, launching breakaway 
@@ -139,72 +81,51 @@ namespace Test.BuildXL.Processes
             info.NestedProcessTerminationTimeout = TimeSpan.FromMilliseconds(10);
 
             var result = RunProcess(info).GetAwaiter().GetResult();
-            var spawnedChildren = RetrieveChildProcessesCreatedBySpawnExe(result).ToArray();
-            try
+            if (result.ExitCode != 0)
             {
-                if (expectIncompleteArguments)
+                XAssert.Fail(
+                    $"Process exited with exit code {result.ExitCode}." +
+                    $"\n\n=== stdout ===\n\n ${result.StandardOutput.ReadValueAsync().Result}" +
+                    $"\n\n=== stderr ===\n\n ${result.StandardError.ReadValueAsync().Result}");
+            }
+
+            if (breakawayChildProcess is null || (breakawayChildProcess.RequiredCommandLineArgsSubstring is not null
+                && commandArgs.IndexOf(breakawayChildProcess.RequiredCommandLineArgsSubstring, breakawayChildProcess.CommandLineArgsSubstringContainmentIgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) == -1))
+            {
+                // If we didn't let infinite waiter escape, we should have killed it when the job object was finalized
+                XAssert.IsTrue(result.Killed);
+                XAssert.IsNotNull(result.SurvivingChildProcesses);
+                XAssert.Contains(
+                    result.SurvivingChildProcesses.Select(p => p?.Path).Where(p => p != null).Select(p => System.IO.Path.GetFileName(p).ToUpperInvariant()),
+                    InfiniteWaiterToolName.ToUpperInvariant());
+            }
+            else
+            {
+                // If we did let it escape, then nothing should have been killed (nor tried to survive and later killed, from the job object point of view)
+                XAssert.IsFalse(result.Killed);
+                if (result.SurvivingChildProcesses != null && result.SurvivingChildProcesses.Any())
                 {
-                    XAssert.AreEqual(ExitCodes.MessageProcessingFailure, result.ExitCode);
-                    XAssert.IsTrue(m_eventListener.GetLogMessagesForEventId((int)global::BuildXL.Processes.Tracing.LogEventId.FullSandboxInternalErrorMessage)
-                        .Any(message => message.Contains("Cannot evaluate argument-constrained breakaway rule")));
-                    return;
+                    var survivors = string.Join(
+                        ", ",
+                        result.SurvivingChildProcesses.Select(p => p?.Path != null ? System.IO.Path.GetFileName(p.Path) : "<unknown>"));
+                    XAssert.Fail($"Unexpected {result.SurvivingChildProcesses.Count()} surviving child processes: {survivors}");
                 }
 
-                if (result.ExitCode != 0)
-                {
-                    XAssert.Fail(
-                        $"Process exited with exit code {result.ExitCode}." +
-                        $"\n\n=== stdout ===\n\n ${result.StandardOutput.ReadValueAsync().Result}" +
-                        $"\n\n=== stderr ===\n\n ${result.StandardError.ReadValueAsync().Result}");
-                }
+                // Let's retrieve the child process and confirm it survived
+                var infiniteWaiterInfo = RetrieveChildProcessesCreatedBySpawnExe(result).Single();
 
-                bool shouldBreakaway = expectedBreakaway ?? (breakawayChildProcess is not null
-                    && (breakawayChildProcess.RequiredCommandLineArgsSubstring is null
-                        || commandArgs.IndexOf(breakawayChildProcess.RequiredCommandLineArgsSubstring, breakawayChildProcess.CommandLineArgsSubstringContainmentIgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) != -1));
-                if (!shouldBreakaway)
-                {
-                    XAssert.IsTrue(result.Killed);
-                    XAssert.IsNotNull(result.SurvivingChildProcesses);
-                    XAssert.Contains(
-                        result.SurvivingChildProcesses.Select(p => p?.Path).Where(p => p != null).Select(p => Path.GetFileName(p).ToUpperInvariant()),
-                        InfiniteWaiterToolName.ToUpperInvariant());
-                }
-                else
-                {
-                    XAssert.IsFalse(result.Killed);
-                    if (result.SurvivingChildProcesses != null && result.SurvivingChildProcesses.Any())
-                    {
-                        var survivors = string.Join(
-                            ", ",
-                            result.SurvivingChildProcesses.Select(p => p?.Path != null ? Path.GetFileName(p.Path) : "<unknown>"));
-                        XAssert.Fail($"Unexpected {result.SurvivingChildProcesses.Count()} surviving child processes: {survivors}");
-                    }
+                // The fact that this does not throw confirms survival
+                var dummyWaiter = Process.GetProcessById(infiniteWaiterInfo.pid);
 
-                    var infiniteWaiterInfo = spawnedChildren.Single();
-                    using var dummyWaiter = Process.GetProcessById(infiniteWaiterInfo.pid);
+                try
+                {
+                    // Just being protective, let's make sure we are talking about the same process
                     XAssert.AreEqual(infiniteWaiterInfo.processName, dummyWaiter.ProcessName);
                 }
-            }
-            finally
-            {
-                // Also clean up on assertion failure, in particular if an incomplete argument capture incorrectly broke away.
-                foreach (var child in spawnedChildren)
+                finally
                 {
-                    try
-                    {
-                        using var process = Process.GetProcessById(child.pid);
-                        if (!process.HasExited && process.ProcessName == child.processName)
-                        {
-                            process.Kill();
-                        }
-                    }
-#pragma warning disable ERP022 // Cleanup is best effort; see comment below.
-                    catch (Exception)
-                    {
-                        // Best effort: the sandbox may have already terminated and reaped this child, and the pid
-                        // may even have been recycled. Never let cleanup replace a genuine assertion failure.
-                    }
-#pragma warning restore ERP022
+                    // Now let's kill the surviving process, since we don't want it to linger around unnecessarily
+                    dummyWaiter.Kill();
                 }
             }
         }

@@ -30,63 +30,6 @@ namespace Test.BuildXL.Processes
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
         }
 
-        [Theory]
-        [InlineData("ExecveWithArgumentsRequiringPageFaults")]
-        [InlineData("ExecveatWithArgumentsRequiringPageFaults")]
-        [InlineData("ExecveWithTerminatorAtPageEnd")]
-        [InlineData("ExecveatWithTerminatorAtPageEnd")]
-        public Task ExecCapturesArgumentsRequiringPageFaults(string nativeTest)
-            => VerifyExecArgumentCapture(nativeTest);
-
-        [Fact]
-        public Task UnreadableExecArgumentsReportInfrastructureError()
-            => VerifyExecArgumentCapture("ExecveWithUnreadableArguments", expectFailure: true);
-
-        private async Task VerifyExecArgumentCapture(string nativeTest, bool expectFailure = false)
-        {
-            string executable = Path.Combine(TestBinRoot, "LinuxTestProcesses", "LinuxTestProcess");
-            XAssert.IsTrue(FileUtilities.SetExecutePermissionIfNeeded(executable).Succeeded);
-            var manifest = new FileAccessManifest(
-                Context.PathTable,
-                childProcessesToBreakawayFromSandbox: new[] { new FileAccessManifest.BreakawayChildProcess("echo", "hello world") })
-            {
-                FailUnexpectedFileAccesses = false,
-                ReportFileAccesses = true,
-                ReportProcessArgs = true,
-                MonitorChildProcesses = true,
-                PipId = 1,
-            };
-            using var storage = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory);
-            var info = new SandboxedProcessInfo(
-                Context.PathTable, storage, executable, manifest, disableConHostSharing: false,
-                loggingContext: LoggingContext, useGentleKill: true)
-            {
-                Arguments = "-t " + nativeTest,
-                WorkingDirectory = TemporaryDirectory,
-                PipSemiStableHash = manifest.PipId,
-                PipDescription = nativeTest,
-                SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
-            };
-
-            using var process = await SandboxedProcessFactory.StartAsync(info, forceSandboxing: true);
-            var result = await process.GetResultAsync();
-            if (expectFailure)
-            {
-                AssertExitCode(result, ExitCodes.MessageProcessingFailure);
-                XAssert.IsTrue(m_eventListener.GetLogMessagesForEventId((int)LogEventId.FullSandboxInternalErrorMessage)
-                    .Any(message => message.Contains("Could not capture exec arguments with fault handling")));
-                AssertVerboseEventLogged(LogEventId.ProcessBreakaway, count: 0);
-            }
-            else
-            {
-                AssertExitCode(result, 0);
-                XAssert.IsNotNull(result.StandardOutput);
-                XAssert.AreEqual("hello world", (await result.StandardOutput!.ReadValueAsync()).Trim());
-                AssertVerboseEventLogged(LogEventId.ProcessBreakaway, count: 1);
-                AssertVerboseEventLogged(LogEventId.FullSandboxInternalErrorMessage, count: 0);
-            }
-        }
-
         /// <summary>
         /// Verifies that sampling performance counters counts inherited descriptors without accessing their targets.
         /// </summary>

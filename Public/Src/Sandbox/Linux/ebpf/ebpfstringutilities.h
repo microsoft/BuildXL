@@ -13,7 +13,6 @@
  */
 struct string_contains_context {
     char *needle;
-    u32 needle_start_index;
     int needle_len;
     char *haystack;
     int haystack_len;
@@ -34,8 +33,7 @@ static long string_contains_callback(u64 index, struct string_contains_context *
     }
 
     char haystack_char = ch;
-    // Bound the combined offset instead of advancing an already-offset map pointer.
-    char needle_char = ctx->needle[(ctx->needle_start_index + ctx->matched_len) & (PATH_MAX - 1)];
+    char needle_char = ctx->needle[ctx->matched_len & (PATH_MAX - 1)];
     if (!ctx->case_sensitive) {
         haystack_char = (haystack_char >= 'A' && haystack_char <= 'Z') ? haystack_char + ('a' - 'A') : haystack_char;
         needle_char = (needle_char >= 'A' && needle_char <= 'Z') ? needle_char + ('a' - 'A') : needle_char;
@@ -57,10 +55,9 @@ static long string_contains_callback(u64 index, struct string_contains_context *
 
         // Reset progress; if current char equals the first character, start progress.
         if (ctx->case_sensitive) {
-            ctx->matched_len = (ch == ctx->needle[ctx->needle_start_index & (PATH_MAX - 1)]) ? 1 : 0;
+            ctx->matched_len = (ch == ctx->needle[0]) ? 1 : 0;
         } else {
-            char first_needle = ctx->needle[ctx->needle_start_index & (PATH_MAX - 1)];
-            first_needle = (first_needle >= 'A' && first_needle <= 'Z') ? first_needle + ('a' - 'A') : first_needle;
+            char first_needle = (ctx->needle[0] >= 'A' && ctx->needle[0] <= 'Z') ? ctx->needle[0] + ('a' - 'A') : ctx->needle[0];
             char current_char = (ch >= 'A' && ch <= 'Z') ? ch + ('a' - 'A') : ch;
             ctx->matched_len = (current_char == first_needle) ? 1 : 0;
         }
@@ -71,30 +68,26 @@ static long string_contains_callback(u64 index, struct string_contains_context *
 
 /**
  * string_contains() - Check if 'needle' is contained in 'haystack'.
- * @needle: The original buffer containing the string to search for.
+ * @needle: The string to search for.
  * @needle_len: Length of the needle string.
  * @haystack: The string to search in.
  * @haystack_len: Length of the haystack string.
  * @caseInsensitive: Whether the search should be case insensitive.
- * @needle_start_index: Offset of the needle within its original buffer.
  * 
  * The search loop body is run via the callback.
  * All strings passed to this function should be size `PATH_MAX`.
  */
-__attribute__((always_inline)) static inline bool string_contains(char *needle, int needle_len, char *haystack, int haystack_len, bool case_sensitive, u32 needle_start_index) {
+bool string_contains(char *needle, int needle_len, char *haystack, int haystack_len, bool case_sensitive) {
     if (!needle
         || !haystack
         || needle_len <= 0
         || haystack_len <= 0
-        || needle_len > haystack_len
-        || needle_start_index >= PATH_MAX
-        || needle_len > PATH_MAX - needle_start_index) {
+        || needle_len > haystack_len) {
         return false;
     }
 
     struct string_contains_context ctx = {
         .needle = needle,
-        .needle_start_index = needle_start_index,
         .haystack = haystack,
         .needle_len = needle_len,
         .haystack_len = haystack_len,

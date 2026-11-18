@@ -38,6 +38,11 @@ extends:
     settings:
       networkIsolationPolicy: CFSClean,CFSClean2,CFSClean3
 
+    sdl:
+      eslint:
+        enabled: false
+        justificationForDisabling: 'Temporary: jschardet@4.1.0 requires Node >=20 (ICM 908169069)'
+
     stages:
     - stage: ExternalPR
       jobs:

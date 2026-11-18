@@ -2,6 +2,17 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20261116.7 (Release [32649650](https://dev.azure.com/mseng/Domino/_build/results?buildId=32649650&view=results))
+- [Packages] Add .NET 11 and remove .NET 8 and .NET 9 assets from BuildXL NuGet library packages.
+- [MSBuild] Add opt-in `enableAzureDevOpsTestResultsPublishing` to publish test results from the executing machine, including workers.
+- [Drop] Add the opt-in daemon-wide `DaemonSettings.useSharedConcurrencyLimiter` for association and upload batches.
+- [Distribution] Preserve full local orchestrator process slots with fewer than five available remote workers when CPU scaling is automatic.
+- [Performance] Reduce worker-selection retries when a module-affinity worker is saturated.
+- [Linux] Preserve CPU and memory sampling without I/O accounting, and treat `/lib32` and `/usr/lib32` as OS dependencies.
+- [Diagnostics] Avoid misleading service-shutdown errors during build cancellation.
+- [CloudTest SDK] Honor session-level drop dependencies before finalization when using per-job drops.
+- Various bug fixes and improvements.
+
 # 0.1.0-20261108.1 (Release [32529959](https://dev.azure.com/mseng/Domino/_build/results?buildId=32529959&view=results))
 - [Visual Studio] Remove the legacy VS extension, BuildXL MSBuild task, and project generator; `/vs` now uses the SDK-style generator, with `/vsnew` as an alias without the `New` solution-name suffix.
 - Avoid materializing `Artifact.vsoHash`-only dependencies on consuming workers.

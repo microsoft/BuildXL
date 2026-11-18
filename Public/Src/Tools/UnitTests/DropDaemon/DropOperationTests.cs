@@ -612,6 +612,44 @@ namespace Test.Tool.DropDaemon
             return result;
         }
 
+        [Theory]
+        [InlineData(true, "dir/File.txt", true)]
+        [InlineData(false, "dir/File.txt", true)]
+        [InlineData(true, "dir/File.txt", false)]
+        [InlineData(false, "dir/File.txt", false)]
+        [InlineData(true, "dir/file.txt", true)]
+        [InlineData(true, "dir/file.txt", false)]
+        public async Task BatchDeduplicationRespectsPathCase(bool caseSensitive, string secondDropPath, bool sameContent)
+        {
+            string sourcePath = Path.Combine(TestOutputDirectory, "source.txt");
+            var first = new VsoClient.AddFileItem(new DropItemForFile("drop", sourcePath, "dir/file.txt", TestFileContentInfo));
+            var secondContent = sameContent ? TestFileContentInfo : new FileContentInfo(new ContentHash(HashType.Vso0), length: 1);
+            var second = new VsoClient.AddFileItem(new DropItemForFile("drop", sourcePath, secondDropPath, secondContent));
+            var comparer = caseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
+
+            var result = VsoClient.SkipFilesWithTheSameDropPathAndContent(new List<VsoClient.AddFileItem> { first, second }, comparer);
+
+            Assert.Same(first, result[0]);
+            if (caseSensitive && secondDropPath != "dir/file.txt")
+            {
+                Assert.Equal(2, result.Length);
+                Assert.Same(second, result[1]);
+                Assert.False(second.DropResultTaskSource.Task.IsCompleted);
+            }
+            else
+            {
+                Assert.Single(result);
+                if (sameContent)
+                {
+                    Assert.Equal(AddFileResult.SkippedAsDuplicate, await second.DropResultTaskSource.Task);
+                }
+                else
+                {
+                    await Assert.ThrowsAsync<Exception>(() => second.DropResultTaskSource.Task);
+                }
+            }
+        }
+
         [Fact]
         public void TestAddBuildXLFile_UploadCallsBuildXLServer()
         {

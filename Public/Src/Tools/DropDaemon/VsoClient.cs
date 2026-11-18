@@ -411,7 +411,7 @@ namespace Tool.DropDaemon
             var batchLogGuid = Guid.NewGuid();
             try
             {
-                dedupedBatch = SkipFilesWithTheSameDropPathAndContent(batch);
+                dedupedBatch = SkipFilesWithTheSameDropPathAndContent(batch, OperatingSystemHelper.PathComparer);
                 var numSkipped = batch.Count - dedupedBatch.Length;
                 m_logger.Info($"[batch:{batchLogGuid}] Processing a deduped batch of {dedupedBatch.Length} drop files after skipping {numSkipped} files.");
 
@@ -496,9 +496,9 @@ namespace Tool.DropDaemon
             }
         }
 
-        private AddFileItem[] SkipFilesWithTheSameDropPathAndContent(List<AddFileItem> batch)
+        internal static AddFileItem[] SkipFilesWithTheSameDropPathAndContent(List<AddFileItem> batch, StringComparer pathComparer)
         {
-            var dedupedItems = new Dictionary<string, AddFileItem>(capacity: batch.Count, comparer: StringComparer.OrdinalIgnoreCase);
+            var dedupedItems = new Dictionary<string, AddFileItem>(capacity: batch.Count, comparer: pathComparer);
             var numSkipped = 0;
             var numFailed = 0;
             foreach (var item in batch)

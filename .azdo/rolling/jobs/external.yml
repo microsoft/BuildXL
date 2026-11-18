@@ -199,10 +199,6 @@ jobs:
       VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
       ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
   
-  - script: 'echo ##vso[task.logissue type=warning]Temporarily skipping Debug DetoursUnitTests after exit code -1073741515 on agent image 146.0.0.'
-    displayName: Warn about skipped Debug Detours test
-    condition: and(succeeded(), eq(variables['QualifierToBuild'], 'Debug'))
-
   # Use a rolling-specific cache so rolling builds don't share cache hits with PR builds.
   # Defensive: add a salt to make sure there are no hits from internal builds
   - task: CmdLine@2
@@ -215,7 +211,6 @@ jobs:
         -use dev
         ${{ parameters.ExternalBuildArguments }}
         /p:[Sdk.BuildXL]usePublicDepsOnlyFeed=1
-        /p:[BuildXL.Sandbox.Windows.UnitTests]skipDebugDetoursRun=1
         /q:$(QualifierToBuild)
         /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
         /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)

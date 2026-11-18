@@ -24,8 +24,6 @@ const boostCompileArgs = {
 @@public
 export interface TestArgs extends Arguments {
     runtimeContent: (File | StaticDirectory)[]
-    /** Compile the test executable without running it. */
-    skipTestRun?: boolean
 }
 
 /**
@@ -36,10 +34,6 @@ export function test(args: TestArgs): TransformerExecuteResult {
 
     // Compile the test
     const compiled = build(Object.merge<Arguments>(boostCompileArgs, args));
-
-    if (args.skipTestRun) {
-        return undefined;
-    }
 
     let runtimeDeps = args.runtimeContent;
     if (Environment.getFlag("[Sdk.BuildXL]microsoftInternal") && qualifier.configuration === "debug")

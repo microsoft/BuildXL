@@ -51,7 +51,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
         /// <nodoc />
         public static string[] KnownResolvers { get; } =
-            {SourceResolverKind, DScriptResolverKind, NugetResolverKind, DefaultSourceResolverKind, DownloadResolverKind, MsBuildResolverKind, NinjaResolverKind, YarnResolverKind, LageResolverKind, CustomJavaScriptResolverKind, NxResolverKind, DirectGraphResolverKind};
+            {SourceResolverKind, DScriptResolverKind, NugetResolverKind, DefaultSourceResolverKind, DownloadResolverKind, MsBuildResolverKind, NinjaResolverKind, RushResolverKind, YarnResolverKind, LageResolverKind, CustomJavaScriptResolverKind, NxResolverKind, DirectGraphResolverKind};
 
         /// <summary>
         /// Returns whether a given string is a valid resolver kind.

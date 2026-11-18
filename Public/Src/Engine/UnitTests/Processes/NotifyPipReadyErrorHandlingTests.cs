@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Processes;
 using BuildXL.Processes.Tracing;
@@ -26,6 +27,7 @@ namespace Test.BuildXL.Processes
         [FactIfSupported(requiresEBPFEnabled: true)]
         public void PipReadyExceptionCausesInfraError()
         {
+            using var sandboxConnection = new FailingNotifyPipReadySandboxConnection();
             var fileAccessManifest = new FileAccessManifest(Context.PathTable)
             {
                 FailUnexpectedFileAccesses = false,
@@ -47,7 +49,7 @@ namespace Test.BuildXL.Processes
                     WorkingDirectory = TemporaryDirectory,
                     PipSemiStableHash = 0x1234,
                     PipDescription = "TestPipReadyFailure",
-                    SandboxConnection = new FailingNotifyPipReadySandboxConnection(),
+                    SandboxConnection = sandboxConnection,
                 };
 
             using var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
@@ -56,10 +58,16 @@ namespace Test.BuildXL.Processes
             // The process should be marked as having sandbox failures due to the exception in NotifyPipReady
             XAssert.AreEqual(ExitCodes.MessageProcessingFailure, result.ExitCode, 
                 $"Expected MessageProcessingFailure exit code, got {result.ExitCode}");
+            XAssert.IsTrue(sandboxConnection.PipFinishedResult == false,
+                "Finalizing an unregistered pip must report a failure.");
 
             // Verify that sandbox internal error was logged (full message and error message)
             AssertVerboseEventLogged(LogEventId.FullSandboxInternalErrorMessage);
             AssertVerboseEventLogged(LogEventId.SandboxInternalError);
+            XAssert.IsTrue(m_eventListener.GetLogMessagesForEventId((int)LogEventId.FullSandboxInternalErrorMessage)
+                .Any(message => message.Contains("Simulated EBPF daemon initialization failure")));
+            XAssert.IsTrue(m_eventListener.GetLogMessagesForEventId((int)LogEventId.LogDetoursDebugMessage)
+                .Any(message => message.Contains($"Pip with id {fileAccessManifest.PipId} was not found in the sandbox connection")));
         }
 
         /// <summary>
@@ -67,8 +75,11 @@ namespace Test.BuildXL.Processes
         /// </summary>
         private sealed class FailingNotifyPipReadySandboxConnection : ISandboxConnection
         {
+            private readonly SandboxConnectionLinuxEBPF m_ebpfConnection = new(isInTestMode: true);
+
             public SandboxKind Kind => SandboxKind.LinuxDetours;
             public bool IsInTestMode => true;
+            public bool? PipFinishedResult { get; private set; }
 
             public void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion)
             {
@@ -80,9 +91,14 @@ namespace Test.BuildXL.Processes
             public IEnumerable<(string, string)> AdditionalEnvVarsToSet(SandboxedProcessInfo info, string uniqueName) => Array.Empty<(string, string)>();
             public void OverrideProcessStartInfo(ProcessStartInfo processStartInfo) { }
             public bool NotifyRootProcessExited(long pipId, SandboxedProcessUnix process) => false;
-            public bool NotifyPipFinished(long pipId, SandboxedProcessUnix process) => true;
+            public bool NotifyPipFinished(long pipId, SandboxedProcessUnix process)
+            {
+                bool result = m_ebpfConnection.NotifyPipFinished(pipId, process);
+                PipFinishedResult = result;
+                return result;
+            }
             public void NotifyPipProcessTerminated(long pipId, int processId) { }
-            public void Dispose() { }
+            public void Dispose() => m_ebpfConnection.Dispose();
         }
     }
 }

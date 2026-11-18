@@ -917,8 +917,12 @@ namespace BuildXL.Processes
         {
             // Dispose the process info for this pip. This will also dispose the write handle to the FIFO and 
             // delete the FIFO and manifest files.
-            var success = m_pipProcesses.TryRemove(pipId, out var info);
-            Contract.Assert(success, $"Pip with id {pipId} was not found in the sandbox connection");
+            if (!m_pipProcesses.TryRemove(pipId, out var info))
+            {
+                process.LogProcessState($"[WARNING]: Pip with id {pipId} was not found in the sandbox connection");
+                return false;
+            }
+
             info.Dispose();
 
             return true;

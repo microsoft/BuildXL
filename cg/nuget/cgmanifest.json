@@ -1086,7 +1086,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ComponentDetection.Contracts",
-          "Version": "8.0.8"
+          "Version": "9.1.0"
         }
       }
     },
@@ -2238,7 +2238,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.Governance.ComponentDetection",
-          "Version": "2026.10.30.1903"
+          "Version": "2026.11.11.1845"
         }
       }
     },

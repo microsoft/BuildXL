@@ -100,5 +100,43 @@ namespace Test.BuildXL.Scheduler
             XAssert.AreEqual(120 * 1024, worker.InitialAvailableRamMb.Value);
             XAssert.AreEqual((int)Math.Round(120.0 * 1024 * 0.5), worker.RamSemaphoreLimitMb);
         }
+
+        [Fact]
+        public void DynamicRamGrowthExpandsSemaphoreWithoutAllowingShrink()
+        {
+            using var worker = CreateWorker(configuredMultiplier: 0.9);
+
+            worker.UpdatePerfInfo(
+                LoggingContext,
+                currentTotalRamMb: Ram100Gb,
+                machineAvailableRamMb: 80 * 1024,
+                engineRamMb: 10 * 1024,
+                engineCpuUsage: null,
+                machineCpuUsage: 0);
+
+            int initialSemaphoreLimitMb = worker.RamSemaphoreLimitMb;
+
+            worker.UpdatePerfInfo(
+                LoggingContext,
+                currentTotalRamMb: 120 * 1024,
+                machineAvailableRamMb: 100 * 1024,
+                engineRamMb: 10 * 1024,
+                engineCpuUsage: null,
+                machineCpuUsage: 0);
+
+            XAssert.AreEqual(120 * 1024, worker.TotalRamMb.Value);
+            XAssert.AreEqual(initialSemaphoreLimitMb + (20 * 1024), worker.RamSemaphoreLimitMb);
+
+            worker.UpdatePerfInfo(
+                LoggingContext,
+                currentTotalRamMb: 110 * 1024,
+                machineAvailableRamMb: 90 * 1024,
+                engineRamMb: 10 * 1024,
+                engineCpuUsage: null,
+                machineCpuUsage: 0);
+
+            XAssert.AreEqual(120 * 1024, worker.TotalRamMb.Value);
+            XAssert.AreEqual(initialSemaphoreLimitMb + (20 * 1024), worker.RamSemaphoreLimitMb);
+        }
     }
 }

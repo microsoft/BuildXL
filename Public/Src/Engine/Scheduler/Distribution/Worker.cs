@@ -931,11 +931,11 @@ namespace BuildXL.Scheduler.Distribution
             {
                 TotalRamMb = currentTotalRamMb;
             }
-            else if (currentTotalRamMb.HasValue && TotalRamMb > currentTotalRamMb)
+            else if (currentTotalRamMb.HasValue && TotalRamMb < currentTotalRamMb)
             {
                 // Dynamic RAM system is detected.
                 // We need to update the total RAM value and the semaphore limit only if the ram grows.
-                int addedRamMb = TotalRamMb.Value - currentTotalRamMb.Value;
+                int addedRamMb = currentTotalRamMb.Value - TotalRamMb.Value;
                 TotalRamMb = currentTotalRamMb;
 
                 if (RamSemaphoreLimitMb != 0)

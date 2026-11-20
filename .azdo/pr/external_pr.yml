@@ -62,7 +62,7 @@ extends:
             /logOutput:FullOutputOnWarningOrError
             /traceInfo:prvalidation=Public
             /scrubDirectory:Out\objects
-            /logsDirectory:$(BuildXL.LogsDirectory.LKG)
+            /logsDirectory:$(BuildXL.LogsDirectory.LKG)\Logs
             /cachemiss:BxlPublicValidation
           displayName: BuildXL -Deploy Dev
           env:
@@ -76,14 +76,19 @@ extends:
             # The following two variables need to be set explicitly because we are using the ADO build runner outside of the 1ESPT buildxl workflow
             SYSTEM_ACCESSTOKEN: $(System.AccessToken)
             ADOBUILDRUNNERINVOCATIONKEY: "ExternalPR_PublicValidation_DeployDev"
+            # BuildXL asks the agent to upload its logs as this artifact once all log files are closed.
+            BUILDXL_LOGS_ARTIFACT_NAME: BuildXL -Deploy Dev logs
         
-        - task: 1ES.PublishPipelineArtifact@1
-          displayName: Upload -Deploy Dev logs
-          condition: always()
-          continueOnError: True
-          inputs:
-            path: $(BuildXL.LogsDirectory.LKG)
+        - template: /.azdo/common/check-logs-artifact.yml@self
+          parameters:
             artifactName: BuildXL -Deploy Dev logs
+            logsDirectory: $(BuildXL.LogsDirectory.LKG)
+
+        - powershell: Write-Host "##vso[artifact.upload containerfolder=BuildXL -Deploy Dev logs;artifactname=BuildXL -Deploy Dev logs]$(BuildXL.LogsDirectory.LKG)"
+          displayName: Upload -Deploy Dev logs
+          # Fallback when BuildXL did not upload all its logs. It uploads to the same artifact, at the same paths.
+          condition: and(always(), ne(variables['BuildXLLogsArtifactUploaded'], 'BuildXL -Deploy Dev logs'))
+          continueOnError: True
 
         # Step 2. Build microsoftInternal=0 using the built bits
         - template: /.azdo/common/set-msvc-version.yml@self
@@ -101,18 +106,25 @@ extends:
               /processRetries:3
               /traceInfo:prvalidation=PublicLKG
               /p:xunitSemaphoreCount=12
-              /logsDirectory:$(BuildXL.LogsDirectory)
+              /logsDirectory:$(BuildXL.LogsDirectory)\Logs
               /scrubDirectory:Out\objects
               /pipTimeoutMultiplier:2
           env:
             # The following two variables need to be set explicitly because we are using the ADO build runner outside of the 1ESPT buildxl workflow
             SYSTEM_ACCESSTOKEN: $(System.AccessToken)
             ADOBUILDRUNNERINVOCATIONKEY: "ExternalPR_PublicValidation_UseDev"
+            # BuildXL asks the agent to upload its logs as this artifact once all log files are closed.
+            BUILDXL_LOGS_ARTIFACT_NAME: BuildXL -Use Dev logs
             # Feed auth for usePublicDepsOnlyFeed; set by /.azdo/common/set-variable-pats.yml earlier in the job.
             1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
             1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64)
             VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
             ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
+
+        - template: /.azdo/common/check-logs-artifact.yml@self
+          parameters:
+            artifactName: BuildXL -Use Dev logs
+            logsDirectory: $(BuildXL.LogsDirectory)
 
         # Step 3. Check to see if there are any unstaged files in the build and fail the build.
         #         We avoid checking cg/nuget/cgmanifest.json and .sarif files, which we expect to change in the external build
@@ -139,10 +151,8 @@ extends:
           parameters:
             logsDirectory: $(BuildXL.LogsDirectory)
 
-        - task: 1ES.PublishPipelineArtifact@1
+        - powershell: Write-Host "##vso[artifact.upload containerfolder=BuildXL -Use Dev logs;artifactname=BuildXL -Use Dev logs]$(BuildXL.LogsDirectory)"
           displayName: Upload -Use Dev logs
-          condition: always()
+          # Fallback when BuildXL did not upload all its logs. It uploads to the same artifact, at the same paths.
+          condition: and(always(), ne(variables['BuildXLLogsArtifactUploaded'], 'BuildXL -Use Dev logs'))
           continueOnError: True
-          inputs:
-            targetPath: $(BuildXL.LogsDirectory)
-            artifactName: BuildXL -Use Dev logs

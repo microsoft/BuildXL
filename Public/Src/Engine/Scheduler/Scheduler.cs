@@ -7618,7 +7618,16 @@ namespace BuildXL.Scheduler
                 try
                 {
                     FileUtilities.CreateDirectoryWithRetry(Path.GetDirectoryName(executionLogPathString));
-                    executionLogStream = File.Open(executionLogPathString, FileMode.Create, FileAccess.Write, FileShare.Read | FileShare.Delete);
+                    if (LogsArtifact.Name != null)
+                    {
+                        // On Azure DevOps, split the execution log so completed parts upload while the build runs.
+                        long chunkSizeMb = long.TryParse(Environment.GetEnvironmentVariable("BUILDXL_XLG_CHUNK_SIZE_MB"), out var mb) && mb > 0 ? mb : 1024;
+                        executionLogStream = new ChunkedExecutionLogStream(executionLogPathString, chunkSizeMb * 1024 * 1024);
+                    }
+                    else
+                    {
+                        executionLogStream = File.Open(executionLogPathString, FileMode.Create, FileAccess.Write, FileShare.Read | FileShare.Delete);
+                    }
 
                     if (configuration.Engine.CompressExecutionLog)
                     {

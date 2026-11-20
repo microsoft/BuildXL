@@ -1,0 +1,35 @@
+parameters:
+- name: artifactName
+  type: string
+- name: logsDirectory
+  type: string
+
+steps:
+# BuildXL requests the upload of its logs to this artifact and then sets BuildXLLogsArtifactUploaded, so the fallback upload is
+# skipped. The agent finishes those uploads when the BuildXL step ends, and fails the step if one of them fails. So when the job
+# failed, clear the variable and set it back only if the artifact holds every file of the logs directory; if anything goes wrong
+# (e.g. a REST call fails), the variable stays cleared and the fallback runs.
+- powershell: |
+    $artifactName = '${{ parameters.artifactName }}'
+    Write-Host "##vso[task.setvariable variable=BuildXLLogsArtifactUploaded]"
+
+    $headers = @{ Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN" }
+    $artifact = (Invoke-RestMethod -Headers $headers "$(System.CollectionUri)$(System.TeamProjectId)/_apis/build/builds/$(Build.BuildId)/artifacts?api-version=7.1").value |
+        Where-Object name -eq $artifactName
+    $uploaded = 0
+    if ($artifact) {
+        $containerId = ($artifact.resource.data -split '/')[1]
+        $items = (Invoke-RestMethod -Headers $headers "$(System.CollectionUri)_apis/resources/Containers/$($containerId)?itemPath=$([uri]::EscapeDataString($artifactName))&api-version=5.0-preview").value
+        $uploaded = @($items | Where-Object itemType -eq 'file').Count
+    }
+
+    $local = @(Get-ChildItem -Path '${{ parameters.logsDirectory }}' -Recurse -File -ErrorAction SilentlyContinue).Count
+    Write-Host "Artifact '$artifactName' has $uploaded files; the logs directory has $local."
+    if ($artifact -and $uploaded -ge $local) {
+        Write-Host "##vso[task.setvariable variable=BuildXLLogsArtifactUploaded]$artifactName"
+    }
+  displayName: Check BuildXL logs artifact
+  condition: failed()
+  continueOnError: true
+  env:
+    SYSTEM_ACCESSTOKEN: $(System.AccessToken)

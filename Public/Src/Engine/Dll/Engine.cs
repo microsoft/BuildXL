@@ -58,6 +58,7 @@ using static BuildXL.Utilities.Core.BuildParameters;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using IOneBuildModuleConfiguration = BuildXL.Utilities.Configuration.IModuleConfiguration;
 using Logger = BuildXL.Engine.Tracing.Logger;
+using LogsArtifact = BuildXL.Scheduler.Tracing.LogsArtifact;
 
 namespace BuildXL.Engine
 {
@@ -3790,10 +3791,21 @@ namespace BuildXL.Engine
         {
             if (Configuration.Logging.LogExecution)
             {
-                await EngineSchedule.DuplicateScheduleFiles(
-                    loggingContext,
-                    serializer,
-                    Configuration.Logging.EngineCacheLogDirectory.ToString(Context.PathTable));
+                string logsDirectory = Configuration.Logging.LogsDirectory.ToString(Context.PathTable);
+
+                // When logs are uploaded to Azure DevOps, put the graph files in a Graph folder next to the logs directory and upload
+                // them now: they do not change for the rest of the build.
+                string destinationFolder = LogsArtifact.Name != null
+                    ? LogsArtifact.GetEarlyUploadFolder(logsDirectory, "Graph")
+                    : Configuration.Logging.EngineCacheLogDirectory.ToString(Context.PathTable);
+
+                Directory.CreateDirectory(destinationFolder);
+                await EngineSchedule.DuplicateScheduleFiles(loggingContext, serializer, destinationFolder);
+
+                if (LogsArtifact.Name != null)
+                {
+                    LogsArtifact.UploadEarly(destinationFolder, Directory.EnumerateFiles(destinationFolder), "Graph");
+                }
             }
         }
 

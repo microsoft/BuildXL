@@ -42,6 +42,7 @@ using BuildXL.ViewModel;
 using AppLogEventId = BuildXL.App.Tracing.LogEventId;
 using EngineLogEventId = BuildXL.Engine.Tracing.LogEventId;
 using Logger = BuildXL.App.Tracing.Logger;
+using LogsArtifact = BuildXL.Scheduler.Tracing.LogsArtifact;
 using PipsLogEventId = BuildXL.Pips.Tracing.LogEventId;
 using PluginLogEventId = BuildXL.Plugin.Tracing.LogEventId;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
@@ -414,6 +415,34 @@ namespace BuildXL
 
         /// <nodoc />
         public AppResult Run(EngineState engineState = null)
+        {
+            // Logs are uploaded through ##vso commands on stdout, which reaches the Azure DevOps agent only when bxl does not run
+            // in server mode. Set on every run because a server process is reused across builds.
+            string logsArtifactName = Environment.GetEnvironmentVariable("BUILDXL_LOGS_ARTIFACT_NAME");
+            bool uploadLogs = !string.IsNullOrEmpty(logsArtifactName)
+                && m_appHost is SingleInstanceHost
+                && m_configuration.Distribution.BuildRole != DistributedBuildRoles.Worker;
+            PathTranslator.CreateIfEnabled(m_configuration.Logging.SubstTarget, m_configuration.Logging.SubstSource, m_pathTable, out var translator);
+            LogsArtifact.Initialize(uploadLogs ? logsArtifactName : null, p => translator?.Translate(p) ?? p);
+
+            var result = RunWithAppLoggers(engineState);
+
+            // The log files are closed once the app loggers are disposed, so they can be uploaded now.
+            if (uploadLogs && m_configuration.Logging.LogsDirectory.IsValid)
+            {
+                // Write straight to stdout: the console was disposed together with the app loggers and would drop these lines.
+                if (LogsArtifact.UploadRemaining(m_configuration.Logging.LogsDirectory.ToString(m_pathTable)))
+                {
+                    Console.Out.WriteLine($"##vso[task.setvariable variable=BuildXLLogsArtifactUploaded]{logsArtifactName}");
+                }
+
+                Console.Out.Flush();
+            }
+
+            return result;
+        }
+
+        private AppResult RunWithAppLoggers(EngineState engineState)
         {
             if (Environment.GetEnvironmentVariable("BuildXLDebugOnStart") == "1" || m_initialConfiguration.LaunchDebugger)
             {

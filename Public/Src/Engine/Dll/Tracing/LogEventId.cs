@@ -451,6 +451,7 @@ namespace BuildXL.Engine.Tracing
         DynamicGraphConfigurationOptionDisabled = 7162,
         EBPFBpfFileSystemSudoPrompt = 7163,
         CannotMountEBPFBpfFileSystem = 7164,
+        DistributionWorkerStoppedBeforeAttachment = 7165,
 
         // max 7200
     }

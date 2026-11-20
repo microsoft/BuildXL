@@ -225,8 +225,10 @@ namespace BuildXL.Utilities.Configuration
         /// In builds with MaterializeOutputs steps, which we fire-and-forget, it is desirable to wait a minimum period for worker attachment
         /// because the scheduler might be marked as complete ("except for materialize outputs") fast enough so that workers
         /// still aren't attached - in this case we would fail the worker in the metabuild stage of the build, losing it for the product build.
-        /// This setting only impacts metabuild-style builds, where success in this build is required for the worker to participate in subsequent builds
-        /// so we don't want to fail any worker even if it won't do any work (except for materializations).
+        /// The orchestrator only extends the build to wait for this period in metabuild-style builds, where success in this build is required for the worker
+        /// to participate in subsequent builds so we don't want to fail any worker even if it won't do any work (except for materializations).
+        /// In all distributed builds, a worker that has not attached by the time it is stopped is only considered problematic
+        /// if it was given at least this period to attach: otherwise the build simply finished before the worker was needed.
         /// Defaults to 3 minutes 
         /// </remarks>
         public static readonly Setting<TimeSpan> MinimumWaitForRemoteWorker = CreateSetting("BuildXLMinimumWaitForRemoteWorkerMin", value => ParseTimeSpan(value, t => TimeSpan.FromMinutes(t)) ?? TimeSpan.FromMinutes(3));

@@ -528,6 +528,17 @@ namespace BuildXL.Engine.Tracing
             string caller);
 
         [GeneratedEvent(
+            (ushort)LogEventId.DistributionWorkerStoppedBeforeAttachment,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "Worker {name} was stopped before it finished attaching because the build had already completed. This is normal for very fast builds.")]
+        public abstract void DistributionWorkerStoppedBeforeAttachment(
+            LoggingContext context,
+            string name);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionCallWorkerCodeException,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

@@ -97,6 +97,12 @@ namespace BuildXL.Engine.Distribution
         private readonly object m_hashListLock = new object();
         private Task m_attachOrSchedulerCompletionTask;
 
+        /// <summary>
+        /// Completes once <see cref="EngineEnvironmentSettings.MinimumWaitForRemoteWorker"/> has elapsed since the worker was initialized.
+        /// A worker that has not attached when it is stopped is only considered problematic after this period.
+        /// </summary>
+        private Task m_minimumAttachmentWait;
+
         private int m_status;
         public override WorkerNodeStatus Status => (WorkerNodeStatus)Volatile.Read(ref m_status);
 
@@ -456,10 +462,12 @@ namespace BuildXL.Engine.Distribution
             // For xlg/non-manifest events, we wait for the messages to be added to the queue before we send an ack to the worker. 
             m_executionLogReader = new WorkerExecutionLogReader(m_appLoggingContext, executionLogTarget, Environment, Name, asyncProcessing: true);
 
+            m_minimumAttachmentWait = Task.Delay(EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value);
+
             // If there is a minimum waiting time to wait for attachment, we don't want to signal the scheduler is completed until this waiting period is over.
             // Minimum waiting time is only for builds where we replicate outputs to workers such as metabuilds.
             // This is to prevent workers from getting dropped from very fast metabuilds taking less than 1 minute. 
-            var schedulerCompletionWithExtraWait = Task.WhenAll(Task.Delay(config.Distribution.ReplicateOutputsToWorkers() ? (int)EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value.TotalMilliseconds : 0),
+            var schedulerCompletionWithExtraWait = Task.WhenAll(config.Distribution.ReplicateOutputsToWorkers() ? m_minimumAttachmentWait : Task.CompletedTask,
                                                                                     schedulerCompletion);
 
             // This task is awaited for two purposes: (i) before sending build requests to the worker, and (ii) before stopping the worker.
@@ -689,7 +697,16 @@ namespace BuildXL.Engine.Distribution
 
             if (!EverAvailable && !IsEarlyReleaseInitiated)
             {
-                m_infraFailure = $"{Name} failed to connect to the orchestrator within the timeout ({EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value.TotalMinutes} minutes), typically due to a delay between orchestrator startup and worker bxl process initiation. Such delays can be expected in certain multi-stage distributed builds.";
+                if (m_minimumAttachmentWait.IsCompleted)
+                {
+                    m_infraFailure = $"{Name} failed to connect to the orchestrator within the timeout ({EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value.TotalMinutes} minutes), typically due to a delay between orchestrator startup and worker bxl process initiation. Such delays can be expected in certain multi-stage distributed builds.";
+                }
+                else if (m_infraFailure == null)
+                {
+                    // The work finished before the worker had a fair chance to attach (e.g., a fully cached build):
+                    // the worker was simply not needed, so it is not a failure.
+                    Logger.Log.DistributionWorkerStoppedBeforeAttachment(m_appLoggingContext, Name);
+                }
             }
 
             WorkerExitResponse workerExitResponse = null;

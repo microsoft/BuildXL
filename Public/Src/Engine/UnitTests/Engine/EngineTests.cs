@@ -684,6 +684,57 @@ const y = Debug.writeLine(T.testValue); ";
         }
 
         /// <summary>
+        /// A build can finish (e.g., with all cache hits) before its remote workers had a chance to attach. Those workers were not needed,
+        /// so they must not be reported as problematic: that would fail a successful build with an internal error once enough of them are counted.
+        /// Workers that did not attach within the minimum attachment wait are still reported.
+        /// </summary>
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void UnattachedWorkersAreOnlyProblematicAfterMinimumAttachmentWait(bool minimumAttachmentWaitElapsed)
+        {
+            // The build is terminated due to problematic workers only when there are at least 4 remote workers
+            const int RemoteWorkerCount = 4;
+
+            SetupTestData();
+            ConfigureInMemoryCache(new TestCache());
+
+            Configuration.Distribution.BuildRole = DistributedBuildRoles.Orchestrator;
+            // No worker ever says hello to the orchestrator, so none of them attaches
+            Configuration.Distribution.DynamicBuildWorkerSlots = RemoteWorkerCount;
+            Configuration.Distribution.GrpcEncryptionEnabled = false;
+            Configuration.Distribution.EarlyWorkerRelease = false;
+            // Finish the build as soon as the pips are done instead of waiting for workers to attach
+            Configuration.Distribution.LowWorkersWarningThreshold = 1;
+
+            var minimumAttachmentWait = EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value;
+            try
+            {
+                if (minimumAttachmentWaitElapsed)
+                {
+                    EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value = TimeSpan.Zero;
+                }
+
+                RunEngine(expectSuccess: !minimumAttachmentWaitElapsed);
+            }
+            finally
+            {
+                EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value = minimumAttachmentWait;
+            }
+
+            if (minimumAttachmentWaitElapsed)
+            {
+                AssertWarningEventLogged(SchedulerLogEventId.ProblematicWorkerExit, RemoteWorkerCount);
+                AssertErrorEventLogged(SchedulerLogEventId.HighCountProblematicWorkers);
+                AssertErrorEventLogged(SchedulerLogEventId.TerminatingDueToInternalError);
+            }
+            else
+            {
+                AssertVerboseEventLogged(LogEventId.DistributionWorkerStoppedBeforeAttachment, RemoteWorkerCount);
+            }
+        }
+
+        /// <summary>
         /// Test the environment variable case sensitivity in graph cache
         /// On windows, a value contains path is case insensitive.
         /// On Linux, a value is always case sensitive.

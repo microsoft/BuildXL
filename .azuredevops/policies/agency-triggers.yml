@@ -11,6 +11,8 @@ configuration:
     - eventTypes:
         - "PullRequestPublished"
         - "PullRequestCommitPublished"
+      identity:
+          clientId: "18f20561-89f1-4aba-99ad-c46ba5d9a97b"
       job:
           agent:
               name: "agency-code-review"

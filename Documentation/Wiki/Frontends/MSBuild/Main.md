@@ -1,11 +1,11 @@
-# Working with MSBuild frontend
+# Working with the MSBuild resolver
 
-BuildXL provides native support for building MSBuild-based repository using its MSBuild frontend. This frontend leverages the MSBuild
-static graph API to get a build graph that can be translated into BuildXL pip graph. Each node in the pip graph executes MSBuild on
-a project instance, and the execution result is assigned a symbol that can be referred to by other frontends. This reference
-allows, for example, a process declared in a DScript frontend to consume the execution result of a MSBuild project instance.
+The MSBuild resolver is a supported BuildXL frontend for building MSBuild-based repositories. It uses the MSBuild static graph API
+to create a project graph that BuildXL translates into a pip graph. Each pip executes MSBuild on a project instance, and the execution
+result is assigned a symbol that other frontends can reference. For example, a process declared in a DScript frontend can consume
+the execution result of an MSBuild project instance.
 
-Currently MSBuild frontend has only been tested on Windows.
+The MSBuild resolver is supported on Windows and Linux. It is currently unavailable on macOS.
 
 ## The basics
 
@@ -53,7 +53,7 @@ is determined using [Microsoft build locator](https://github.com/Microsoft/MSBui
 *initialTargets*. This property specifies targets to execute on the entry point project. If not provided, the default targets are used.
 
 *environment*. This property specifies the environment variables available for building all projects. 
-If it is undefined, then the current process' enviroment is made available for building all projects.
+If it is undefined, then the current process' environment is made available for building all projects.
 It is always advised to explicitly specify these environment variables to avoid cache misses due to churn of environment variable values.
 
 *globalProperties*. Similar to building with MSBuild, the MSBuild frontend of BuildXL allows for specifying additional global properties.
@@ -69,11 +69,13 @@ Azure Pipelines agent on that machine must capture the console output. Other Azu
 This option affects the process fingerprint. Publishing commands are not replayed on cache hits.
 
 *enableTransitiveProjectReferences*. This option allows projects to access the transitive closure of its references. Enabling this option
-can affect the build performance particularly in the distributed builds where all possible inputs must be available before the project is
-executed. Unfortunately, many existing MSBuild repositories rely on this assumption.
+can affect build performance, particularly in distributed builds where all possible inputs must be available before a project is
+executed. Some MSBuild repositories rely on this behavior.
 
-*useLegacyProjectIsolation*. MSBuild projects are not treated as first class citizens and MSBuild is instructed to build each project using the legacy mode, which relies on SDK conventions to respect the boundaries of a project and not build dependencies. To avoid overbuilds, when using legacy
-project isolation, BuildXL will internally perform project merging of inner and outer projects. See [here](https://github.com/microsoft/msbuild/blob/master/src/Build/Graph/ProjectInterpretation.cs) for more details.
+*useLegacyProjectIsolation*. When enabled, MSBuild builds each project in legacy mode, relying on SDK conventions to respect project
+boundaries and avoid building dependencies. To avoid overbuilds, BuildXL merges inner and outer projects when using legacy project
+isolation. See [ProjectInterpretation.cs](https://github.com/dotnet/msbuild/blob/main/src/Build/Graph/ProjectInterpretation.cs)
+for more details.
 
 *allowProjectsToNotSpecifyTargetProtocol*. This option allows projects to not specify their target protocol. In such a case default targets will be
 used as heuristics.
@@ -103,15 +105,15 @@ config({
 
 ## Design and implementation
 
-MSBuild frontend relies on the [MSBuild static graph API](https://github.com/dotnet/msbuild/blob/main/documentation/specs/static-graph.md) to create
-a project graph. MSBuild frontend launches a so-called graph builder tool during the [graph construction phase](../../CoreConcepts.md) of BuildXL.
-to build a MSBuild project graph, as shown below:
+The MSBuild frontend relies on the [MSBuild static graph API](https://github.com/dotnet/msbuild/blob/main/documentation/specs/static-graph.md)
+to create a project graph. During the [graph construction phase](../../CoreConcepts.md), BuildXL launches a graph-builder tool to
+build the MSBuild project graph, as shown below:
 
 ![MSBuild frontend](Images/MSBuildFrontEnd.png)
 
-The graph builder tool is launched in a sandbox so that BuildXL can monitor the file accesses and use those accesses for caching, i.e., 
-BuildXL does not need to construct MSBuild graph if nothing has changed. Once the project graph is obtained, BuildXL will turn it into
-BuildXL pip graph. The [execution phase](../../CoreConcepts.md) of BuildXL will execute each of the pip in the graph according to the dependency order.
+The graph-builder tool runs in a sandbox so BuildXL can monitor file accesses and use them for caching. BuildXL does not need to
+reconstruct the MSBuild graph when nothing has changed. After graph construction, BuildXL translates the project graph into a pip
+graph whose pips execute in dependency order during the [execution phase](../../CoreConcepts.md).
 
 ## Examples
 

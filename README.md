@@ -13,7 +13,7 @@ BuildXL accelerates multiple build languages, including:
 * [Ninja (CMake)](Documentation/Wiki/Frontends/Ninja.md)
 * Its own internal scripting language, DScript, an experimental TypeScript based format used as an intermediate language by a small number of teams inside Microsoft
 
-BuildXL has a command-line interface. There are currently no plans to integrate it into Visual Studio. The project is open source in the spirit of transparency of our engineering system. You may find our technology useful if you face similar issues of scale. Note that BuildXL is not intended as a replacement for MSBuild or to indicate any future direction of build languages from Microsoft.
+BuildXL has a command-line interface. There are currently no plans to integrate it into Visual Studio. The project is open source in the spirit of transparency of our engineering system. You may find our technology useful if you face similar issues of scale. BuildXL integrates with MSBuild to schedule MSBuild project builds with BuildXL's caching and distribution; it does not replace MSBuild.
 
 OS compatibility:
 * Windows 10+

@@ -1028,6 +1028,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/grpcBuildRequestSizeMB:<number>",
+                Strings.HelpText_DisplayHelp_GrpcBuildRequestSizeMB,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/grpcCertificateSubjectName:<certificate subject name>",
                 Strings.HelpText_DisplayHelp_GrpcCertificateSubjectName,
                 HelpLevel.Verbose);

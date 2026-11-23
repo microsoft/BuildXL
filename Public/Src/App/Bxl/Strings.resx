@@ -426,6 +426,9 @@
   <data name="HelpText_DisplayHelp_DistributedBuildServicePort" xml:space="preserve">
     <value>Specifies the TCP port of a locally running distributed build service (orchestrator or worker) which peers can connect to during a distributed build. This argument is required for executing a distributed build.  (short form: /dbsp)</value>
   </data>
+  <data name="HelpText_DisplayHelp_GrpcBuildRequestSizeMB" xml:space="preserve">
+    <value>Specifies the target size, in MB, of a single gRPC message that carries pip build requests from the orchestrator to a remote worker. Once a message reaches this size, the remaining pips that carry input hashes are sent in the next message. A value of 0 disables this limit. Defaults to 4.</value>
+  </data>
   <data name="HelpText_DisplayHelp_GrpcCertificateSubjectName" xml:space="preserve">
     <value>Specifies the certificate subject name used to encrypt gRPC communication between distributed build engines. Takes precedence over the GrpcCertificateSubjectName / CB_BUILDUSERCERTIFICATE_NAME environment variables.</value>
   </data>

@@ -111,6 +111,21 @@ namespace BuildXL.Utilities.Configuration
         int MaxRetryLimitOnRemoteWorkers { get; }
 
         /// <summary>
+        /// The target size, in MB (1 MB = 1024 * 1024 bytes), of a single gRPC message that carries pip build requests from the orchestrator to a remote worker.
+        /// </summary>
+        /// <remarks>
+        /// A build request message is limited both by the number of pips (<see cref="EngineEnvironmentSettings.MaxMessagesPerBatch"/>) and by this size.
+        /// The message size is dominated by the input hashes of the pips, so the number of pips alone does not bound it. Once the
+        /// pips already added to a message reach this size, the remaining pips whose step carries input hashes are deferred
+        /// to the next message; pips whose step does not carry hashes are never deferred. Keeping messages bounded ensures
+        /// that serializing, transferring and processing them on the worker completes well within the gRPC call deadline.
+        /// This is a soft limit: the first pip of a message is always sent, and the message can slightly exceed this size.
+        /// <see cref="EngineEnvironmentSettings.MaxBuildRequestSizeBytes"/> remains the hard limit. A value of 0 disables this limit.
+        /// Defaults to 4 MB.
+        /// </remarks>
+        int GrpcBuildRequestSizeMB { get; }
+
+        /// <summary>
         /// Verify that source files that are statically declared pip inputs match between an orchestrator and a worker.
         /// </summary>
         bool VerifySourceFilesOnWorkers { get; }

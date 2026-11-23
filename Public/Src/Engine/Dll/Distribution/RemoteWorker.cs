@@ -92,6 +92,19 @@ namespace BuildXL.Engine.Distribution
         private readonly TaskSourceSlim<bool> m_attachCompletion = TaskSourceSlim.Create<bool>();
         private readonly CancellationTokenSource m_attachCancellation = new CancellationTokenSource();
         private readonly BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>> m_buildRequests = new BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>>();
+        private readonly BuildRequestBatcher<ValueTuple<PipCompletionTask, SinglePipBuildRequest>> m_buildRequestBatcher = new BuildRequestBatcher<ValueTuple<PipCompletionTask, SinglePipBuildRequest>>();
+        private const long BytesPerMB = 1024 * 1024;
+
+        /// <summary>
+        /// Target size of a build request message, see <see cref="IDistributionConfiguration.GrpcBuildRequestSizeMB"/>.
+        /// </summary>
+        private readonly long m_targetBuildRequestSizeBytes;
+
+        /// <summary>
+        /// Exact number of bytes of the build requests sent to this worker, used to report <see cref="DistributionCounter.BuildRequestMBSentToWorkers"/>.
+        /// Only accessed by the send thread.
+        /// </summary>
+        private long m_buildRequestBytesSent;
         private readonly Thread m_sendThread;
         private readonly IWorkerClient m_workerClient;
         private readonly object m_hashListLock = new object();
@@ -113,7 +126,7 @@ namespace BuildXL.Engine.Distribution
         public override bool EverConnected => m_firstCallCompletion.Task.Status == TaskStatus.RanToCompletion && m_firstCallCompletion.Task.GetAwaiter().GetResult();  
 
         /// <inheritdoc/>
-        public override int WaitingBuildRequestsCount => m_buildRequests.Count;
+        public override int WaitingBuildRequestsCount => m_buildRequests.Count + m_buildRequestBatcher.DeferredCount;
 
         /// <inheritdoc/>
         public override int CurrentBatchSize => m_currentBatchSize;
@@ -175,6 +188,7 @@ namespace BuildXL.Engine.Distribution
                 Grpc.GrpcEncryptionSettings.Create(config));
 
             m_runningInfra = config.Infra;
+            m_targetBuildRequestSizeBytes = config.Distribution.GrpcBuildRequestSizeMB * BytesPerMB;
             if (serviceLocation != null)
             {
                 // It's importat to use the setter,
@@ -203,17 +217,23 @@ namespace BuildXL.Engine.Distribution
             // That's why, the orchestrator waits for the workers to be available until it is done executing all pips.
             m_attachOrSchedulerCompletionTask.Wait();
 
-            ValueTuple<PipCompletionTask, SinglePipBuildRequest> firstItem;
-            while (!m_buildRequests.IsCompleted)
+            List<ValueTuple<PipCompletionTask, SinglePipBuildRequest>> batch = m_buildRequestBatcher.Batch;
+            while (m_buildRequestBatcher.HasDeferred || !m_buildRequests.IsCompleted)
             {
-                try
+                // Build requests deferred from the previous batch because of its size go first, without waiting for new build requests.
+                m_buildRequestBatcher.StartBatch(MaxMessagesPerBatch);
+
+                if (batch.Count == 0)
                 {
-                    firstItem = m_buildRequests.Take();
-                }
-                catch (InvalidOperationException)
-                {
-                    // m_buildRequests has drained and been completed.
-                    break;
+                    try
+                    {
+                        batch.Add(m_buildRequests.Take());
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // m_buildRequests has drained and been completed.
+                        break;
+                    }
                 }
 
                 using (m_orchestratorService.Counters.StartStopwatch(DistributionCounter.RemoteWorker_PrepareAndSendBuildRequestsDuration))
@@ -222,44 +242,57 @@ namespace BuildXL.Engine.Distribution
                     m_buildRequestList.Clear();
                     m_hashList.Clear();
 
-                    m_pipCompletionTaskList.Add(firstItem.Item1);
-                    m_buildRequestList.Add(firstItem.Item2);
-
                     try
                     {
-                        while (m_buildRequestList.Count < MaxMessagesPerBatch && m_buildRequests.TryTake(out var item, EngineEnvironmentSettings.RemoteWorkerSendBuildRequestTimeoutMs.Value ?? 0))
+                        while (batch.Count < MaxMessagesPerBatch && m_buildRequests.TryTake(out var item, EngineEnvironmentSettings.RemoteWorkerSendBuildRequestTimeoutMs.Value ?? 0))
                         {
-                            m_pipCompletionTaskList.Add(item.Item1);
-                            m_buildRequestList.Add(item.Item2);
+                            batch.Add(item);
                         }
                     }
                     catch (Exception e)
                     {
                         // We might have disconnected the worker. We should check the loop condition (buildRequests.IsCompleted) again.
+                        populateBatchLists(batch);
                         failRemotePips($"Exception occurred when sending the pip build request: {e}");
                         continue;
                     }
 
                     if (!EverAvailable || m_isConnectionLost)
                     {
+                        populateBatchLists(batch);
                         failRemotePips($"No connection to the worker. Ever available: {EverAvailable}");
                         continue;
                     }
 
+                    int numDeferred;
                     using (m_orchestratorService.Counters.StartStopwatch(DistributionCounter.RemoteWorker_ExtractHashesDuration))
                     {
-                        Parallel.For(0, m_pipCompletionTaskList.Count, (i) =>
-                        {
-                            var task = m_pipCompletionTaskList[i];
+                        // Keep the message within IDistributionConfiguration.GrpcBuildRequestSizeMB (see that setting for details):
+                        // only the admitted pips get their hashes extracted and are sent in this message, the rest are deferred to the next one.
+                        numDeferred = m_buildRequestBatcher.SelectBySize(
+                            canDefer: item => RequiresHashes(item.Item1.RunnablePip.Step),
+                            prepare: item =>
+                            {
+                                var task = item.Item1;
+                                long hashesByteSize = ExtractHashes(task.RunnablePip, m_hashList);
 
-                            long hashesByteSize = ExtractHashes(task.RunnablePip, m_hashList);
+                                // Record the full serialized size this pip contributes to the PipBuildRequest: its hashes plus
+                                // its own SinglePipBuildRequest entry (payload + repeated-field tag).
+                                task.BuildRequestByteSize = hashesByteSize
+                                    + CodedOutputStream.ComputeMessageSize(item.Item2)
+                                    + s_pipBuildRequestPipsTagSize;
 
-                            // Record the full serialized size this pip contributes to the PipBuildRequest: its hashes plus
-                            // its own SinglePipBuildRequest entry (payload + repeated-field tag).
-                            task.BuildRequestByteSize = hashesByteSize
-                                + CodedOutputStream.ComputeMessageSize(m_buildRequestList[i])
-                                + s_pipBuildRequestPipsTagSize;
-                        });
+                                return task.BuildRequestByteSize;
+                            },
+                            targetBytes: m_targetBuildRequestSizeBytes);
+                    }
+
+                    populateBatchLists(batch);
+
+                    if (numDeferred > 0)
+                    {
+                        m_orchestratorService.Counters.IncrementCounter(DistributionCounter.BuildRequestBatchesLimitedBySize);
+                        m_orchestratorService.Counters.AddToCounter(DistributionCounter.PipsDeferredDueToBuildRequestSize, numDeferred);
                     }
 
                     m_currentBatchSize = m_pipCompletionTaskList.Count;
@@ -285,7 +318,7 @@ namespace BuildXL.Engine.Distribution
                     var pipRequest = new PipBuildRequest();
                     pipRequest.Pips.AddRange(m_buildRequestList);
                     pipRequest.Hashes.AddRange(m_hashList);
-                    string description = getExecuteDescription();
+                    string description = getExecuteDescription(totalBuildRequestByteSize);
 
                     RpcCallResult<Unit> callResult;
 
@@ -303,6 +336,7 @@ namespace BuildXL.Engine.Distribution
                     {
                         m_orchestratorService.Counters.IncrementCounter(DistributionCounter.BuildRequestBatchesSentToWorkers);
                         m_orchestratorService.Counters.AddToCounter(DistributionCounter.HashesSentToWorkers, m_hashList.Count);
+                        reportBytesSent(totalBuildRequestByteSize);
                         m_orchestratorService.Counters.AddToCounter(DistributionCounter.TotalGrpcDurationMs, (long)sendDuration.TotalMilliseconds);
 
                         foreach (var task in m_pipCompletionTaskList)
@@ -310,6 +344,30 @@ namespace BuildXL.Engine.Distribution
                             task.SetRequestDuration(dateTimeBeforeSend, sendDuration);
                         }
                     }
+                }
+            }
+
+            void populateBatchLists(List<ValueTuple<PipCompletionTask, SinglePipBuildRequest>> items)
+            {
+                m_pipCompletionTaskList.Clear();
+                m_buildRequestList.Clear();
+
+                foreach (var item in items)
+                {
+                    m_pipCompletionTaskList.Add(item.Item1);
+                    m_buildRequestList.Add(item.Item2);
+                }
+            }
+
+            void reportBytesSent(long byteSize)
+            {
+                // A message can be much smaller than 1 MB, so accumulate the exact bytes and only report whole MBs.
+                long previousMB = m_buildRequestBytesSent / BytesPerMB;
+                m_buildRequestBytesSent += byteSize;
+                long sentMB = m_buildRequestBytesSent / BytesPerMB - previousMB;
+                if (sentMB > 0)
+                {
+                    m_orchestratorService.Counters.AddToCounter(DistributionCounter.BuildRequestMBSentToWorkers, sentMB);
                 }
             }
 
@@ -355,14 +413,14 @@ namespace BuildXL.Engine.Distribution
                 m_orchestratorService.Counters.IncrementCounter(DistributionCounter.BuildRequestBatchesExceededSizeLimit);
             }
 
-            string getExecuteDescription()
+            string getExecuteDescription(long byteSize)
             {
                 using (var sbPool = Pools.GetStringBuilder())
                 {
                     var sb = sbPool.Instance;
 
                     sb.Append("ExecutePips: ");
-                    sb.Append($"{m_pipCompletionTaskList.Count} pips, {m_hashList.Count} file hashes, ");
+                    sb.Append($"{m_pipCompletionTaskList.Count} pips, {m_hashList.Count} file hashes, {byteSize} bytes, ");
                     foreach (var pipCompletionTask in m_pipCompletionTaskList)
                     {
                         sb.AppendFormat(CultureInfo.InvariantCulture, "{0:X16} ", pipCompletionTask.Pip.SemiStableHash);
@@ -931,24 +989,29 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
+        /// <summary>
+        /// Whether a build request for a pip in the given step carries the hashes of the files that the worker needs.
+        /// </summary>
+        private static bool RequiresHashes(PipExecutionStep step) => IsMaterializingOutputs(step)
+            || step == PipExecutionStep.MaterializeInputs
+            || step == PipExecutionStep.CacheLookup
+            || step == PipExecutionStep.ExecuteNonProcessPip;
+
+        // In the case of fire-and-forget MaterializeOutputs the pip can transition to HandleResult or Done
+        // before it is actually sent to the worker, so we can observe these steps here
+        private static bool IsMaterializingOutputs(PipExecutionStep step) => step == PipExecutionStep.MaterializeOutputs
+            || step == PipExecutionStep.HandleResult
+            || step == PipExecutionStep.Done;
+
         private long ExtractHashes(RunnablePip runnable, List<FileArtifactKeyedHash> hashes)
         {
             var step = runnable.Step;
 
             bool enableDistributedSourceHashing = Environment.Configuration.EnableDistributedSourceHashing();
 
-            // In the case of fire-and-forget MaterializeOutputs the pip can transition to HandleResult or Done
-            // before it is actually sent to the worker, so we can observe these steps here
-            bool materializingOutputs = step == PipExecutionStep.MaterializeOutputs
-                || step == PipExecutionStep.HandleResult
-                || step == PipExecutionStep.Done;
-                
-            bool requiresHashes = materializingOutputs
-                || step == PipExecutionStep.MaterializeInputs
-                || step == PipExecutionStep.CacheLookup
-                || step == PipExecutionStep.ExecuteNonProcessPip;
+            bool materializingOutputs = IsMaterializingOutputs(step);
 
-            if (!requiresHashes)
+            if (!RequiresHashes(step))
             {
                 return 0;
             }

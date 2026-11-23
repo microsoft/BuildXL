@@ -49,6 +49,8 @@ After transitioning to the `Running` state the `RemoteWorker` starts the thread 
 
 - Both the build requests (from the orchestrator to a worker) and the build results (from worker to orchestrator) are queued and sent in batches to the corresponding endpoint. 
 
+- A batch of build requests is a single gRPC message, whose size is dominated by the input hashes rather than by the number of pips. A batch is closed when it reaches `MaxMessagesPerBatch` pips (default 1000, set with `/p:MaxMessagesPerBatch=<number>`) or, approximately, the size given by `/grpcBuildRequestSizeMB:<number>` (default 4 MB; 0 disables this limit). Pips that do not fit are deferred to the next batch without extracting their hashes. The first pip of a batch and the pips that carry no hashes are always sent. A single pip whose request exceeds `MaxBuildRequestSizeBytes` (about 2 GB) cannot be sent and runs on the orchestrator instead. The `BuildRequestMBSentToWorkers`, `BuildRequestBatchesLimitedBySize` and `PipsDeferredDueToBuildRequestSize` counters in `BuildXL.stats` describe the sent messages.
+
 - The [binary execution log](How-To-Run-BuildXL/Log-Files/BuildXL.xlg.md) is constantly funneled (alongside the pip results) from every worker to the orchestrator, which coalesces the information into the single execution log for the build. 
 
 - The scheduler running in a worker doesn't do any actual "scheduling" besides managing concurrency and resource utilization. It just receives the specific steps to queue for execution from the WorkerService.

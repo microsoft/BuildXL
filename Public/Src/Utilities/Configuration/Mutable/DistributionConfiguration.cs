@@ -24,6 +24,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EarlyWorkerRelease = true;
             VerifySourceFilesOnWorkers = false; // TODO: For testing purposes, this is going to be disabled by default. Update in the future to be enabled by default
             MaxRetryLimitOnRemoteWorkers = 3;
+            GrpcBuildRequestSizeMB = 4;
         }
 
         /// <nodoc />
@@ -45,6 +46,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EarlyWorkerRelease = template.EarlyWorkerRelease;
             EarlyWorkerReleaseMultiplier = template.EarlyWorkerReleaseMultiplier;
             MaxRetryLimitOnRemoteWorkers = template.MaxRetryLimitOnRemoteWorkers;
+            GrpcBuildRequestSizeMB = template.GrpcBuildRequestSizeMB;
             VerifySourceFilesOnWorkers = template.VerifySourceFilesOnWorkers;
             EnableDistributedSourceHashing = template.EnableDistributedSourceHashing;
             GrpcCertificateSubjectName = template.GrpcCertificateSubjectName;
@@ -99,6 +101,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int MaxRetryLimitOnRemoteWorkers { get; set; }
+
+        /// <inheritdoc />
+        public int GrpcBuildRequestSizeMB { get; set; }
 
         /// <inheritdoc />
         public bool VerifySourceFilesOnWorkers { get; set; }

@@ -531,6 +531,9 @@ namespace BuildXL
                             "graphSemistableFingerprint",
                             opt => schedulingConfiguration.GraphSemistableFingerprint = CommandLineUtilities.ParseStringOption(opt)),
                         OptionHandlerFactory.CreateOption(
+                            "grpcBuildRequestSizeMB",
+                            opt => distributionConfiguration.GrpcBuildRequestSizeMB = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
                             "grpcCertificateSubjectName",
                             opt => distributionConfiguration.GrpcCertificateSubjectName = opt.Value),
                         OptionHandlerFactory.CreateBoolOption(

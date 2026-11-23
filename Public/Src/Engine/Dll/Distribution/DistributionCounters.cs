@@ -164,6 +164,27 @@ namespace BuildXL.Engine.Distribution
         /// <nodoc/>
         PipsForcedToRunOnOrchestratorDueToBuildRequestSize,
 
+        /// <summary>
+        /// Total serialized size, in MB (1 MB = 1024 * 1024 bytes), of the PipBuildRequest messages successfully sent to the workers.
+        /// </summary>
+        /// <remarks>
+        /// Each remote worker accumulates the exact number of bytes it sends and adds whole MBs to this counter, so the total
+        /// is rounded down by less than 1 MB per worker.
+        /// </remarks>
+        BuildRequestMBSentToWorkers,
+
+        /// <summary>
+        /// Number of PipBuildRequest batches in which some pips were deferred to the next batch because the batch
+        /// reached <see cref="BuildXL.Utilities.Configuration.IDistributionConfiguration.GrpcBuildRequestSizeMB"/>.
+        /// </summary>
+        BuildRequestBatchesLimitedBySize,
+
+        /// <summary>
+        /// Number of times a pip build request was deferred to the next batch because the batch reached
+        /// <see cref="BuildXL.Utilities.Configuration.IDistributionConfiguration.GrpcBuildRequestSizeMB"/>.
+        /// </summary>
+        PipsDeferredDueToBuildRequestSize,
+
         /// <nodoc/>
         HashesSentToWorkers,
 

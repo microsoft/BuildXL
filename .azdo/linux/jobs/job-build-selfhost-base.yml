@@ -116,11 +116,11 @@ jobs:
           1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64)
           VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
 
-    ${{ if parameters.publishTestResults }}:
-      postBuildSteps:
-      - ${{ each step in parameters.postBuildSteps }}:
-        - ${{ step }}
+    postBuildSteps:
+    - ${{ each step in parameters.postBuildSteps }}:
+      - ${{ step }}
 
+    - ${{ if parameters.publishTestResults }}:
       - task: PublishTestResults@2
         displayName: Publish Test Results
         inputs:

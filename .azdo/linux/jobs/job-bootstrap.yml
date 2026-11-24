@@ -20,6 +20,26 @@ jobs:
     pool: ${{ parameters.pool }}
     sdkVersion: ${{ parameters.sdkVersion }}
     preBuildSteps: ${{ parameters.preBuildSteps }}
+
+    postBuildSteps:
+    - bash: |
+        set -euo pipefail
+        # These daemon binaries aren't currently used by downstream PR validation jobs.
+        # Delete them to speed up artifact transfer; stop deleting them if downstream validation starts using them.
+        # Keep the Sdk.Drop specs: other in-box SDKs (e.g., Sdk.CloudTestClient) import the module during evaluation.
+        dev="$(Build.SourcesDirectory)/Out/Selfhost/Dev"
+        rm -r -- "$dev/Sdk/Sdk.Drop/bin" "$dev/Sdk/Daemon.Bin"
+
+        # The engine hashes every file listed in its deployment manifests at startup, so remove the deleted entries too.
+        for manifest in "$dev/BuildXL.Deployment.manifest" "$dev/BuildXL.ServerDeployment.manifest"; do
+          grep -Ev '^Sdk[/\\](Sdk\.Drop[/\\]bin|Daemon\.Bin)[/\\]' "$manifest" > "$manifest.tmp" || [ $? -eq 1 ]
+          mv -- "$manifest.tmp" "$manifest"
+          if grep -Eq 'Sdk[/\\](Sdk\.Drop[/\\]bin|Daemon\.Bin)[/\\]' "$manifest"; then
+            echo "##[error]Unexpected daemon entries remain in $manifest"
+            exit 1
+          fi
+        done
+      displayName: Remove unused daemons from bootstrap artifact
     
     outputs:
     - output: pipelineArtifact

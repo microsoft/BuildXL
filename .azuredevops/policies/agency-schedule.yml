@@ -1,0 +1,22 @@
+# metadata
+name: Agency schedules configuration
+description: Daily dependency update checks for BuildXL
+
+# filters
+resource: repository
+
+# primitive configuration
+configuration:
+    agencySchedules:
+    # 11 a.m. Pacific catches .NET Patch Tuesday releases, which usually publish around 10 a.m. Pacific.
+    - name: "daily-dependency-updates"
+      schedule:
+          cron: "0 11 * * *"
+          timezone: "America/Los_Angeles"
+      identity:
+          clientId: "18f20561-89f1-4aba-99ad-c46ba5d9a97b"
+      job:
+          agent:
+              name: "dependency-updates"
+              type: Repo
+          prompt: "Check every dependency update group defined in your instructions and open a separate pull request for each group that needs an update."

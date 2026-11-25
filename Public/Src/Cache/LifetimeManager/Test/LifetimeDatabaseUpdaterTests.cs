@@ -42,7 +42,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                 async (topology, session, namespaceId, secretsProvider) =>
                 {
                     using var temp = new DisposableDirectory(PassThroughFileSystem.Default);
-                    var db = RocksDbLifetimeDatabase.Create(
+                    using var db = RocksDbLifetimeDatabase.Create(
                         new RocksDbLifetimeDatabase.Configuration
                         {
                             BlobNamespaceIds = new List<BlobNamespaceId> { namespaceId },

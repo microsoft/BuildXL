@@ -263,6 +263,8 @@ namespace BuildXL.Engine.Tracing
 
         FailedReloadPipGraph = 2986,
         InputTrackerDetectedMountChanged = 2987,
+        MountsWithSameName = 2988,
+        MountsWithSamePath = 2989,
 
 
         // Critical Path Suggestions

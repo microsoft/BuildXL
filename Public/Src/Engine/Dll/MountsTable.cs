@@ -40,6 +40,10 @@ namespace BuildXL.Engine
         private readonly ConcurrentDictionary<IMount, PathAtom> m_mountPathIdentifiersByMount;
         private readonly ConcurrentDictionary<AbsolutePath, IMount> m_alternativeRoots;
 
+        // Effective registration locations; accessed only under m_mountRegistrationLock.
+        private readonly Dictionary<IMount, LocationData> m_mountLocations;
+        private readonly System.Threading.Lock m_mountRegistrationLock = new();
+
         private readonly MountsTable m_parent;
 
         private bool m_mountAdditionError;
@@ -65,6 +69,7 @@ namespace BuildXL.Engine
             m_mountsByName = new ConcurrentDictionary<string, IMount>(StringComparer.OrdinalIgnoreCase);
             m_mountPathIdentifiersByMount = new ConcurrentDictionary<IMount, PathAtom>();
             m_alternativeRoots = new ConcurrentDictionary<AbsolutePath, IMount>();
+            m_mountLocations = new Dictionary<IMount, LocationData>();
             m_moduleDefinedMounts = new ConcurrentBigSet<IMount>();
         }
 
@@ -283,12 +288,56 @@ namespace BuildXL.Engine
                 return;
             }
 
-            if (m_mountPathIdentifiersByMount.TryAdd(mount, mount.Name))
+            // Concurrent dictionaries protect individual operations, not the combined conflict checks and updates.
+            // Serialize registration so concurrent mounts cannot both miss a duplicate name or leave the indexes and locations inconsistent.
+            lock (m_mountRegistrationLock)
             {
+                if (m_mountPathIdentifiersByMount.ContainsKey(mount))
+                {
+                    return;
+                }
+
+                // Same-named mounts at different roots would otherwise crash when the mount path expander is built.
                 string mountName = mount.Name.ToString(m_context.StringTable);
+                if (m_mountsByName.TryGetValue(mountName, out var existingMount) && existingMount.Path != mount.Path)
+                {
+                    LogDuplicateMountName(mount, location, existingMount);
+                    m_mountAdditionError = true;
+                    return;
+                }
+
+                // Mounts sharing a root have always been accepted with last-registration-wins semantics. Warn about
+                // conflicting settings so this can be promoted to an error once existing configurations are clean.
+                if (m_mountMapBuilder.TryGetValue(mount.Path, out var existingMountAtPath) && !CanShareMountPath(existingMountAtPath, mount))
+                {
+                    LogConflictingMountAtSamePath(mount, location, existingMountAtPath);
+                }
+
+                m_mountPathIdentifiersByMount.TryAdd(mount, mount.Name);
+                m_mountLocations[mount] = location;
                 m_mountsByName[mountName] = mount;
                 m_mountMapBuilder[mount.Path] = mount;
             }
+        }
+
+        private bool CanShareMountPath(IMount existingMount, IMount mount)
+        {
+            // Static aliases and configuration-to-module overrides are expected; other aliases should have matching settings.
+            return existingMount.IsStatic ||
+                mount.IsStatic ||
+                HaveSameMountProperties(existingMount, mount) ||
+                m_moduleDefinedMounts.Contains(existingMount) != m_moduleDefinedMounts.Contains(mount);
+        }
+
+        private static bool HaveSameMountProperties(IMount firstMount, IMount secondMount)
+        {
+            return firstMount.TrackSourceFileChanges == secondMount.TrackSourceFileChanges &&
+                firstMount.IsWritable == secondMount.IsWritable &&
+                firstMount.IsReadable == secondMount.IsReadable &&
+                firstMount.IsSystem == secondMount.IsSystem &&
+                firstMount.IsStatic == secondMount.IsStatic &&
+                firstMount.IsScrubbable == secondMount.IsScrubbable &&
+                firstMount.AllowCreateDirectory == secondMount.AllowCreateDirectory;
         }
 
         /// <summary>
@@ -704,6 +753,46 @@ namespace BuildXL.Engine
                     m_context.PathTable,
                     parentMount.Location,
                     childMount.Location);
+        }
+
+        private void LogDuplicateMountName(IMount mount, LocationData location, IMount existingMount)
+        {
+            var existingLocation = m_mountLocations[existingMount];
+            Logger.Log.MountsWithSameName(
+                m_loggingContext,
+                location.Path.ToString(m_context.PathTable),
+                location.Line,
+                location.Position,
+                mount.Name.ToString(m_context.StringTable),
+                mount.Path.ToString(m_context.PathTable),
+                existingMount.Name.ToString(m_context.StringTable),
+                existingMount.Path.ToString(m_context.PathTable),
+                existingLocation.Path.ToString(m_context.PathTable),
+                existingLocation.Line,
+                existingLocation.Position);
+
+            Events.LogRelatedLocation(
+                m_loggingContext,
+                Logger.Log.ErrorRelatedLocation,
+                m_context.PathTable,
+                existingLocation,
+                location);
+        }
+
+        private void LogConflictingMountAtSamePath(IMount mount, LocationData location, IMount existingMount)
+        {
+            var existingLocation = m_mountLocations[existingMount];
+            Logger.Log.MountsWithSamePath(
+                m_loggingContext,
+                location.Path.ToString(m_context.PathTable),
+                location.Line,
+                location.Position,
+                mount.Name.ToString(m_context.StringTable),
+                mount.Path.ToString(m_context.PathTable),
+                existingMount.Name.ToString(m_context.StringTable),
+                existingLocation.Path.ToString(m_context.PathTable),
+                existingLocation.Line,
+                existingLocation.Position);
         }
 
         private delegate void RelatedMountLogEventError(

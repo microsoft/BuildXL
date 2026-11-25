@@ -2206,6 +2206,24 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void MountHasInvalidPath(LoggingContext context, string file, int line, int column, string name);
 
         [GeneratedEvent(
+            (int)LogEventId.MountsWithSameName,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Engine,
+            Message = "Mount named '{childMountName}' rooted at '{childMountRoot}' has the same name as mount '{parentMountName}' rooted at '{parentMountRoot}'. Mount names must be unique. The first mount was declared in file '{parentMountFile}' on line '{parentMountLine}' at column '{parentMountColumn}'.")]
+        public abstract void MountsWithSameName(LoggingContext context, string file, int line, int column, string childMountName, string childMountRoot, string parentMountName, string parentMountRoot, string parentMountFile, int parentMountLine, int parentMountColumn);
+
+        [GeneratedEvent(
+            (int)LogEventId.MountsWithSamePath,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Mount named '{childMountName}' has the same root '{mountRoot}' as mount '{parentMountName}', but their settings differ. The last-registered mount determines the settings for this root. This may become an error in a future release. The first mount was declared in file '{parentMountFile}' on line '{parentMountLine}' at column '{parentMountColumn}'.")]
+        public abstract void MountsWithSamePath(LoggingContext context, string file, int line, int column, string childMountName, string mountRoot, string parentMountName, string parentMountFile, int parentMountLine, int parentMountColumn);
+
+        [GeneratedEvent(
             (int)LogEventId.CleaningStarted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,

@@ -26,6 +26,7 @@ jobs:
     publishTestResults: true
     pool: ${{ parameters.pool }}
     sdkVersion: ${{ parameters.sdkVersion }}
+    logsArtifactName: BuildXL logs ExternalRelease${{ parameters.suffix }}
     
     outputs:
     - output: pipelineArtifact

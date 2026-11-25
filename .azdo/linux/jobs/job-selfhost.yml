@@ -9,6 +9,10 @@ parameters:
   type: string
   default: '9.x'
 
+- name: suffix
+  type: string
+  default: ''
+
 # Pre-build steps, including downloading BuildXL if needed
 - name: preBuildSteps
   type: stepList
@@ -22,6 +26,7 @@ jobs:
     publishTestResults: true
     pool: ${{ parameters.pool }}
     sdkVersion: ${{ parameters.sdkVersion }}
+    logsArtifactName: BuildXL logs InternalRelease${{ parameters.suffix }}
     distribution:
       enabled: true
       workerCount: 1

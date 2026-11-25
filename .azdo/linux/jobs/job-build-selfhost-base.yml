@@ -58,6 +58,12 @@ parameters:
 - name: sdkVersion
   type: string
 
+# When set, BuildXL uploads its logs to this build artifact during the build, and the workflow's log upload runs only if it did not
+# or the job failed.
+- name: logsArtifactName
+  type: string
+  default: ''
+
 jobs:
 - job: Selfhost_${{ parameters.validationName }}
   displayName: Build and Validate Selfhost (${{ parameters.validationName }})
@@ -107,7 +113,13 @@ jobs:
       ${{ else }}:
         arguments: ${{ parameters.buildXLArguments }}
       displayName: ${{ parameters.validationName }}
+      ${{ if ne(parameters.logsArtifactName, '') }}:
+        # The workflow uploads the parent of BuildXL's logs directory, which also holds the graph files and execution log parts.
+        # The agent fails the BuildXL step if one of BuildXL's uploads fails, so the workflow's upload also runs when the job failed.
+        logUploadCondition: or(failed(), ne(variables['BuildXLLogsArtifactUploaded'], '${{ parameters.logsArtifactName }}'))
       env:
+        ${{ if ne(parameters.logsArtifactName, '') }}:
+          BUILDXL_LOGS_ARTIFACT_NAME: ${{ parameters.logsArtifactName }}
         ${{ if eq(parameters.internal, true) }}:
           PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)
           PATCloudBuild: $(BuildXL-Pipeline-AccessToken)

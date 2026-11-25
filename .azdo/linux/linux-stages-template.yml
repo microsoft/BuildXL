@@ -92,6 +92,7 @@ stages:
       BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }} ${{ parameters.BxlExtraArgs }}
       pool: ${{ parameters.pool }}
       sdkVersion: ${{ parameters.sdkVersion }}
+      suffix: ${{ parameters.suffix }}
       preBuildSteps:
       - ${{ each step in parameters.preBuildSteps }}:
         - ${{ step }}

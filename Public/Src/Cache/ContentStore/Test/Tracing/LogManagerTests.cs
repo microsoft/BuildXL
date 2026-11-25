@@ -88,6 +88,26 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
         }
 
         [Fact]
+        public void DisplayNameDoesNotChangeConfigurationKey()
+        {
+            var manager = new LogManager().Update(new LogManagerConfiguration()
+            {
+                Logs = new Dictionary<string, OperationLoggingConfiguration>()
+                {
+                    ["FullComponent.MyOp"] = new OperationLoggingConfiguration() { Disabled = true }
+                }
+            });
+            var tracer = new Tracer("FullComponent", manager, displayName: "ShortComponent");
+            var context = new Context(TestGlobal.Logger);
+            var message = Guid.NewGuid().ToString();
+
+            tracer.Debug(context, message, operation: "MyOp");
+            GetFullOutput().Should().NotContain(message);
+            tracer.Debug(context, message, operation: "OtherOp");
+            GetFullOutput().Should().Contain(message);
+        }
+
+        [Fact]
         public void NotTraceIfDisabled()
         {
             var verboseOperationLogging = new OperationLoggingConfiguration()

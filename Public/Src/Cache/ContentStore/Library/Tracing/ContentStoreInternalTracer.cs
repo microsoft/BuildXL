@@ -76,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         private readonly TimeSpan _longOperationDurationThreshold;
 
         public ContentStoreInternalTracer(ContentStoreSettings? settings, AbsolutePath rootPath)
-            : base($"{FileSystemContentStoreInternal.Component}({rootPath})")
+            : base($"{FileSystemContentStoreInternal.Component}({rootPath})", $"FsStore({rootPath})")
         {
             CallCounters.Add(_createHardLinkCallCounter = new CallCounter(CreateHardLinkCallName));
             CallCounters.Add(_placeFileCopyCallCounter = new CallCounter(PlaceFileCopyCallName));
@@ -384,7 +384,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
 
             var ms = (long)duration.TotalMilliseconds;
-            TraceDiagnostic(context, $"{Name}.PlaceFileCopy({path},{contentHash.ToShortString()}) {ms}ms", TimeSpan.FromMilliseconds(ms), operation: "PlaceFileCopy");
+            TraceDiagnostic(context, $"{DisplayName}.PlaceFileCopy({path},{contentHash.ToShortString()}) {ms}ms", TimeSpan.FromMilliseconds(ms), operation: "PlaceFileCopy");
         }
 
         public void ReconstructDirectory(Context context, TimeSpan duration, long contentCount, long contentSize)

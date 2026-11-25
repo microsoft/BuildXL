@@ -110,7 +110,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public override string ToString()
         {
             return Succeeded
-                ? $"Success Hash={ContentHash.ToShortString()} Size={ContentSize} {nameof(ContentAlreadyExistsInCache)}={ContentAlreadyExistsInCache}{this.GetDiagnosticsMessageForTracing()}"
+                ? $"Success Hash={ContentHash.ToShortString()} Size={ContentSize}{(ContentAlreadyExistsInCache ? " AlreadyExists" : string.Empty)}{this.GetDiagnosticsMessageForTracing()}"
                 : GetErrorString();
         }
 

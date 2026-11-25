@@ -31,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <nodoc />
         public static string GetDiagnosticsMessageForTracing(this ResultBase result, string prefix = " ")
         {
-            if (string.IsNullOrEmpty(result.Diagnostics))
+            if (string.IsNullOrEmpty(result.Diagnostics) || (result.Succeeded && result.Diagnostics == "LockWait=0ms"))
             {
                 return string.Empty;
             }

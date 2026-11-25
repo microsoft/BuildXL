@@ -33,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         private readonly ImplicitPin _implicitPin;
 
         /// <inheritdoc />
-        protected override Tracer Tracer { get; } = new Tracer(nameof(FileSystemContentSession));
+        protected override Tracer Tracer { get; } = new Tracer(nameof(FileSystemContentSession), logManager: null, displayName: "FsSession");
 
         /// <inheritdoc />
         protected override bool TraceErrorsOnly => true; // This type adds nothing in terms of tracing. So configure it to trace errors only.

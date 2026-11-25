@@ -169,7 +169,7 @@ namespace BuildXL.Cache.ContentStore.Logging
             var line = string.Format
                 (
                     CultureInfo.CurrentCulture,
-                    "{0:yyyy-MM-dd HH:mm:ss,fff} {1,3} {2} {3}",
+                    "{0:HH:mm:ss,fff} {1,3} {2} {3}",
                     dateTime,
                     threadId,
                     severityName,

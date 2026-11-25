@@ -50,6 +50,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
         public string Name { get; }
 
         /// <summary>
+        /// Name used in text messages, without changing the configured component identity.
+        /// </summary>
+        public string DisplayName { get; }
+
+        /// <summary>
         /// Number of recoverable errors (i.e. exceptions) occurred during the lifetime of a tracer.
         /// </summary>
         public int NumberOfRecoverableErrors => _numberOfRecoverableErrors;
@@ -60,9 +65,15 @@ namespace BuildXL.Cache.ContentStore.Tracing
         public int NumberOfCriticalErrors => _numberOfCriticalErrors;
 
         public Tracer(string name, LogManager? logManager = null)
+            : this(name, logManager, displayName: null)
+        {
+        }
+
+        public Tracer(string name, LogManager? logManager, string? displayName)
         {
             Contract.Requires(name != null);
             Name = name;
+            DisplayName = displayName ?? name;
             _logManager = logManager ?? LogManager.Instance;
         }
 
@@ -235,7 +246,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (LogOperationStarted && enabled)
             {
-                var message = $"{Name}.{operationName} start.";
+                var message = $"{DisplayName}.{operationName} start.";
                 if (!string.IsNullOrWhiteSpace(additionalInfo))
                 {
                     message = $"{message} {additionalInfo}";
@@ -279,7 +290,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
 
             string resultToString = result.IsCancelled ? "OperationCancelled" : result.ToString();
-            return $"{Name}.{callerName} stop {duration.TotalMilliseconds}ms. result=[{resultToString}].{message}";
+            return $"{DisplayName}.{callerName} {duration.TotalMilliseconds}ms. [{resultToString}].{message}";
         }
 
         /// <summary>

@@ -259,11 +259,18 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <inheritdoc />
         protected override string GetErrorString()
         {
-            if (Error is not null && Code != ResultCode.Error)
+            var error = Error;
+            if (error is not null && Code != ResultCode.Error)
             {
+                var code = Code.ToString();
+                if (error.ErrorMessage == code && error.Exception is null && string.IsNullOrEmpty(error.Diagnostics))
+                {
+                    return code;
+                }
+
                 // Its possible that the operation failed but the code is not error.
                 // For instance, the copy may fail and the resulting error code in some cases can be 'NotPlacedContentNotFound'.
-                return $"{Code} {Error}";
+                return $"{code} {error}";
             }
 
             return base.GetErrorString();

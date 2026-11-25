@@ -46,7 +46,12 @@ namespace BuildXL.Cache.ContentStore.Tracing
         private readonly Counter _pinBulkFileCountCounter;
 
         public ContentSessionTracer(string name)
-            : base(name)
+            : this(name, displayName: null)
+        {
+        }
+
+        public ContentSessionTracer(string name, string? displayName)
+            : base(name, logManager: null, displayName: displayName)
         {
             CallCounters.Add(_getStatsCallCounter = new CallCounter(GetStatsCallName));
             CallCounters.Add(_pinCallCounter = new CallCounter(PinCallName));
@@ -100,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (context.IsEnabled)
             {
-                TracerOperationFinished(context, result, $"{Name}.{PinCallName} stop {result.DurationMs}ms input=[{input.ToShortString()}] result=[{result}]");
+                TracerOperationFinished(context, result, $"{DisplayName}.{PinCallName} {result.DurationMs}ms input=[{input.ToShortString()}] [{result}]");
             }
 
             _pinCallCounter.Completed(result.Duration.Ticks);
@@ -118,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (context.IsEnabled)
             {
-                Debug(context, $"{Name}.{PinBulkCallName}({results.Count}) results:[{string.Join(",", results.Select((result, index) => $"{contentHashes[index].ToShortString()}={result}"))}]");
+                Debug(context, $"{DisplayName}.{PinBulkCallName}({results.Count}) results:[{string.Join(",", results.Select((result, index) => $"{contentHashes[index].ToShortString()}={result}"))}]");
             }
         }
 
@@ -142,13 +147,13 @@ namespace BuildXL.Cache.ContentStore.Tracing
                     // Trace successful case differently when the pins were restored at startup by reading hibernated sessions.
                     if (pinBulkOptions.RePinFromHibernation)
                     {
-                        TracerOperationFinished(context, BoolResult.Success, $"{Name}.{PinBulkCallName}() stop by {duration.TotalMilliseconds}ms for {count} hash(es). FromHibernation=True.");
+                        TracerOperationFinished(context, BoolResult.Success, $"{DisplayName}.{PinBulkCallName}() stop by {duration.TotalMilliseconds}ms for {count} hash(es). FromHibernation=True.");
                     }
                     else
                     {
                         // Regular successful case
                         TraceBulk(
-                            $"{Name}.{PinBulkCallName}() stop by {duration.TotalMilliseconds}ms for {count} hash(es). Result={pinStatus}. ",
+                            $"{DisplayName}.{PinBulkCallName}() stop by {duration.TotalMilliseconds}ms for {count} hash(es). Result={pinStatus}. ",
                             results.Select((result, index) => (result, hash: contentHashes[index])),
                             contentHashes.Count,
                             itemPrinter: tpl => $"{tpl.hash.ToShortString()}={tpl.result.Item}",
@@ -158,10 +163,10 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 else if (pinStatus == Error)
                 {
                     // An actual failure case.
-                    this.Error(context, $"{Name}.{PinBulkCallName}() stop by {duration.TotalMilliseconds}ms for {count} hash(es). Error={error}");
+                    this.Error(context, $"{DisplayName}.{PinBulkCallName}() stop by {duration.TotalMilliseconds}ms for {count} hash(es). Error={error}");
 
                     TraceBulk(
-                        $"{Name}.{PinBulkCallName}() failed for hashes",
+                        $"{DisplayName}.{PinBulkCallName}() failed for hashes",
                         results.Select((result, index) => (result, hash: contentHashes[index])),
                         contentHashes.Count,
                         itemPrinter: tpl => $"{tpl.hash}={tpl.result.Item}",
@@ -187,7 +192,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 TracerOperationFinished(
                     context,
                     result,
-                    $"{Name}.{OpenStreamCallName} stop {result.DurationMs}ms input=[{contentHash.ToShortString()}] result=[{result}]",
+                    $"{DisplayName}.{OpenStreamCallName} {result.DurationMs}ms input=[{contentHash.ToShortString()}] [{result}]",
                     successSeverity);
             }
 
@@ -213,7 +218,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 TracerOperationFinished(
                     context,
                     result,
-                    $"{Name}.{PlaceFileCallName}({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode}) stop {result.DurationMs}ms result=[{result}]",
+                    $"{DisplayName}.{PlaceFileCallName}({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode}) {result.DurationMs}ms [{result}]",
                     successSeverity);
             }
 
@@ -239,7 +244,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 TracerOperationFinished(
                     context,
                     result,
-                    $"{Name}.{PutFileCallName}({path},{mode},{result.ContentHash.HashType}) stop {result.DurationMs}ms result=[{result}] trusted={trusted}",
+                    $"{DisplayName}.{PutFileCallName}({path},{mode},{result.ContentHash.HashType}) {result.DurationMs}ms [{result}]{(trusted ? " trusted=True" : string.Empty)}",
                     successSeverity);
             }
 
@@ -265,7 +270,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 TracerOperationFinished(
                     context,
                     result,
-                    $"{Name}.{PutStreamCallName} stop {result.DurationMs}ms result=[{result}]",
+                    $"{DisplayName}.{PutStreamCallName} {result.DurationMs}ms [{result}]",
                     successSeverity);
             }
 

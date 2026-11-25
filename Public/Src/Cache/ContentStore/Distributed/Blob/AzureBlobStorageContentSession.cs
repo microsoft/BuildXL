@@ -57,7 +57,7 @@ public sealed class AzureBlobStorageContentSession : RecoverableContentSessionBa
     }
 
     /// <inheritdoc />
-    protected override Tracer Tracer { get; } = new(nameof(AzureBlobStorageContentSession));
+    protected override Tracer Tracer { get; } = new(nameof(AzureBlobStorageContentSession), logManager: null, displayName: "BlobSession");
 
     private readonly AzureBlobStorageContentStoreConfiguration _configuration;
     private readonly Configuration _sessionConfiguration;
@@ -131,7 +131,9 @@ public sealed class AzureBlobStorageContentSession : RecoverableContentSessionBa
                     contentSize: touchResult.Value.contentLength ?? -1);
             },
             traceOperationStarted: false,
-            extraEndMessage: _ => $"ContentHash=[{contentHash.ToShortString()}] BlobPath=[{blobPath.ToString() ?? "UNKNOWN"}]",
+            extraEndMessage: _ => blobPath is null
+                ? $"ContentHash=[{contentHash.ToShortString()}] BlobPath=[UNKNOWN]"
+                : $"BlobPath=[{blobPath}]",
             timeout: _configuration.StorageInteractionTimeout);
     }
 

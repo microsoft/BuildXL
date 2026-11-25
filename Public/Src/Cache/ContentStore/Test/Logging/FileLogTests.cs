@@ -11,6 +11,9 @@ using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -44,6 +47,27 @@ namespace ContentStoreTest.Logging
                 {
                     FileSystem.FileExists(filePath).Should().BeTrue();
                 }
+            }
+        }
+
+        [Fact]
+        public void OperationMessagesUseDisplayName()
+        {
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var filePath = testDirectory.Path / "test.log";
+                using (var log = new FileLog(filePath.Path))
+                using (var logger = new Logger(true, log))
+                {
+                    var context = new Context("id", logger);
+                    var tracer = new Tracer("FullComponent", logManager: null, displayName: "ShortComponent");
+                    tracer.OperationStarted(context, "Operation");
+                    tracer.OperationFinished(context, BoolResult.Success, TimeSpan.FromMilliseconds(12), "detail", "Operation");
+                }
+
+                var text = File.ReadAllText(filePath.Path);
+                text.Should().Contain("ShortComponent.Operation start.");
+                text.Should().Contain("ShortComponent.Operation 12ms. [Success]. detail");
             }
         }
 
@@ -157,6 +181,8 @@ namespace ContentStoreTest.Logging
                         for (var i = 0; i < 12; i++)
                         {
                             log.Write(DateTime.Now, Thread.CurrentThread.ManagedThreadId, Severity.Always, message);
+                            // Rollover checks the underlying stream position, which excludes buffered characters.
+                            log.Flush();
                         }
                     }
 

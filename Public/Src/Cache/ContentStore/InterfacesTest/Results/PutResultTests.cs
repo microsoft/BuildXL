@@ -147,5 +147,19 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
                 new PutResult(ContentHash.Random(), 1).ToString(),
                 StringComparison.OrdinalIgnoreCase);
         }
+
+        [Theory]
+        [InlineData(false, "LockWait=0ms", false, false)]
+        [InlineData(true, "LockWait=3ms", true, true)]
+        public void SuccessTracingOmitsDefaultsButPreservesDiagnostics(bool alreadyExists, string diagnostics, bool containsAlreadyExists, bool containsDiagnostics)
+        {
+            var result = new PutResult(Hash1, 1, alreadyExists);
+            result.SetDiagnosticsForSuccess(diagnostics);
+
+            var text = result.ToString();
+            Assert.Equal(containsAlreadyExists, text.Contains("AlreadyExists"));
+            Assert.Equal(containsDiagnostics, text.Contains(diagnostics));
+            Assert.Equal(diagnostics, result.Diagnostics);
+        }
     }
 }

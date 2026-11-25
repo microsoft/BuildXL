@@ -51,6 +51,19 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
         }
 
         [Fact]
+        public void NotFoundTracingPreservesDistinctErrorDetails()
+        {
+            var code = PlaceFileResult.ResultCode.NotPlacedContentNotFound;
+            Assert.Equal(code.ToString(), new PlaceFileResult(code).ToString());
+            Assert.Equal(code.ToString(), new PlaceFileResult(code, code.ToString()).ToString());
+
+            var detailed = new PlaceFileResult(code, code.ToString(), "details");
+            Assert.Equal($"{code} Error=[{code}], Diagnostics=[details]", detailed.ToString());
+            var otherError = new PlaceFileResult(code, "other error");
+            Assert.Equal($"{code} Error=[other error]", otherError.ToString());
+        }
+
+        [Fact]
         public void ConstructFromResultBase()
         {
             var other = new BoolResult("error");

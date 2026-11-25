@@ -124,6 +124,48 @@ jobs:
       serviceConnection: mseng-Domino-BuildXL-Pipelines
       sbomEnabled: false
 
+    # This separate feed serves the BuildXL binaries as a 1ES Pipeline Templates tool.
+    - ${{ if and(eq(parameters.isRollingBuild, true), eq(parameters.packagePrefix, 'BuildXL')) }}:
+      - output: nuget
+        displayName: 'Push ${{ parameters.packagePrefix }}.win-x64 to 1essharedassets/1ESPipelineTemplates feed'
+        condition: and(or(succeeded(), eq(variables['IsRetryRun'], true)), ne(variables['ServicingOnlyBuild'], 'true'))
+        useVstsNugetPush: true
+        packageParentPath: $(LargePackagesStagingDir)
+        package: $(LargePackagesStagingDir)/${{ parameters.packagePrefix }}.win-x64.$(Build.BuildNumber).nupkg
+        feed: https://1essharedassets.pkgs.visualstudio.com/_packaging/1ESPipelineTemplates/nuget/v3/index.json
+        serviceConnection: BuildXL-1ESPT-Publish
+        sbomEnabled: false
+
+      - output: nuget
+        displayName: 'Push ${{ parameters.packagePrefix }}.osx-x64 to 1essharedassets/1ESPipelineTemplates feed'
+        condition: and(or(succeeded(), eq(variables['IsRetryRun'], true)), ne(variables['ServicingOnlyBuild'], 'true'))
+        useVstsNugetPush: true
+        packageParentPath: $(LargePackagesStagingDir)
+        package: $(LargePackagesStagingDir)/${{ parameters.packagePrefix }}.osx-x64.$(Build.BuildNumber).nupkg
+        feed: https://1essharedassets.pkgs.visualstudio.com/_packaging/1ESPipelineTemplates/nuget/v3/index.json
+        serviceConnection: BuildXL-1ESPT-Publish
+        sbomEnabled: false
+
+      - output: nuget
+        displayName: 'Push ${{ parameters.packagePrefix }}.osx-arm64 to 1essharedassets/1ESPipelineTemplates feed'
+        condition: and(or(succeeded(), eq(variables['IsRetryRun'], true)), ne(variables['ServicingOnlyBuild'], 'true'))
+        useVstsNugetPush: true
+        packageParentPath: $(LargePackagesStagingDir)
+        package: $(LargePackagesStagingDir)/${{ parameters.packagePrefix }}.osx-arm64.$(Build.BuildNumber).nupkg
+        feed: https://1essharedassets.pkgs.visualstudio.com/_packaging/1ESPipelineTemplates/nuget/v3/index.json
+        serviceConnection: BuildXL-1ESPT-Publish
+        sbomEnabled: false
+
+      - output: nuget
+        displayName: 'Push ${{ parameters.packagePrefix }}.linux-x64 to 1essharedassets/1ESPipelineTemplates feed'
+        condition: and(or(succeeded(), eq(variables['IsRetryRun'], true)), ne(variables['ServicingOnlyBuild'], 'true'))
+        useVstsNugetPush: true
+        packageParentPath: $(LargePackagesStagingDir)
+        package: $(LargePackagesStagingDir)/${{ parameters.packagePrefix }}.linux-x64.$(Build.BuildNumber).nupkg
+        feed: https://1essharedassets.pkgs.visualstudio.com/_packaging/1ESPipelineTemplates/nuget/v3/index.json
+        serviceConnection: BuildXL-1ESPT-Publish
+        sbomEnabled: false
+
   steps:
   # Set access token to pull/push artifacts from CB and mseng.
   - template: /.azdo/common/generate-access-token.yml

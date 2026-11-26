@@ -1,6 +1,8 @@
 # See merlinbot doc for details about updating this config:
 # https://eng.ms/docs/products/1es-merlinbot/extensions/prassistant
-enabled: true
+# Disabled: superseded by Agency review (.azuredevops/policies/agency-triggers.yml)
+# and .azuredevops/policies/PullRequestAssistant.yml.
+enabled: false
 onPullRequestCreate:            # List of automated actions to take on a pull request create.
 - prompt: 'copilot: review'     # Perform code review on create of a pull request. 
   autoResolve: false            # Leave code review feedback comments active (not auto-resolved).
